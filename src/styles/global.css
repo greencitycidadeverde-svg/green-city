@@ -387,11 +387,11 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   transform:translateY(-2px); background:linear-gradient(145deg,#285e55,#1e4940);
 }
 .phase-complete-overlay {
-  position:absolute; z-index:30; inset:0; display:grid; place-items:center; padding:24px;
+  position:fixed; z-index:1000; inset:0; display:grid; place-items:center; padding:24px; pointer-events:auto;
   background:rgba(4,17,12,.76); backdrop-filter:blur(8px);
 }
 .phase-complete-panel {
-  width:min(520px,100%); padding:30px; border:1px solid rgba(169,225,161,.45);
+  width:min(560px,100%); position:relative; z-index:1001; padding:30px; border:1px solid rgba(169,225,161,.45);
   border-radius:22px; background:linear-gradient(145deg,#173d2b,#0b2117);
   box-shadow:0 28px 90px rgba(0,0,0,.5); text-align:center;
 }
@@ -427,3 +427,12 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .phase-complete-panel h2 { font-size:23px; }
   .city-map-river { top:48%; height:30px; }
 }
+
+/* 0.4.1: unmistakable phase hand-off overlay */
+.phase-complete-overlay { animation: phase-complete-in .35s ease-out both; }
+.phase-complete-panel { animation: phase-complete-card .45s cubic-bezier(.18,.8,.25,1.15) both; }
+.phase-complete-panel .eyebrow { color:#b9ef8c; }
+.phase-complete-panel h2 { color:#f4ffe8; font-size:clamp(27px,4vw,36px); }
+.phase-complete-panel .start-game-button { min-height:58px; font-size:11px; }
+@keyframes phase-complete-in { from { opacity:0; } to { opacity:1; } }
+@keyframes phase-complete-card { from { opacity:0; transform:translateY(28px) scale(.94); } to { opacity:1; transform:translateY(0) scale(1); } }
