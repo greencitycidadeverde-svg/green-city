@@ -1340,7 +1340,7 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.6`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.7`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -1373,8 +1373,11 @@ export class GreenCityGame {
       if (!modelRoot) throw new Error('O arquivo GLB não retornou uma malha principal.');
 
       modelRoot.parent = null;
+      // glTF imports normally carry a rotationQuaternion, which takes precedence over Euler rotation.
+      // Clear it so the per-frame heading below actually turns the visible character.
+      modelRoot.rotationQuaternion = null;
       modelRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
-      modelRoot.rotation.y = this.player.rotation.y;
+      modelRoot.rotation.set(0, this.player.rotation.y, 0);
       modelRoot.scaling.scaleInPlace(0.82);
       modelRoot.isPickable = false;
       this.playerModelRoot = modelRoot;
@@ -1724,6 +1727,7 @@ export class GreenCityGame {
     }
     if (this.playerModelRoot) {
       this.playerModelRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
+      // The visible GLB follows the collision body's smoothed heading every frame.
       this.playerModelRoot.rotation.y = this.player.rotation.y;
     }
     this.syncVehicleModel(this.vehicleVisualRoot, this.vehicle, 0);
