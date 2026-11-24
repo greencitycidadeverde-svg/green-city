@@ -60,6 +60,7 @@ export default function App() {
   const [playRequested, setPlayRequested] = useState(false);
   const [phaseCompleteSeen, setPhaseCompleteSeen] = useState(false);
   const [phaseCompleteOpen, setPhaseCompleteOpen] = useState(false);
+  const phaseCompleteTriggeredRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +73,8 @@ export default function App() {
         if (cancelled) return;
         game = new Game(canvas, (snapshot) => {
           setState(snapshot);
-          if (snapshot.phase === 1 && snapshot.missionStage === 'complete') {
+          if (snapshot.phase === 1 && snapshot.missionStage === 'complete' && !phaseCompleteTriggeredRef.current) {
+            phaseCompleteTriggeredRef.current = true;
             setPhaseCompleteOpen(true);
           }
         });
