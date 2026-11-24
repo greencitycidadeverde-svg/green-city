@@ -1,44 +1,39 @@
-# Checklist de testes — GREEN CITY First Impact
+# Checklist de testes — GREEN CITY por bairros
 
-## Fundação
+## Build e abertura
 - [ ] `npm install` termina sem erros
 - [ ] `npm run typecheck` termina sem erros
 - [ ] `npm run build` termina sem erros
-- [ ] `npm run dev` abre a aplicação no navegador
-- [ ] WebGL 2 disponível e cena renderizada
+- [ ] A aplicação abre no Chrome e Edge com WebGL 2
+- [ ] O mapa geral mostra as cinco regiões na ordem planejada
 
-## Personagem e câmera
-- [ ] WASD move o personagem em relação à orientação da câmera
-- [ ] Shift aumenta a velocidade
-- [ ] Espaço executa salto e o personagem retorna ao chão
+## Ciclo da primeira fase — Centro Industrial
+- [ ] E próximo de cada resíduo recolhe apenas um objeto
+- [ ] Ao recolher 5/5, a missão muda para entrega
+- [ ] E longe do EcoCentro não entrega os resíduos
+- [ ] E próximo do EcoCentro registra a entrega uma única vez
+- [ ] A entrega concede 100 CIT simulados uma única vez
+- [ ] O Plano Urbano apresenta os quatro indicadores
+- [ ] Instalar energia solar custa 35 CIT e atualiza o indicador de energia renovável
+- [ ] A instalação solar cria painéis e um ponto de recarga visíveis
+- [ ] Converter o veículo antes da instalação solar é bloqueado
+- [ ] Converter o veículo custa 45 CIT e altera o veículo para elétrico
+- [ ] O Porto é liberado somente após cumprir as três metas do bairro
+
+## Personagem, câmera e veículo
+- [ ] WASD movimenta personagem e veículo
+- [ ] Shift corre; Espaço pula
 - [ ] Mouse gira a câmera
-- [ ] Edifícios e barreiras bloqueiam a passagem
-- [ ] Perda de foco da janela não deixa teclas presas
-
-## Veículo
-- [ ] Aproximar-se do carro e pressionar F entra no veículo
-- [ ] Pressionar F longe do carro não entra
+- [ ] F entra e sai do veículo quando próximo
 - [ ] W acelera, S freia/reverte, A/D esterçam
-- [ ] O veículo colide com objetos sólidos
-- [ ] F sai do veículo e reposiciona o personagem ao lado
-- [ ] HUD exibe velocidade e estado de condução
-
-## Missão
-- [ ] E distante de resíduos não concede pontos
-- [ ] E próximo recolhe apenas um resíduo
-- [ ] A missão conclui somente ao chegar a 5/5
-- [ ] A recompensa de 80 CIT simulados é concedida uma única vez
-- [ ] Rio e vegetação mudam após a conclusão
+- [ ] ESC pausa/retoma e M abre/fecha o mapa
 
 ## Interface e desempenho
-- [ ] Minimapa acompanha o personagem
-- [ ] Tecla M abre e fecha o mapa ampliado
-- [ ] Botão de mapa abre e fecha o mapa ampliado
-- [ ] ESC fecha o mapa ampliado antes de pausar
-- [ ] O jogo fica congelado enquanto o mapa ampliado está aberto
-- [ ] ESC pausa e retoma
-- [ ] Redimensionar janela mantém a cena visível
+- [ ] Plano Urbano abre e fecha corretamente
+- [ ] Mapa geral abre e fecha corretamente
+- [ ] Indicadores e estado do veículo atualizam após cada ação
+- [ ] Layout é utilizável em telas estreitas
 - [ ] Teste em PC modesto com registro de FPS e memória
-- [ ] Teste em Chrome e Edge
+- [ ] Verificar console do navegador e erros de runtime
 
-> Não marcar como aprovado até executar o teste no navegador e registrar o resultado.
+> O build foi verificado no ambiente de deploy; os itens de gameplay acima só podem ser marcados após teste manual no navegador.

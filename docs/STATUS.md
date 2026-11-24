@@ -1,34 +1,39 @@
 # Estado do projeto — 24/11/2026
 
-## Direção aprovada para a implementação
-GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. A cidade será um mapa geral dividido em bairros/regiões, cada um funcionando como uma fase. O jogador recupera uma região e libera a seguinte.
+## Direção
+GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. A cidade será um mapa geral dividido em cinco bairros/regiões, cada um funcionando como uma fase. O jogador recupera uma região e libera a seguinte.
 
-## Código desta versão
+## Código atual
 - Mapa geral com cinco regiões: Centro Industrial, Porto, Periferia Verde, Reserva Florestal e Zona Costeira.
-- Apenas o Centro Industrial possui cenário 3D jogável neste estágio.
-- Coleta de cinco resíduos e entrega da carga no EcoCentro.
-- Plano Urbano com quatro indicadores simulados.
-- Instalação de energia solar e ponto de recarga.
-- Conversão do veículo municipal a diesel para elétrico, condicionada à implantação de energia solar.
-- Liberação do Porto quando as metas da primeira região são atingidas.
-- HUD, minimapa, mapa geral e painel de gestão.
+- Apenas o Centro Industrial possui cenário 3D jogável.
+- Coleta e entrega da carga no EcoCentro.
+- Plano Urbano com indicadores simulados de reciclagem, energia renovável, mobilidade sustentável e qualidade do ar.
+- Instalação de energia solar e ponto local de recarga.
+- Conversão do veículo municipal a diesel para elétrico, condicionada à energia solar.
+- Liberação lógica do Porto quando as metas da primeira região são atingidas.
+
+## Verificação já executada
+- O commit da nova progressão foi compilado com sucesso na Vercel: `tsc -b` e `vite build` passaram.
+- Deploy de produção foi concluído com estado READY; página retornou HTTP 200.
+- A compilação reportou bundle JavaScript principal de aproximadamente 5,6 MB (1,26 MB gzip), acima da recomendação de 500 kB. Code splitting e otimização Babylon.js permanecem pendentes.
+- O build anterior apontou uma vulnerabilidade alta durante `npm install`; Vite foi atualizado para 7.3.7 nesta revisão para corrigir advisories conhecidos. A nova instalação precisa confirmar o resultado do audit.
+- Node foi restringido a 22.x no package.json para alinhar com a versão configurada na Vercel.
 
 ## Limitações conhecidas
-- O mapa geral apresenta as regiões planejadas, mas quatro delas ainda não têm cenário 3D, missões ou simulação implementados.
-- O cenário da primeira fase é procedural e pequeno; personagem cápsula e veículos simples.
-- A cadeia de resíduos ainda não possui separação real por material, capacidade de carga, transporte por categorias ou processamento empresarial individualizado.
-- Indicadores e custos são balanceamento didático simplificado, não dados científicos ou medição de impacto real.
+- As outras quatro regiões aparecem no mapa, mas ainda não têm cenário 3D, missões ou simulação.
+- O cenário da primeira fase é procedural e pequeno; personagem cápsula e veículo simples.
+- A cadeia de resíduos ainda não separa materiais individualmente nem simula logística/processamento empresarial completo.
+- Indicadores e custos são balanceamento didático, não medições ambientais verificadas.
 - Não há NPCs, tráfego complexo, salvamento persistente, backend, Scanner ou multiplayer.
-- Nenhum teste manual de gameplay em navegador deve ser presumido apenas pelo sucesso do build.
+- Nenhum teste manual de gameplay foi concluído; build e HTTP 200 não comprovam o funcionamento das interações no navegador.
 
 ## Serviços externos
 - GitHub: repositório `greencitycidadeverde-svg/green-city`.
-- Vercel: projeto web independente `green-city`, conectado ao branch `main`; deploy automático por push.
-- Supabase: não criado; permanece adiado para quando houver necessidade de contas ou persistência remota.
+- Vercel: projeto `green-city`, conectado ao branch `main`.
+- Supabase: não criado; adiado até existir necessidade de contas ou persistência remota.
 - Nenhum serviço ou arquivo do Monta Fácil foi alterado.
 
-## Validação necessária
-- Executar `npm run typecheck` e `npm run build` no ambiente de deploy.
-- Confirmar a resposta HTTP e inspecionar a versão no navegador.
-- Testar manualmente: coleta, deslocamento ao EcoCentro, entrega, compras, indicadores, conversão do veículo, desbloqueio do Porto e controles.
-- Não declarar gameplay aprovado antes desses testes manuais.
+## Próximos testes
+- Confirmar build e audit após a atualização de Vite.
+- Testar no navegador: coleta, entrega, custos, indicadores, instalações, conversão do veículo e liberação do Porto.
+- Inspecionar console do navegador e medir FPS/memória em PC modesto.
