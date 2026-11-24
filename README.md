@@ -6,18 +6,24 @@ GREEN CITY é um jogo educacional 3D de mundo aberto no navegador. O jogador tra
 
 ## Estrutura da cidade
 
-A cidade foi planejada como um mapa geral dividido em cinco regiões:
-1. **Centro Industrial** — resíduos, energia e mobilidade (primeira região jogável).
-2. **Porto** — logística e qualidade da água.
-3. **Periferia Verde** — serviços urbanos e transporte público.
+A campanha possui dez regiões fictícias conectadas em um mapa geral:
+1. **Centro Industrial** — resíduos, energia e mobilidade (Fase 01).
+2. **Porto** — efluentes, saneamento local e logística (Fase 02).
+3. **Periferia Verde** — saneamento e serviços urbanos.
 4. **Reserva Florestal** — biodiversidade e restauração.
-5. **Zona Costeira** — saneamento e resiliência climática.
+5. **Zona Costeira** — oceanos e resiliência climática.
+6. **Cinturão Agrícola** — solo e produção sustentável.
+7. **Centro Histórico** — mobilidade e patrimônio.
+8. **Distrito Tecnológico** — economia circular.
+9. **Vale das Nascentes** — água doce e clima.
+10. **Ilha da Biodiversidade** — ecossistemas integrados.
 
-Nesta versão, somente o Centro Industrial possui um cenário 3D. As outras regiões serão implementadas como fases futuras.
+As regiões são liberadas em sequência. As regiões concluídas ficam marcadas como recuperadas no mapa; a próxima é liberada e as futuras permanecem bloqueadas. As Fases 01 e 02 possuem cenários 3D nesta versão; as demais representam a rota planejada da campanha.
 
 ## Ciclo inicial de jogo
 
 - Explorar o bairro em terceira pessoa.
+- Abrir o mapa geral fictício com dez regiões e acompanhar a progressão da campanha.
 - Recolher cinco resíduos com silhuetas distintas: papel, plástico, metal, vidro e orgânico.
 - Transportar a carga até o EcoCentro.
 - Consultar indicadores didáticos de reciclagem, energia renovável, mobilidade e qualidade do ar.
@@ -34,6 +40,7 @@ CIT, custos e indicadores são valores simulados para o balanceamento do jogo; n
 - Vite para desenvolvimento e compilação web.
 - Cenário procedural para a fase inicial; Blender não é requisito.
 - O jogo é entregue no navegador e não exige instalação do jogador.
+- O progresso atual é mantido durante a sessão; salvamento permanente entre visitas será uma melhoria futura.
 
 ## Desenvolvimento local (opcional)
 
@@ -55,13 +62,13 @@ Verificações: **npm run typecheck** e **npm run build**.
 - M: abrir ou fechar o mapa.
 - ESC: fechar o mapa ou pausar.
 
-## Evolução visual e próxima fase
+## Evolução de campanha
 
-A versão 0.3.2 refina o agente ambiental, as árvores, fachadas e a sinalização educativa dos cinco recipientes do EcoCentro. O desenho da Fase 02 — Porto está documentado em `docs/PHASE_02_PORTO.md`; o Porto ainda não possui cenário 3D jogável.
+A versão 0.4.0 adiciona a campanha de dez regiões e um cenário 3D inicial do Porto. A missão inclui três inspeções de despejos, implantação de uma ETE, duas fossas sépticas para instalações sanitárias isoladas e coleta de resíduos em três empresas com um caminhão dirigível. O conceito detalhado está em `docs/PHASE_02_PORTO.md`.
 
 ## Limitações conhecidas
 
-As quatro regiões posteriores ainda não têm cenário 3D jogável. NPCs, tráfego complexo, inventário e processamento completo por material, salvamento persistente, contas, multiplayer, Scanner e verificação de impacto ambiental real permanecem no plano futuro. A silhueta do agente e os detalhes arquitetônicos atuais são geometria procedural, não modelos artísticos finais.
+As oito regiões posteriores ao Porto ainda não têm cenário 3D jogável. NPCs, tráfego complexo, inventário e processamento completo por material, salvamento persistente, contas, multiplayer, Scanner e verificação de impacto ambiental real permanecem no plano futuro. A silhueta do agente e os detalhes arquitetônicos atuais são geometria procedural, não modelos artísticos finais.
 
 ## Organização
 
