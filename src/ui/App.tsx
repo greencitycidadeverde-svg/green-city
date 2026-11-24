@@ -20,6 +20,8 @@ const initial: GameSnapshot = {
   mapOpen: false,
   inVehicle: false,
   vehicleSpeed: 0,
+  nearbyAction: null,
+  nearbyLabel: '',
   playerX: 0,
   playerZ: 25,
   message: 'Investigue o bairro e recolha os resíduos espalhados.',
@@ -129,12 +131,18 @@ export default function App() {
     {gameError && <div className="error-overlay"><div className="welcome-panel"><div className="eyebrow">ERRO AO CARREGAR O MUNDO 3D</div><h2>Não foi possível iniciar a cidade.</h2><p>{gameError}</p><small>Atualize a página. Se o problema continuar, envie esta mensagem para a equipe técnica.</small></div></div>}
 
     <div className="status-message">{state.message}</div>
+    {gameReady && state.nearbyAction && <button
+      className="interaction-prompt"
+      onClick={() => gameRef.current?.performNearbyAction()}
+      aria-label={state.nearbyLabel}
+    >{state.nearbyLabel}<span>TOCAR / CLICAR</span></button>}
     <div className="vehicle-status">{state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
 
     <div className="minimap" aria-label="Minimapa do bairro">
       <div className="map-road map-road-v" />
       <div className="map-road map-road-h" />
       <div className="map-river" />
+      <span className="map-ecocenter" title="EcoCentro · entrega e triagem" />
       <span className="map-player" style={{ left: `${Math.max(8, Math.min(92, 50 + state.playerX * 0.75))}%`, top: `${Math.max(8, Math.min(92, 50 + state.playerZ * 0.75))}%` }} />
     </div>
 
@@ -157,7 +165,7 @@ export default function App() {
       <div className="welcome-panel">
         <div className="eyebrow">PLANT IN REAL LIFE. RULE THE GREEN CITY.</div>
         <h2>Uma cidade. Muitos bairros. Uma transformação.</h2>
-        <p>O Centro Industrial é a primeira fase. Recolha os resíduos, entregue-os no EcoCentro e invista em energia solar e mobilidade elétrica. Cada solução muda os indicadores da cidade.</p>
+        <p>O Centro Industrial é a primeira fase. Recolha os resíduos, leve-os ao EcoCentro sinalizado, separe os materiais e planeje soluções para água, solo, árvores, fauna, ar, energia e mobilidade. Cada decisão traz benefícios e consequências para o ecossistema e para a vida das pessoas.</p>
         <button onClick={() => { setShowHelp(false); setPlayRequested(true); }}>COMEÇAR A RECUPERAÇÃO <span>→</span></button>
         <small>WASD movimenta. E interage. M abre o mapa com os cinco bairros da cidade.</small>
       </div>

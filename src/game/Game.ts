@@ -1,8 +1,8 @@
 import {
-  ArcRotateCamera, Color3, Color4, DirectionalLight, Engine, HemisphericLight,
+  ArcRotateCamera, Color3, Color4, DirectionalLight, DynamicTexture, Engine, HemisphericLight,
   Mesh, MeshBuilder, Scene, StandardMaterial, Vector3,
 } from '@babylonjs/core';
-import type { GameSnapshot, MissionStage, SnapshotListener } from './types';
+import type { GameSnapshot, MissionStage, NearbyAction, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
 const SOLAR_COST = 35;
@@ -15,7 +15,7 @@ export class GreenCityGame {
   private readonly player: Mesh;
   private readonly vehicle: Mesh;
   private vehicleMaterial!: StandardMaterial;
-  private readonly ecoCenterPosition = new Vector3(-25, 0, 3.2);
+  private readonly ecoCenterPosition = new Vector3(-25, 0, 8);
   private inVehicle = false;
   private vehicleSpeed = 0;
   private readonly trash: Mesh[] = [];
@@ -193,7 +193,7 @@ export class GreenCityGame {
     plaza.position.set(-25, 0.03, 0);
     plaza.material = sidewalkMat;
     const sign = MeshBuilder.CreateBox('district-sign', { width: 4.5, height: 2.2, depth: 0.25 }, this.scene);
-    sign.position.set(-24, 2.4, 7);
+    sign.position.set(-35, 2.4, 6.5);
     sign.material = this.material('sign-green', new Color3(0.07, 0.25, 0.16));
 
     // Small public-space details make the EcoCentro plaza feel occupied.
@@ -235,6 +235,7 @@ export class GreenCityGame {
   }
 
   private buildEcoCenter(): void {
+    // Processing building. The public unloading point sits outside, in clear view.
     const walls = MeshBuilder.CreateBox('eco-center-building', { width: 7, depth: 4.5, height: 3.2 }, this.scene);
     walls.position.set(-25, 1.6, -1.2);
     walls.material = this.material('eco-center-walls', new Color3(0.34, 0.43, 0.34));
@@ -244,13 +245,78 @@ export class GreenCityGame {
     roof.position.set(-25, 3.25, -1.2);
     roof.material = this.material('eco-center-roof-material', new Color3(0.17, 0.22, 0.19));
 
-    const sign = MeshBuilder.CreateBox('eco-center-sign', { width: 3.8, height: 0.9, depth: 0.18 }, this.scene);
-    sign.position.set(-25, 2.5, 1.15);
-    sign.material = this.material('eco-center-sign-material', new Color3(0.08, 0.34, 0.20));
+    const signFrame = MeshBuilder.CreateBox('eco-center-sign-frame', { width: 5.4, height: 1.25, depth: 0.22 }, this.scene);
+    signFrame.position.set(-25, 3.1, 1.25);
+    signFrame.material = this.material('eco-center-sign-frame-material', new Color3(0.07, 0.23, 0.15));
 
-    const marker = MeshBuilder.CreateCylinder('eco-center-marker', { diameter: 1.2, height: 0.12, tessellation: 16 }, this.scene);
-    marker.position.set(this.ecoCenterPosition.x, 0.08, this.ecoCenterPosition.z);
-    marker.material = this.material('eco-center-marker-material', new Color3(0.20, 0.72, 0.36));
+    const signTexture = new DynamicTexture('eco-center-sign-texture', { width: 1024, height: 256 }, this.scene, false);
+    const context = signTexture.getContext();
+    context.fillStyle = '#123F2B';
+    context.fillRect(0, 0, 1024, 256);
+    context.fillStyle = '#B9EE91';
+    context.font = 'bold 76px Arial';
+    context.fillText('ECOCENTRO', 42, 104);
+    context.fillStyle = '#F0F5E8';
+    context.font = 'bold 38px Arial';
+    context.fillText('ENTREGA  ·  TRIAGEM  ·  RECICLAGEM', 44, 178);
+    signTexture.update();
+
+    const signFace = MeshBuilder.CreatePlane('eco-center-sign-face', { width: 5.05, height: 1.05 }, this.scene);
+    signFace.position.set(-25, 3.1, 1.38);
+    const signMaterial = this.material('eco-center-sign-face-material', new Color3(1, 1, 1));
+    signMaterial.diffuseTexture = signTexture;
+    signMaterial.emissiveColor = new Color3(0.16, 0.24, 0.17);
+    signFace.material = signMaterial;
+
+    // A dedicated pedestrian access route leads from the street to the unloading pad.
+    const accessPath = MeshBuilder.CreateGround('eco-center-access-path', { width: 16, height: 2.8 }, this.scene);
+    accessPath.position.set(-17, 0.035, 8);
+    accessPath.material = this.material('eco-center-access-path-material', new Color3(0.62, 0.63, 0.55));
+
+    const deliveryPad = MeshBuilder.CreateGround('eco-center-delivery-pad', { width: 12, height: 8 }, this.scene);
+    deliveryPad.position.set(-25, 0.045, 8.8);
+    deliveryPad.material = this.material('eco-center-delivery-pad-material', new Color3(0.48, 0.58, 0.45));
+
+    const padRing = MeshBuilder.CreateTorus('eco-center-delivery-ring', { diameter: 8.7, thickness: 0.2, tessellation: 32 }, this.scene);
+    padRing.position.set(this.ecoCenterPosition.x, 0.12, this.ecoCenterPosition.z);
+    padRing.material = this.material('eco-center-delivery-ring-material', new Color3(0.48, 0.93, 0.35));
+
+    const marker = MeshBuilder.CreateCylinder('eco-center-delivery-marker', { diameter: 2.0, height: 0.12, tessellation: 24 }, this.scene);
+    marker.position.set(this.ecoCenterPosition.x, 0.11, this.ecoCenterPosition.z);
+    marker.material = this.material('eco-center-marker-material', new Color3(0.18, 0.58, 0.28));
+
+    // Containers follow Brazil's selective collection color palette.
+    const containers: Array<{ x: number; color: Color3 }> = [
+      { x: -29.5, color: new Color3(0.12, 0.34, 0.66) }, // paper
+      { x: -27.2, color: new Color3(0.72, 0.18, 0.18) }, // plastic
+      { x: -24.9, color: new Color3(0.12, 0.48, 0.29) }, // glass
+      { x: -22.6, color: new Color3(0.82, 0.64, 0.10) }, // metal
+      { x: -20.3, color: new Color3(0.43, 0.27, 0.16) }, // organic
+    ];
+    containers.forEach(({ x, color }, index) => {
+      const body = MeshBuilder.CreateBox('eco-center-recycling-container', { width: 1.55, height: 1.45, depth: 1.25 }, this.scene);
+      body.position.set(x, 0.78, 12.0);
+      body.material = this.material('eco-center-container-' + index, color);
+
+      const lid = MeshBuilder.CreateBox('eco-center-container-lid', { width: 1.65, height: 0.16, depth: 1.35 }, this.scene);
+      lid.position.set(x, 1.56, 12.0);
+      lid.material = this.material('eco-center-container-lid-' + index, new Color3(0.09, 0.13, 0.11));
+
+      const labelPanel = MeshBuilder.CreateBox('eco-center-container-label', { width: 1.25, height: 0.36, depth: 0.06 }, this.scene);
+      labelPanel.position.set(x, 1.05, 12.66);
+      labelPanel.material = this.material('eco-center-container-label-' + index, new Color3(0.91, 0.94, 0.86));
+
+      const categoryMark = MeshBuilder.CreateBox('eco-center-container-category', { width: 0.42, height: 0.08, depth: 0.08 }, this.scene);
+      categoryMark.position.set(x, 1.05, 12.72);
+      categoryMark.material = this.material('eco-center-container-category-' + index, color);
+    });
+
+    const instructionPost = MeshBuilder.CreateCylinder('eco-center-instruction-post', { height: 2.6, diameter: 0.16, tessellation: 10 }, this.scene);
+    instructionPost.position.set(-32.2, 1.3, 8.6);
+    instructionPost.material = this.material('eco-center-post-material', new Color3(0.18, 0.22, 0.18));
+    const instructionBoard = MeshBuilder.CreateBox('eco-center-instruction-board', { width: 1.6, height: 1.1, depth: 0.12 }, this.scene);
+    instructionBoard.position.set(-32.2, 2.6, 8.6);
+    instructionBoard.material = this.material('eco-center-instruction-board-material', new Color3(0.12, 0.39, 0.23));
   }
 
   private buildRiver(): void {
@@ -456,22 +522,25 @@ export class GreenCityGame {
     if (this.inVehicle) {
       this.inVehicle = false;
       this.vehicleSpeed = 0;
-      this.player.position.copyFrom(this.vehicle.position).addInPlace(new Vector3(2.2, 0.55, 0));
+      this.player.position.copyFrom(this.vehicle.position).addInPlace(new Vector3(2.8, 0.55, 0));
       this.player.setEnabled(true);
-      this.message = 'Você saiu do veículo.';
+      this.message = 'Você saiu do veículo. Aproxime-se novamente e pressione F para entrar.';
     } else {
-      const distance = Vector3.Distance(this.player.position, this.vehicle.position);
-      if (distance > 3.8) {
-        this.message = 'Aproxime-se do veículo de serviço para entrar.';
+      const dx = this.player.position.x - this.vehicle.position.x;
+      const dz = this.player.position.z - this.vehicle.position.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance > 6.5) {
+        this.message = 'Aproxime-se do veículo municipal. Quando o aviso ENTRAR NO VEÍCULO aparecer, pressione F.';
         this.emit();
         return;
       }
       this.inVehicle = true;
       this.player.setEnabled(false);
       this.message = this.electricVehicle
-        ? 'Veículo elétrico: WASD dirige, F sai. A recarga é alimentada pela estrutura solar local.'
-        : 'Veículo a diesel: WASD dirige, F sai. A cidade ainda depende de combustível fóssil.';
+        ? 'Veículo elétrico: use WASD para dirigir e F para sair. A recarga local é apoiada pela energia solar.'
+        : 'Veículo a diesel: use WASD para dirigir e F para sair. A frota ainda gera emissões locais.';
     }
+    this.keys.clear();
     this.emit();
   }
 
@@ -484,10 +553,13 @@ export class GreenCityGame {
     this.lastInteract = now;
 
     if (this.missionStage === 'deliver') {
-      const distance = Vector3.Distance(this.player.position, this.ecoCenterPosition);
-      if (distance <= 5.5) this.deliverWaste();
+      const distance = Math.hypot(
+        this.player.position.x - this.ecoCenterPosition.x,
+        this.player.position.z - this.ecoCenterPosition.z,
+      );
+      if (distance <= 8.5) this.deliverWaste();
       else {
-        this.message = 'Resíduos recolhidos. Leve a carga ao EcoCentro, na praça do bairro.';
+        this.message = 'Siga a sinalização verde até o ECOCENTRO. O ponto de entrega fica ao lado dos cinco contêineres coloridos.';
         this.emit();
       }
       return;
@@ -500,7 +572,7 @@ export class GreenCityGame {
     }
 
     let nearest: Mesh | undefined;
-    let nearestDistance = 2.8;
+    let nearestDistance = 3.3;
     for (const item of this.trash) {
       if (!item.isEnabled()) continue;
       const distance = Vector3.Distance(this.player.position, item.position);
@@ -519,7 +591,7 @@ export class GreenCityGame {
     this.collected += 1;
     if (this.collected === TOTAL_TRASH) {
       this.missionStage = 'deliver';
-      this.message = 'Carga completa! Agora leve os resíduos ao EcoCentro para triagem e reciclagem.';
+      this.message = 'Carga completa! Procure a placa ECOCENTRO e a área verde com cinco contêineres coloridos. Aproxime-se e pressione E para descarregar.';
     } else {
       this.message = `Resíduo recolhido (${this.collected}/${TOTAL_TRASH}). Continue a coleta.`;
     }
@@ -622,7 +694,57 @@ export class GreenCityGame {
     this.emit();
   }
 
+  private getNearbyInteraction(): { action: NearbyAction; label: string } | null {
+    if (this.paused || this.mapOpen) return null;
+    if (this.inVehicle) return { action: 'exit-vehicle', label: 'F · SAIR DO VEÍCULO' };
+
+    if (this.missionStage === 'deliver') {
+      const distanceToEco = Math.hypot(
+        this.player.position.x - this.ecoCenterPosition.x,
+        this.player.position.z - this.ecoCenterPosition.z,
+      );
+      if (distanceToEco <= 8.5) {
+        return { action: 'deliver-waste', label: 'E · ENTREGAR RESÍDUOS NO ECOCENTRO' };
+      }
+    }
+
+    if (this.missionStage === 'collect') {
+      let closestWaste = Number.POSITIVE_INFINITY;
+      for (const item of this.trash) {
+        if (!item.isEnabled()) continue;
+        const distance = Math.hypot(
+          this.player.position.x - item.position.x,
+          this.player.position.z - item.position.z,
+        );
+        closestWaste = Math.min(closestWaste, distance);
+      }
+      if (closestWaste <= 3.3) return { action: 'collect-waste', label: 'E · RECOLHER RESÍDUO' };
+    }
+
+    const vehicleDistance = Math.hypot(
+      this.player.position.x - this.vehicle.position.x,
+      this.player.position.z - this.vehicle.position.z,
+    );
+    if (vehicleDistance <= 6.5) return { action: 'enter-vehicle', label: 'F · ENTRAR NO VEÍCULO' };
+    return null;
+  }
+
+  performNearbyAction(): void {
+    const nearby = this.getNearbyInteraction();
+    if (!nearby) {
+      this.message = 'Aproxime-se de um resíduo, do EcoCentro ou do veículo para interagir.';
+      this.emit();
+      return;
+    }
+    if (nearby.action === 'enter-vehicle' || nearby.action === 'exit-vehicle') {
+      this.toggleVehicle();
+      return;
+    }
+    this.interact();
+  }
+
   getSnapshot(): GameSnapshot {
+    const nearby = this.getNearbyInteraction();
     return {
       cit: this.cit,
       collected: this.collected,
@@ -640,6 +762,8 @@ export class GreenCityGame {
       mapOpen: this.mapOpen,
       inVehicle: this.inVehicle,
       vehicleSpeed: Math.round(Math.abs(this.vehicleSpeed) * 3.6),
+      nearbyAction: nearby?.action ?? null,
+      nearbyLabel: nearby?.label ?? '',
       playerX: this.player.position.x,
       playerZ: this.player.position.z,
       message: this.message,

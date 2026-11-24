@@ -1,4 +1,5 @@
 export type MissionStage = 'collect' | 'deliver' | 'improve' | 'complete';
+export type NearbyAction = 'collect-waste' | 'deliver-waste' | 'enter-vehicle' | 'exit-vehicle';
 
 export interface GameSnapshot {
   cit: number;
@@ -17,6 +18,8 @@ export interface GameSnapshot {
   mapOpen: boolean;
   inVehicle: boolean;
   vehicleSpeed: number;
+  nearbyAction: NearbyAction | null;
+  nearbyLabel: string;
   playerX: number;
   playerZ: number;
   message: string;

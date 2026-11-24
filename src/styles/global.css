@@ -240,3 +240,26 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .status-message { bottom: 89px; }
   .controls { bottom: 10px; }
 }
+
+/* Contextual actions: the player always sees where and how to interact. */
+.interaction-prompt {
+  position: absolute; z-index: 7; left: 50%; bottom: 112px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 18px; min-height: 48px;
+  max-width: min(92vw, 520px); padding: 0 18px;
+  border: 1px solid rgba(198, 241, 159, .65); border-radius: 12px;
+  background: linear-gradient(135deg, rgba(36, 85, 48, .96), rgba(13, 45, 27, .96));
+  color: #efffe5; font: 800 10px var(--gc-mono); letter-spacing: .04em;
+  box-shadow: 0 12px 36px rgba(0,0,0,.36), 0 0 28px rgba(142, 211, 107, .18);
+  cursor: pointer; backdrop-filter: blur(14px);
+}
+.interaction-prompt span { padding-left: 13px; border-left: 1px solid rgba(211,238,204,.28); color: #c6efaa; font-size: 8px; white-space: nowrap; }
+.interaction-prompt:hover { filter: brightness(1.12); transform: translateX(-50%) translateY(-2px); }
+.map-ecocenter {
+  position: absolute; z-index: 4; left: 31.25%; top: 56%; width: 11px; height: 11px;
+  border: 2px solid #fff9d9; border-radius: 50%; background: #a8ef70;
+  box-shadow: 0 0 0 4px rgba(168,239,112,.2), 0 0 15px rgba(168,239,112,.85);
+}
+@media (max-width: 680px) {
+  .interaction-prompt { bottom: 235px; width: min(94vw, 460px); min-height: 44px; justify-content: center; gap: 9px; padding: 0 10px; font-size: 8px; }
+  .interaction-prompt span { padding-left: 8px; font-size: 7px; }
+}
