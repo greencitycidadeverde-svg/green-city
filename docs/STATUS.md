@@ -80,3 +80,8 @@ GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. Uma
 - fal e Context7 conectados. Nenhuma geração 3D paga foi iniciada.
 - Supabase conectado; backend de jogo ainda não criado.
 - Blender não é requisito do projeto nem será exigido do fundador ou dos jogadores.
+
+
+## Revisão visual e integração energética 0.3.3
+A versão 0.3.3 introduz uma tela de abertura mais próxima de um menu de jogo, com objetivos claros e linguagem visual mais colorida. No cenário, a identificação do EcoCentro foi ampliada e inclui uma legenda frontal para papel/papelão (azul), plástico (vermelho), vidro (verde), metal (amarelo) e orgânico (marrom), seguindo a Resolução CONAMA 275/2001. A instalação solar materializa painéis no telhado do EcoCentro e uma cobertura fotovoltaica sobre a vaga do veículo, incluindo carregador e cabo. A conversão elétrica muda visualmente a carroceria e inclui selos “100% EV”.
+Limitação: os resíduos ainda são entregues como carga única; os cinco recipientes são elementos visuais/educativos e a triagem por item ainda não está implementada. A geração/recarga é uma representação simplificada de gameplay, não uma simulação elétrica de engenharia.

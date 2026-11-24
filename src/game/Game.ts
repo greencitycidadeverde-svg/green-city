@@ -45,18 +45,18 @@ export class GreenCityGame {
     this.listener = listener;
     this.engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: true, adaptToDeviceRatio: true });
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.62, 0.73, 0.70, 1);
+    this.scene.clearColor = new Color4(0.56, 0.78, 0.91, 1);
     this.scene.collisionsEnabled = true;
     this.scene.fogMode = Scene.FOGMODE_EXP2;
-    this.scene.fogDensity = 0.0022;
-    this.scene.fogColor = new Color3(0.62, 0.73, 0.70);
+    this.scene.fogDensity = 0.0015;
+    this.scene.fogColor = new Color3(0.56, 0.78, 0.91);
     this.scene.imageProcessingConfiguration.toneMappingEnabled = true;
 
     const sky = new HemisphericLight('sky-light', new Vector3(0, 1, 0), this.scene);
-    sky.intensity = 0.92;
+    sky.intensity = 1.08;
     const sun = new DirectionalLight('sun-light', new Vector3(-0.45, -1, 0.35), this.scene);
     sun.position = new Vector3(25, 45, -20);
-    sun.intensity = 0.9;
+    sun.intensity = 1.12;
 
     this.buildDistrict();
     this.buildEcoCenter();
@@ -71,7 +71,7 @@ export class GreenCityGame {
     this.camera.wheelPrecision = 45;
     this.camera.attachControl(canvas, true);
     this.camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
-    this.camera.setTarget(new Vector3(0, 1.2, 25));
+    this.camera.setTarget(new Vector3(8.5, 1.2, 25));
 
     this.riverMaterial = new StandardMaterial('river-material', this.scene);
     this.riverMaterial.diffuseColor = new Color3(0.30, 0.34, 0.28);
@@ -101,7 +101,7 @@ export class GreenCityGame {
     const ground = MeshBuilder.CreateGround('district-ground', { width: 90, height: 90 }, this.scene);
     ground.position.y = -0.08;
     ground.checkCollisions = true;
-    ground.material = this.material('ground', new Color3(0.34, 0.43, 0.31));
+    ground.material = this.material('ground', new Color3(0.43, 0.56, 0.35));
 
     const roadMat = this.material('asphalt', new Color3(0.13, 0.16, 0.17));
     const sidewalkMat = this.material('sidewalk', new Color3(0.55, 0.57, 0.52));
@@ -135,7 +135,7 @@ export class GreenCityGame {
       curb.material = curbMat;
     }
 
-    const buildingColors = [new Color3(0.55, 0.48, 0.38), new Color3(0.42, 0.50, 0.48), new Color3(0.62, 0.58, 0.48)];
+    const buildingColors = [new Color3(0.66, 0.48, 0.34), new Color3(0.38, 0.58, 0.62), new Color3(0.72, 0.65, 0.48)];
     const positions = [
       [-19, -27, 10, 15], [-28, -8, 12, 18], [-19, 18, 10, 13], [-31, 34, 12, 11],
       [20, -30, 12, 17], [30, -10, 10, 14], [20, 15, 13, 16], [31, 34, 11, 12],
@@ -205,9 +205,9 @@ export class GreenCityGame {
     });
 
     const treeMaterials = [
-      this.material('tree-leaves-deep', new Color3(0.10, 0.29, 0.17)),
-      this.material('tree-leaves-main', new Color3(0.16, 0.40, 0.22)),
-      this.material('tree-leaves-light', new Color3(0.24, 0.48, 0.25)),
+      this.material('tree-leaves-deep', new Color3(0.10, 0.34, 0.16)),
+      this.material('tree-leaves-main', new Color3(0.17, 0.48, 0.19)),
+      this.material('tree-leaves-light', new Color3(0.30, 0.59, 0.25)),
     ];
     const trunkMat = this.material('tree-trunk', new Color3(0.25, 0.15, 0.09));
     const branchMat = this.material('tree-branch', new Color3(0.31, 0.20, 0.12));
@@ -348,16 +348,16 @@ export class GreenCityGame {
       { x: -20.3, color: new Color3(0.43, 0.27, 0.16), hex: '#70452C', label: 'ORGÂNICO', examples: 'ALIMENTOS · FOLHAS', icon: 'organic' },
     ];
     containers.forEach(({ x, color, hex, label, examples, icon }, index) => {
-      const body = MeshBuilder.CreateBox('eco-center-recycling-container', { width: 1.55, height: 1.45, depth: 1.25 }, this.scene);
-      body.position.set(x, 0.78, 12.0);
+      const body = MeshBuilder.CreateBox('eco-center-recycling-container', { width: 1.82, height: 1.62, depth: 1.42 }, this.scene);
+      body.position.set(x, 0.83, 12.0);
       body.material = this.material('eco-center-container-' + index, color);
 
-      const lid = MeshBuilder.CreateBox('eco-center-container-lid', { width: 1.65, height: 0.16, depth: 1.35 }, this.scene);
-      lid.position.set(x, 1.56, 12.0);
+      const lid = MeshBuilder.CreateBox('eco-center-container-lid', { width: 1.94, height: 0.18, depth: 1.52 }, this.scene);
+      lid.position.set(x, 1.72, 12.0);
       lid.material = this.material('eco-center-container-lid-' + index, new Color3(0.09, 0.13, 0.11));
 
-      const labelFrame = MeshBuilder.CreateBox('eco-center-container-label-frame', { width: 1.48, height: 0.72, depth: 0.07 }, this.scene);
-      labelFrame.position.set(x, 1.12, 12.66);
+      const labelFrame = MeshBuilder.CreateBox('eco-center-container-label-frame', { width: 1.74, height: 0.92, depth: 0.08 }, this.scene);
+      labelFrame.position.set(x, 1.16, 12.74);
       labelFrame.material = this.material('eco-center-container-label-frame-' + index, new Color3(0.91, 0.94, 0.86));
 
       const labelTexture = new DynamicTexture('eco-center-container-label-texture-' + index, { width: 512, height: 256 }, this.scene, false);
@@ -368,7 +368,7 @@ export class GreenCityGame {
       labelContext.fillRect(0, 0, 512, 24);
       labelContext.strokeStyle = hex;
       labelContext.fillStyle = hex;
-      labelContext.lineWidth = 11;
+      labelContext.lineWidth = 15;
       labelContext.lineCap = 'round';
       labelContext.lineJoin = 'round';
 
@@ -419,22 +419,100 @@ export class GreenCityGame {
 
       labelContext.fillStyle = '#17251C';
       labelContext.textAlign = 'left';
-      labelContext.font = 'bold 43px Arial';
+      labelContext.font = 'bold 64px Arial';
       labelContext.fillText(label, 132, 111, 360);
-      labelContext.font = 'bold 17px Arial';
+      labelContext.font = 'bold 25px Arial';
       labelContext.fillText(examples, 132, 151, 360);
       labelContext.fillStyle = '#5D6E60';
-      labelContext.font = 'bold 15px Arial';
+      labelContext.font = 'bold 20px Arial';
       labelContext.fillText('COLETA SELETIVA', 132, 196);
       labelTexture.update();
 
-      const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.42, height: 0.66 }, this.scene);
-      labelFace.position.set(x, 1.12, 12.71);
+      const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.68, height: 0.86 }, this.scene);
+      labelFace.position.set(x, 1.16, 12.80);
       const labelMaterial = this.material('eco-center-container-label-material-' + index, new Color3(1, 1, 1));
       labelMaterial.diffuseTexture = labelTexture;
       labelMaterial.emissiveColor = new Color3(0.10, 0.10, 0.08);
       labelFace.material = labelMaterial;
     });
+
+
+    // Large educational legend placed above the bins so every material is readable on approach.
+    const legendFrame = MeshBuilder.CreateBox('eco-center-material-legend-frame', { width: 12.2, height: 2.0, depth: 0.16 }, this.scene);
+    legendFrame.position.set(-25, 4.25, 12.53);
+    legendFrame.material = this.material('eco-center-material-legend-frame-material', new Color3(0.06, 0.20, 0.13));
+    const legendTexture = new DynamicTexture('eco-center-material-legend-texture', { width: 1800, height: 360 }, this.scene, false);
+    const legendContext = legendTexture.getContext() as unknown as CanvasRenderingContext2D;
+    legendContext.fillStyle = '#123F2B';
+    legendContext.fillRect(0, 0, 1800, 360);
+    legendContext.fillStyle = '#DDF5D0';
+    legendContext.font = 'bold 35px Arial';
+    legendContext.textAlign = 'center';
+    legendContext.fillText('IDENTIFIQUE PELO NOME, SÍMBOLO E COR', 900, 48);
+    const legendItems = [
+      { name: 'PAPEL / PAPELÃO', example: 'CAIXAS · JORNAIS', color: '#1976D2', symbol: 'paper' },
+      { name: 'PLÁSTICO', example: 'GARRAFAS · POTES', color: '#D93636', symbol: 'plastic' },
+      { name: 'VIDRO', example: 'POTES · GARRAFAS', color: '#259653', symbol: 'glass' },
+      { name: 'METAL', example: 'LATAS · ALUMÍNIO', color: '#E5B52B', symbol: 'metal' },
+      { name: 'ORGÂNICO', example: 'RESTOS · FOLHAS', color: '#865335', symbol: 'organic' },
+    ];
+    legendItems.forEach((item, index) => {
+      const left = index * 360;
+      legendContext.fillStyle = item.color;
+      legendContext.fillRect(left + 8, 65, 344, 278);
+      legendContext.fillStyle = '#FFFFFF';
+      legendContext.strokeStyle = '#FFFFFF';
+      legendContext.lineWidth = 8;
+      legendContext.lineCap = 'round';
+      legendContext.lineJoin = 'round';
+      legendContext.beginPath();
+      if (item.symbol === 'paper') {
+        legendContext.rect(left + 34, 126, 76, 132);
+        legendContext.moveTo(left + 84, 126); legendContext.lineTo(left + 110, 152);
+        legendContext.moveTo(left + 84, 126); legendContext.lineTo(left + 84, 152); legendContext.lineTo(left + 110, 152);
+        legendContext.moveTo(left + 48, 190); legendContext.lineTo(left + 96, 190);
+        legendContext.moveTo(left + 48, 216); legendContext.lineTo(left + 96, 216);
+      } else if (item.symbol === 'plastic' || item.symbol === 'glass') {
+        legendContext.moveTo(left + 56, 126); legendContext.lineTo(left + 88, 126); legendContext.lineTo(left + 88, 150);
+        legendContext.lineTo(left + 112, 172); legendContext.lineTo(left + 112, 252);
+        legendContext.quadraticCurveTo(left + 112, 266, left + 98, 266);
+        legendContext.lineTo(left + 46, 266); legendContext.quadraticCurveTo(left + 32, 266, left + 32, 252);
+        legendContext.lineTo(left + 32, 172); legendContext.lineTo(left + 56, 150); legendContext.closePath();
+        if (item.symbol === 'glass') { legendContext.moveTo(left + 34, 216); legendContext.lineTo(left + 110, 216); }
+      } else if (item.symbol === 'metal') {
+        legendContext.ellipse(left + 72, 150, 39, 14, 0, 0, Math.PI * 2);
+        legendContext.moveTo(left + 33, 150); legendContext.lineTo(left + 33, 250);
+        legendContext.ellipse(left + 72, 250, 39, 14, 0, 0, Math.PI);
+        legendContext.moveTo(left + 111, 150); legendContext.lineTo(left + 111, 250);
+      } else {
+        legendContext.moveTo(left + 35, 250);
+        legendContext.bezierCurveTo(left + 34, 160, left + 88, 116, left + 116, 128);
+        legendContext.bezierCurveTo(left + 112, 210, left + 78, 270, left + 35, 250);
+        legendContext.moveTo(left + 40, 250);
+        legendContext.quadraticCurveTo(left + 80, 196, left + 110, 132);
+      }
+      legendContext.stroke();
+      legendContext.textAlign = 'left';
+      legendContext.fillStyle = '#FFFFFF';
+      legendContext.font = 'bold 31px Arial';
+      legendContext.fillText(item.name, left + 142, 178, 202);
+      legendContext.font = 'bold 22px Arial';
+      legendContext.fillText(item.example, left + 142, 224, 202);
+      legendContext.font = 'bold 17px Arial';
+      legendContext.fillText('COLETA SELETIVA', left + 142, 270, 202);
+      if (index > 0) {
+        legendContext.strokeStyle = 'rgba(255,255,255,.7)';
+        legendContext.lineWidth = 3;
+        legendContext.beginPath(); legendContext.moveTo(left, 80); legendContext.lineTo(left, 330); legendContext.stroke();
+      }
+    });
+    legendTexture.update();
+    const legendFace = MeshBuilder.CreatePlane('eco-center-material-legend-face', { width: 12.0, height: 1.82 }, this.scene);
+    legendFace.position.set(-25, 4.25, 12.63);
+    const legendMaterial = this.material('eco-center-material-legend-face-material', new Color3(1, 1, 1));
+    legendMaterial.diffuseTexture = legendTexture;
+    legendMaterial.emissiveColor = new Color3(0.16, 0.20, 0.14);
+    legendFace.material = legendMaterial;
 
     const instructionPost = MeshBuilder.CreateCylinder('eco-center-instruction-post', { height: 2.6, diameter: 0.16, tessellation: 10 }, this.scene);
     instructionPost.position.set(-32.2, 1.3, 8.6);
@@ -481,7 +559,7 @@ export class GreenCityGame {
   private createPlayer(): Mesh {
     // Invisible capsule maintains collision logic; attached meshes provide the visible field-agent silhouette.
     const root = MeshBuilder.CreateCapsule('player-collider', { height: 1.8, radius: 0.38, tessellation: 10 }, this.scene);
-    root.position.set(0, 1.0, 25);
+    root.position.set(8.5, 1.0, 25);
     root.ellipsoid = new Vector3(0.40, 0.9, 0.40);
     root.ellipsoidOffset = Vector3.Zero();
     root.checkCollisions = true;
@@ -707,8 +785,17 @@ export class GreenCityGame {
   }
 
   private createVehicle(): Mesh {
+    const parkingPad = MeshBuilder.CreateGround('municipal-vehicle-parking-bay', { width: 9.2, height: 8.4 }, this.scene);
+    parkingPad.position.set(13, 0.025, 25);
+    parkingPad.material = this.material('municipal-parking-asphalt', new Color3(0.25, 0.31, 0.29));
+    const parkingLineMaterial = this.material('municipal-parking-lines', new Color3(0.88, 0.88, 0.72));
+    for (const x of [9.0, 17.0]) {
+      const parkingLine = MeshBuilder.CreateBox('municipal-parking-line', { width: 0.12, height: 0.035, depth: 7.8 }, this.scene);
+      parkingLine.position.set(x, 0.055, 25);
+      parkingLine.material = parkingLineMaterial;
+    }
     const car = MeshBuilder.CreateBox('municipal-service-vehicle', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
-    car.position.set(3, 0.48, 25);
+    car.position.set(13, 0.48, 25);
     car.checkCollisions = true;
     this.vehicleMaterial = this.material('vehicle-body', new Color3(0.34, 0.37, 0.36));
     car.material = this.vehicleMaterial;
@@ -718,6 +805,21 @@ export class GreenCityGame {
     cabin.position.set(0, 0.68, -0.15);
     cabin.material = this.material('vehicle-glass', new Color3(0.18, 0.29, 0.30));
     const wheelMat = this.material('vehicle-tires', new Color3(0.045, 0.05, 0.05));
+    const grille = MeshBuilder.CreateBox('vehicle-front-grille', { width: 0.9, height: 0.25, depth: 0.06 }, this.scene);
+    grille.parent = car;
+    grille.position.set(0, -0.08, 1.93);
+    grille.material = this.material('vehicle-grille-material', new Color3(0.09, 0.13, 0.13));
+    const bumper = MeshBuilder.CreateBox('vehicle-front-bumper', { width: 2.0, height: 0.16, depth: 0.16 }, this.scene);
+    bumper.parent = car;
+    bumper.position.set(0, -0.31, 1.91);
+    bumper.material = this.material('vehicle-bumper-material', new Color3(0.23, 0.26, 0.25));
+    const headlightMaterial = this.material('vehicle-headlight-material', new Color3(0.92, 0.84, 0.56));
+    for (const side of [-1, 1]) {
+      const headlight = MeshBuilder.CreateBox('vehicle-headlight', { width: 0.38, height: 0.18, depth: 0.07 }, this.scene);
+      headlight.parent = car;
+      headlight.position.set(side * 0.72, 0.08, 1.94);
+      headlight.material = headlightMaterial;
+    }
     for (const x of [-1.08, 1.08]) for (const z of [-1.25, 1.25]) {
       const wheel = MeshBuilder.CreateCylinder('vehicle-wheel', { diameter: 0.72, height: 0.22, tessellation: 12 }, this.scene);
       wheel.parent = car;
@@ -747,7 +849,7 @@ export class GreenCityGame {
       this.inVehicle = true;
       this.player.setEnabled(false);
       this.message = this.electricVehicle
-        ? 'Veículo elétrico: use WASD para dirigir e F para sair. A recarga local é apoiada pela energia solar.'
+        ? 'Veículo elétrico: use WASD para dirigir e F para sair. Veja os selos 100% EV nas laterais; a recarga é apoiada pela estação solar.'
         : 'Veículo a diesel: use WASD para dirigir e F para sair. A frota ainda gera emissões locais.';
     }
     this.keys.clear();
@@ -846,10 +948,70 @@ export class GreenCityGame {
       panel.position.set(-27 + i * 2, 3.48, -1.2);
       panel.material = solarMat;
     }
-    const charger = MeshBuilder.CreateBox('solar-ev-charger', { width: 0.65, height: 1.45, depth: 0.48 }, this.scene);
-    charger.position.set(-20.5, 0.73, 3);
-    charger.material = this.material('charger-material', new Color3(0.13, 0.43, 0.52));
-    this.message = 'Energia solar instalada no EcoCentro. A geração renovável agora pode sustentar a recarga elétrica local.';
+    // A solar carport is built in the marked municipal parking bay, directly above the vehicle.
+    const carportSupport = this.material('solar-carport-support-material', new Color3(0.20, 0.28, 0.25));
+    for (const x of [9.7, 16.3]) {
+      for (const z of [21.3, 28.7]) {
+        const post = MeshBuilder.CreateCylinder('solar-carport-post', { height: 4.0, diameter: 0.18, tessellation: 8 }, this.scene);
+        post.position.set(x, 2.0, z);
+        post.material = carportSupport;
+      }
+    }
+    const canopyBeam = MeshBuilder.CreateBox('solar-carport-beam', { width: 7.1, height: 0.18, depth: 7.8 }, this.scene);
+    canopyBeam.position.set(13, 4.0, 25);
+    canopyBeam.material = carportSupport;
+    const canopyPanelMaterial = this.material('solar-carport-panel-material', new Color3(0.06, 0.23, 0.43));
+    const panelGridMaterial = this.material('solar-panel-grid-material', new Color3(0.39, 0.67, 0.83));
+    for (const x of [10.8, 13, 15.2]) {
+      const panel = MeshBuilder.CreateBox('solar-carport-panel', { width: 2.05, height: 0.10, depth: 3.35 }, this.scene);
+      panel.position.set(x, 4.13, 25);
+      panel.material = canopyPanelMaterial;
+      for (const z of [23.9, 25.0, 26.1]) {
+        const grid = MeshBuilder.CreateBox('solar-carport-panel-grid-line', { width: 1.95, height: 0.012, depth: 0.025 }, this.scene);
+        grid.position.set(x, 4.19, z);
+        grid.material = panelGridMaterial;
+      }
+    }
+    const solarPad = MeshBuilder.CreateGround('solar-ev-parking-pad', { width: 8.2, height: 8.0 }, this.scene);
+    solarPad.position.set(13, 0.045, 25);
+    solarPad.material = this.material('solar-ev-parking-pad-material', new Color3(0.18, 0.35, 0.25));
+    const charger = MeshBuilder.CreateBox('solar-ev-charger', { width: 0.72, height: 1.65, depth: 0.5 }, this.scene);
+    charger.position.set(16.1, 0.85, 23.2);
+    charger.material = this.material('charger-material', new Color3(0.10, 0.46, 0.55));
+    const chargerTexture = new DynamicTexture('solar-ev-charger-texture', { width: 256, height: 256 }, this.scene, false);
+    const chargerContext = chargerTexture.getContext() as unknown as CanvasRenderingContext2D;
+    chargerContext.fillStyle = '#103C42'; chargerContext.fillRect(0, 0, 256, 256);
+    chargerContext.fillStyle = '#D9F8EE'; chargerContext.font = 'bold 32px Arial'; chargerContext.textAlign = 'center';
+    chargerContext.fillText('RECARGA', 128, 90);
+    chargerContext.fillStyle = '#8DE5C4'; chargerContext.font = 'bold 48px Arial'; chargerContext.fillText('EV', 128, 158);
+    chargerTexture.update();
+    const chargerFace = MeshBuilder.CreatePlane('solar-ev-charger-face', { width: 0.58, height: 0.58 }, this.scene);
+    chargerFace.position.set(16.1, 1.12, 23.47);
+    const chargerFaceMaterial = this.material('solar-ev-charger-face-material', new Color3(1, 1, 1));
+    chargerFaceMaterial.diffuseTexture = chargerTexture;
+    chargerFaceMaterial.emissiveColor = new Color3(0.14, 0.23, 0.24);
+    chargerFace.material = chargerFaceMaterial;
+    const chargeCable = MeshBuilder.CreateTube('solar-ev-charge-cable', {
+      path: [new Vector3(15.8, 1.45, 23.4), new Vector3(15.0, 1.55, 23.6), new Vector3(14.2, 1.18, 24.2)],
+      radius: 0.055, tessellation: 8,
+    }, this.scene);
+    chargeCable.material = this.material('solar-ev-charge-cable-material', new Color3(0.06, 0.08, 0.08));
+    const carportSign = MeshBuilder.CreateBox('solar-carport-sign', { width: 5.6, height: 0.78, depth: 0.12 }, this.scene);
+    carportSign.position.set(13, 5.05, 21.0);
+    carportSign.material = this.material('solar-carport-sign-material', new Color3(0.07, 0.29, 0.20));
+    const carportSignTexture = new DynamicTexture('solar-carport-sign-texture', { width: 900, height: 140 }, this.scene, false);
+    const carportSignContext = carportSignTexture.getContext() as unknown as CanvasRenderingContext2D;
+    carportSignContext.fillStyle = '#0B4932'; carportSignContext.fillRect(0, 0, 900, 140);
+    carportSignContext.fillStyle = '#E5FFB9'; carportSignContext.font = 'bold 54px Arial'; carportSignContext.textAlign = 'center';
+    carportSignContext.fillText('ESTAÇÃO SOLAR · RECARGA ELÉTRICA', 450, 88);
+    carportSignTexture.update();
+    const carportSignFace = MeshBuilder.CreatePlane('solar-carport-sign-face', { width: 5.45, height: 0.68 }, this.scene);
+    carportSignFace.position.set(13, 5.05, 21.08);
+    const carportSignMaterial = this.material('solar-carport-sign-face-material', new Color3(1, 1, 1));
+    carportSignMaterial.diffuseTexture = carportSignTexture;
+    carportSignMaterial.emissiveColor = new Color3(0.12, 0.20, 0.13);
+    carportSignFace.material = carportSignMaterial;
+    this.message = 'Energia solar instalada: os painéis no EcoCentro e na cobertura da vaga municipal alimentam o carregador ao lado do veículo.';
     this.emit();
   }
 
@@ -872,7 +1034,31 @@ export class GreenCityGame {
 
     this.cit -= ELECTRIC_VEHICLE_COST;
     this.electricVehicle = true;
-    this.vehicleMaterial.diffuseColor = new Color3(0.08, 0.48, 0.33);
+    this.vehicleMaterial.diffuseColor = new Color3(0.08, 0.52, 0.34);
+    const evBadgeTexture = new DynamicTexture('municipal-ev-badge-texture', { width: 512, height: 192 }, this.scene, false);
+    const evBadgeContext = evBadgeTexture.getContext() as unknown as CanvasRenderingContext2D;
+    evBadgeContext.fillStyle = '#063F31'; evBadgeContext.fillRect(0, 0, 512, 192);
+    evBadgeContext.fillStyle = '#DFFFF0'; evBadgeContext.font = 'bold 92px Arial'; evBadgeContext.textAlign = 'center';
+    evBadgeContext.fillText('100% EV', 256, 122);
+    evBadgeTexture.update();
+    const evBadgeMaterial = this.material('municipal-ev-badge-material', new Color3(1, 1, 1));
+    evBadgeMaterial.diffuseTexture = evBadgeTexture;
+    evBadgeMaterial.emissiveColor = new Color3(0.08, 0.18, 0.12);
+    for (const side of [-1, 1]) {
+      const badge = MeshBuilder.CreatePlane('municipal-ev-side-badge', { width: 1.05, height: 0.42 }, this.scene);
+      badge.parent = this.vehicle;
+      badge.position.set(side * 1.07, 0.37, 0.25);
+      badge.rotation.y = side * Math.PI / 2;
+      badge.material = evBadgeMaterial;
+      const sill = MeshBuilder.CreateBox('municipal-ev-green-sill', { width: 0.07, height: 0.14, depth: 2.5 }, this.scene);
+      sill.parent = this.vehicle;
+      sill.position.set(side * 1.06, -0.25, 0);
+      sill.material = this.material('municipal-ev-green-sill-material', new Color3(0.10, 0.68, 0.48));
+    }
+    const evFrontMark = MeshBuilder.CreateBox('municipal-ev-front-mark', { width: 0.48, height: 0.22, depth: 0.07 }, this.scene);
+    evFrontMark.parent = this.vehicle;
+    evFrontMark.position.set(0, 0.20, 1.96);
+    evFrontMark.material = this.material('municipal-ev-front-mark-material', new Color3(0.12, 0.75, 0.55));
     this.sustainableMobility = 43;
     this.airQuality = Math.min(100, this.airQuality + 15);
     // Water and vegetation restoration require their own interventions;

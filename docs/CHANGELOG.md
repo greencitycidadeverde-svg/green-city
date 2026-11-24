@@ -1,3 +1,11 @@
+## [0.3.3] - 2026-11-24
+- Tela de abertura redesenhada como menu de jogo, com objetivos claros e linguagem visual mais colorida.
+- EcoCentro com recipientes ampliados, pictogramas/nomenclaturas maiores e painel educativo frontal com as cinco categorias.
+- Veículo municipal reposicionado em vaga demarcada fora da faixa principal da rua.
+- Instalação solar agora materializa painéis no EcoCentro e cobertura fotovoltaica sobre a vaga, com carregador e cabo junto ao carro.
+- Conversão elétrica altera a carroceria e acrescenta selos visíveis “100% EV”.
+- Ajustes iniciais de iluminação, céu, vegetação e fachadas para um estilo low-poly mais vivo.
+
 # Changelog
 
 ## 0.3.2 — refinamento visual e desenho do Porto

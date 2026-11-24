@@ -162,12 +162,39 @@ export default function App() {
     </div>
 
     {showHelp && <div className="welcome-overlay">
-      <div className="welcome-panel">
-        <div className="eyebrow">PLANT IN REAL LIFE. RULE THE GREEN CITY.</div>
-        <h2>Uma cidade. Muitos bairros. Uma transformação.</h2>
-        <p>O Centro Industrial é a primeira fase. Recolha os resíduos, leve-os ao EcoCentro sinalizado, separe os materiais e planeje soluções para água, solo, árvores, fauna, ar, energia e mobilidade. Cada decisão traz benefícios e consequências para o ecossistema e para a vida das pessoas.</p>
-        <button onClick={() => { setShowHelp(false); setPlayRequested(true); }}>COMEÇAR A RECUPERAÇÃO <span>→</span></button>
-        <small>WASD movimenta. E interage. M abre o mapa com os cinco bairros da cidade.</small>
+      <div className="welcome-panel welcome-hero">
+        <div className="welcome-topline">
+          <div className="welcome-logo"><span>G</span><div><b>GREEN CITY</b><small>JOGO DE TRANSFORMAÇÃO AMBIENTAL</small></div></div>
+          <span className="phase-pill">FASE 01 DE 05 · CENTRO INDUSTRIAL</span>
+        </div>
+        <div className="welcome-scene" aria-label="Ilustração de uma cidade verde com árvores, edifícios e energia limpa">
+          <span className="scene-sun" />
+          <span className="scene-cloud scene-cloud-a" />
+          <span className="scene-cloud scene-cloud-b" />
+          <span className="scene-hill scene-hill-back" />
+          <span className="scene-hill scene-hill-front" />
+          <div className="scene-city">
+            <span className="scene-building building-a"><i /><i /><i /></span>
+            <span className="scene-building building-b"><i /><i /><i /><i /></span>
+            <span className="scene-building building-c"><i /><i /></span>
+            <span className="scene-tree tree-a" /><span className="scene-tree tree-b" /><span className="scene-tree tree-c" />
+            <span className="scene-solar-roof" />
+            <span className="scene-road" />
+          </div>
+          <span className="scene-caption">RECUPERE. CONECTE. TRANSFORME.</span>
+        </div>
+        <div className="welcome-copy">
+          <div className="eyebrow">SUA MISSÃO COMEÇA AQUI</div>
+          <h2>Uma cidade inteira precisa de você.</h2>
+          <p>Explore o bairro, entenda os problemas e transforme a cidade com decisões que fazem diferença no mundo real.</p>
+        </div>
+        <div className="welcome-objectives">
+          <div className="objective-tile objective-explore"><span>01</span><b>EXPLORAR</b><small>Encontre os desafios ambientais</small></div>
+          <div className="objective-tile objective-recycle"><span>02</span><b>RECUPERAR</b><small>Organize resíduos e infraestrutura</small></div>
+          <div className="objective-tile objective-energy"><span>03</span><b>MODERNIZAR</b><small>Use energia limpa e mobilidade elétrica</small></div>
+        </div>
+        <button className="start-game-button" onClick={() => { setShowHelp(false); setPlayRequested(true); }}>JOGAR FASE 01 <span>▶</span></button>
+        <div className="welcome-foot"><span>WASD · MOVIMENTAR</span><span>E · INTERAGIR</span><span>M · MAPA DA CIDADE</span><span>SEM INSTALAÇÃO · JOGA NO NAVEGADOR</span></div>
       </div>
     </div>}
 
@@ -217,7 +244,7 @@ export default function App() {
           <article className="upgrade-card">
             <div className="eyebrow">ENERGIA LIMPA</div>
             <h3>{state.solarInstalled ? 'Energia solar instalada' : 'Instalar energia solar'}</h3>
-            <p>Instala painéis no EcoCentro e um ponto de recarga local. A energia renovável passa a apoiar a eletrificação.</p>
+            <p>Instala painéis no telhado do EcoCentro e uma cobertura solar sobre a vaga municipal. O carregador aparece ao lado do carro, conectado à geração local.</p>
             <button disabled={state.solarInstalled || !state.delivered || state.cit < 35} onClick={() => gameRef.current?.installSolarEnergy()}>
               {state.solarInstalled ? 'INSTALADO' : 'INSTALAR · 35 CIT'}
             </button>
@@ -225,7 +252,7 @@ export default function App() {
           <article className="upgrade-card">
             <div className="eyebrow">MOBILIDADE SUSTENTÁVEL</div>
             <h3>{state.electricVehicle ? 'Veículo municipal elétrico' : 'Eletrificar veículo municipal'}</h3>
-            <p>Substitui o veículo a diesel por um elétrico. Esta etapa exige energia solar e estrutura de recarga no bairro.</p>
+            <p>Converte o veículo que você vê estacionado na vaga municipal. A carroceria ganha identificação 100% EV e detalhes visuais elétricos; a conversão só é liberada após energia solar e carregador.</p>
             <button disabled={state.electricVehicle || !state.solarInstalled || state.cit < 45} onClick={() => gameRef.current?.electrifyMunicipalVehicle()}>
               {state.electricVehicle ? 'CONCLUÍDO' : 'CONVERTER · 45 CIT'}
             </button>
@@ -233,7 +260,7 @@ export default function App() {
         </div>
         {!state.delivered && <div className="plan-hint">Primeiro: recolha os cinco resíduos e entregue a carga no EcoCentro, na praça.</div>}
         {state.delivered && !state.solarInstalled && <div className="plan-hint">Orçamento disponível: {state.cit} CIT. A energia solar é a primeira etapa para apoiar a recarga elétrica.</div>}
-        {state.solarInstalled && !state.electricVehicle && <div className="plan-hint">Energia solar instalada. Agora você pode eletrificar o veículo municipal.</div>}
+        {state.solarInstalled && !state.electricVehicle && <div className="plan-hint">Energia solar instalada no telhado do EcoCentro e na cobertura da vaga municipal. O carregador está ao lado do veículo; agora você pode fazer a conversão elétrica.</div>}
         {state.nextNeighborhoodUnlocked && <div className="success-line">✓ METAS DO BAIRRO ATINGIDAS · PRÓXIMA REGIÃO LIBERADA</div>}
         <small className="economy-note">CIT é uma pontuação fictícia do protótipo, sem valor monetário ou possibilidade de saque.</small>
       </section>
