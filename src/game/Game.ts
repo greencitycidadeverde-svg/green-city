@@ -466,7 +466,7 @@ export class GreenCityGame {
       lid.material = this.material('eco-center-container-lid-' + index, new Color3(0.09, 0.13, 0.11));
 
       const labelFrame = MeshBuilder.CreateBox('eco-center-container-label-frame', { width: 1.96, height: 1.02, depth: 0.08 }, this.scene);
-      labelFrame.position.set(x, 1.16, 12.78);
+      labelFrame.position.set(x, 1.16, 11.23);
       labelFrame.material = this.material('eco-center-container-label-frame-' + index, new Color3(0.91, 0.94, 0.86));
 
       const labelTexture = new DynamicTexture('eco-center-container-label-texture-' + index, { width: 512, height: 256 }, this.scene, false);
@@ -538,7 +538,7 @@ export class GreenCityGame {
       labelTexture.update();
 
       const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.90, height: 0.96 }, this.scene);
-      labelFace.position.set(x, 1.16, 12.84);
+      labelFace.position.set(x, 1.16, 11.15);
       labelFace.billboardMode = Mesh.BILLBOARDMODE_Y;
       const labelMaterial = this.material('eco-center-container-label-material-' + index, new Color3(1, 1, 1));
       labelMaterial.diffuseTexture = labelTexture;
@@ -549,7 +549,7 @@ export class GreenCityGame {
 
     // Large educational legend placed above the bins so every material is readable on approach.
     const legendFrame = MeshBuilder.CreateBox('eco-center-material-legend-frame', { width: 12.2, height: 2.0, depth: 0.16 }, this.scene);
-    legendFrame.position.set(-25, 4.25, 12.53);
+    legendFrame.position.set(-25, 4.25, 9.95);
     legendFrame.material = this.material('eco-center-material-legend-frame-material', new Color3(0.06, 0.20, 0.13));
     const legendTexture = new DynamicTexture('eco-center-material-legend-texture', { width: 1800, height: 360 }, this.scene, false);
     const legendContext = legendTexture.getContext() as unknown as CanvasRenderingContext2D;
@@ -618,7 +618,7 @@ export class GreenCityGame {
     });
     legendTexture.update();
     const legendFace = MeshBuilder.CreatePlane('eco-center-material-legend-face', { width: 12.0, height: 1.82 }, this.scene);
-    legendFace.position.set(-25, 4.25, 12.63);
+    legendFace.position.set(-25, 4.25, 9.85);
     legendFace.billboardMode = Mesh.BILLBOARDMODE_Y;
     const legendMaterial = this.material('eco-center-material-legend-face-material', new Color3(1, 1, 1));
     legendMaterial.diffuseTexture = legendTexture;
@@ -1340,7 +1340,7 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.7`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.8`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -1897,35 +1897,129 @@ export class GreenCityGame {
   }
 
   private createBuildingSolarPanels(building: SolarBuildingRecord, index: number): void {
-    const panelMaterial = this.material(`building-solar-panel-material-${index}`, new Color3(0.05, 0.22, 0.43));
-    const gridMaterial = this.material(`building-solar-panel-grid-material-${index}`, new Color3(0.43, 0.70, 0.85));
+    const panelMaterial = this.material(`building-solar-panel-material-${index}`, new Color3(0.035, 0.16, 0.34));
+    panelMaterial.specularColor = new Color3(0.52, 0.68, 0.82);
+    panelMaterial.specularPower = 96;
+    const gridMaterial = this.material(`building-solar-grid-material-${index}`, new Color3(0.48, 0.76, 0.91));
+    const frameMaterial = this.material(`building-solar-frame-material-${index}`, new Color3(0.48, 0.54, 0.52));
+    const railMaterial = this.material(`building-solar-rail-material-${index}`, new Color3(0.25, 0.31, 0.30));
+    const tilt = -0.075;
+
+    // Four framed modules sit on visible mounting rails, with a slight realistic roof tilt.
     for (const dx of [-building.width * 0.22, building.width * 0.22]) {
       for (const dz of [-2.0, 2.0]) {
-        const panel = MeshBuilder.CreateBox('building-rooftop-solar-panel', { width: 2.35, height: 0.11, depth: 2.65 }, this.scene);
-        panel.position.set(building.x + dx, building.height + 0.43, building.z + dz); panel.material = panelMaterial;
-        for (const offset of [-0.68, 0, 0.68]) {
-          const grid = MeshBuilder.CreateBox('building-solar-panel-grid-line', { width: 2.26, height: 0.012, depth: 0.025 }, this.scene);
-          grid.position.set(building.x + dx, building.height + 0.495, building.z + dz + offset); grid.material = gridMaterial;
+        const centerX = building.x + dx;
+        const centerZ = building.z + dz;
+        for (const railZ of [-1.02, 1.02]) {
+          const rail = MeshBuilder.CreateBox('building-solar-mounting-rail', { width: 2.42, height: 0.055, depth: 0.085 }, this.scene);
+          rail.position.set(centerX, building.height + 0.31, centerZ + railZ);
+          rail.material = railMaterial;
+        }
+        const frame = MeshBuilder.CreateBox('building-solar-module-frame', { width: 2.43, height: 0.09, depth: 2.73 }, this.scene);
+        frame.position.set(centerX, building.height + 0.385, centerZ);
+        frame.rotation.x = tilt;
+        frame.material = frameMaterial;
+
+        const panel = MeshBuilder.CreateBox('building-rooftop-solar-panel', { width: 2.34, height: 0.055, depth: 2.64 }, this.scene);
+        panel.position.set(centerX, building.height + 0.455, centerZ);
+        panel.rotation.x = tilt;
+        panel.material = panelMaterial;
+
+        // Cell divisions run in both directions, so each module reads as photovoltaic glass.
+        for (const offset of [-0.86, 0, 0.86]) {
+          const crossCell = MeshBuilder.CreateBox('building-solar-grid-cross-cell', { width: 2.22, height: 0.012, depth: 0.022 }, this.scene);
+          crossCell.position.set(centerX, building.height + 0.49, centerZ + offset);
+          crossCell.rotation.x = tilt;
+          crossCell.material = gridMaterial;
+        }
+        for (const offset of [-0.56, 0.0, 0.56]) {
+          const lengthCell = MeshBuilder.CreateBox('building-solar-grid-length-cell', { width: 0.022, height: 0.012, depth: 2.54 }, this.scene);
+          lengthCell.position.set(centerX + offset, building.height + 0.49, centerZ);
+          lengthCell.rotation.x = tilt;
+          lengthCell.material = gridMaterial;
         }
       }
     }
+
+    // A visible side plaque identifies the building as solar-powered after installation.
     const side = building.x < 0 ? 1 : -1;
     const facadeX = building.x + side * (building.width / 2 + 0.16);
-    const badge = MeshBuilder.CreateBox('building-solar-status-badge', { width: 0.16, height: 0.46, depth: 1.8 }, this.scene);
-    badge.position.set(facadeX, 3.0, building.z + 1.15);
-    badge.material = this.material(`building-solar-status-badge-material-${index}`, new Color3(0.12, 0.60, 0.37));
-    const texture = new DynamicTexture(`building-solar-sign-texture-${index}`, { width: 400, height: 120 }, this.scene, false);
-    const context = texture.getContext() as unknown as CanvasRenderingContext2D;
-    context.fillStyle = '#0D583D'; context.fillRect(0, 0, 400, 120);
-    context.fillStyle = '#F0FFD9'; context.font = 'bold 44px Arial'; context.textAlign = 'center';
-    context.fillText('ENERGIA SOLAR', 200, 78); texture.update();
-    const face = MeshBuilder.CreatePlane('building-solar-status-face', { width: 1.7, height: 0.4 }, this.scene);
-    face.position.set(facadeX + side * 0.1, 3.0, building.z + 1.15); face.rotation.y = side * Math.PI / 2;
-    const faceMaterial = this.material(`building-solar-status-face-material-${index}`, new Color3(1, 1, 1));
-    faceMaterial.diffuseTexture = texture; faceMaterial.emissiveColor = new Color3(0.12, 0.18, 0.13);
-    face.material = faceMaterial;
-  }
+    const plaqueZ = building.z - 2.65;
+    const plaqueBacking = MeshBuilder.CreateBox('building-solar-status-plaque-backing', { width: 0.20, height: 0.92, depth: 2.55 }, this.scene);
+    plaqueBacking.position.set(facadeX + side * 0.12, 3.18, plaqueZ);
+    plaqueBacking.material = this.material(`building-solar-status-plaque-material-${index}`, new Color3(0.045, 0.20, 0.14));
 
+    const texture = new DynamicTexture('building-solar-status-texture', { width: 1024, height: 320 }, this.scene, false);
+    const context = texture.getContext() as unknown as CanvasRenderingContext2D;
+    context.fillStyle = '#0A3325';
+    context.fillRect(0, 0, 1024, 320);
+    context.strokeStyle = '#B7EC91';
+    context.lineWidth = 10;
+    context.strokeRect(12, 12, 1000, 296);
+
+    // Photovoltaic icon and clear status copy.
+    context.fillStyle = '#123F6A';
+    context.fillRect(42, 88, 176, 142);
+    context.strokeStyle = '#A8D9EB';
+    context.lineWidth = 7;
+    context.strokeRect(42, 88, 176, 142);
+    for (const x of [100, 158]) {
+      context.beginPath(); context.moveTo(x, 91); context.lineTo(x, 227); context.stroke();
+    }
+    for (const y of [135, 181]) {
+      context.beginPath(); context.moveTo(46, y); context.lineTo(214, y); context.stroke();
+    }
+    context.fillStyle = '#F6D36A';
+    context.beginPath(); context.arc(195, 63, 25, 0, Math.PI * 2); context.fill();
+    context.textAlign = 'left';
+    context.fillStyle = '#F0FFD9';
+    context.font = 'bold 61px Arial';
+    context.fillText('SISTEMA SOLAR', 270, 142, 700);
+    context.fillStyle = '#B9EF91';
+    context.font = 'bold 48px Arial';
+    context.fillText('INSTALADO  ✓', 270, 220, 700);
+    texture.update();
+
+    const face = MeshBuilder.CreatePlane('building-solar-status-face', { width: 2.43, height: 0.80 }, this.scene);
+    face.position.set(facadeX + side * 0.235, 3.18, plaqueZ);
+    face.rotation.y = side * Math.PI / 2;
+    face.isPickable = false;
+    const faceMaterial = this.material(`building-solar-status-face-material-${index}`, new Color3(1, 1, 1));
+    faceMaterial.diffuseTexture = texture;
+    faceMaterial.emissiveColor = new Color3(0.14, 0.20, 0.15);
+    face.material = faceMaterial;
+
+    // Wall-mounted inverter and its status screen complete the installation.
+    const inverter = MeshBuilder.CreateBox('building-solar-inverter', { width: 0.26, height: 0.78, depth: 0.78 }, this.scene);
+    inverter.position.set(facadeX + side * 0.17, 1.58, plaqueZ);
+    inverter.material = this.material(`building-solar-inverter-material-${index}`, new Color3(0.70, 0.75, 0.72));
+
+    const inverterTexture = new DynamicTexture('building-solar-inverter-screen-texture', { width: 256, height: 128 }, this.scene, false);
+    const inverterContext = inverterTexture.getContext() as unknown as CanvasRenderingContext2D;
+    inverterContext.fillStyle = '#10261E'; inverterContext.fillRect(0, 0, 256, 128);
+    inverterContext.fillStyle = '#B9EF91'; inverterContext.font = 'bold 31px Arial'; inverterContext.textAlign = 'center';
+    inverterContext.fillText('INVERSOR', 128, 48);
+    inverterContext.fillStyle = '#F3FFE9'; inverterContext.font = 'bold 29px Arial';
+    inverterContext.fillText('ATIVO', 128, 91);
+    inverterTexture.update();
+    const inverterFace = MeshBuilder.CreatePlane('building-solar-inverter-face', { width: 0.61, height: 0.31 }, this.scene);
+    inverterFace.position.set(facadeX + side * 0.315, 1.62, plaqueZ);
+    inverterFace.rotation.y = side * Math.PI / 2;
+    const inverterFaceMaterial = this.material(`building-solar-inverter-face-material-${index}`, new Color3(1, 1, 1));
+    inverterFaceMaterial.diffuseTexture = inverterTexture;
+    inverterFaceMaterial.emissiveColor = new Color3(0.08, 0.12, 0.09);
+    inverterFace.material = inverterFaceMaterial;
+
+    const conduit = MeshBuilder.CreateTube('building-solar-conduit', {
+      path: [
+        new Vector3(facadeX + side * 0.20, 2.72, plaqueZ),
+        new Vector3(facadeX + side * 0.20, 2.25, plaqueZ),
+        new Vector3(facadeX + side * 0.20, 2.03, plaqueZ),
+      ],
+      radius: 0.035, tessellation: 8,
+    }, this.scene);
+    conduit.material = this.material(`building-solar-conduit-material-${index}`, new Color3(0.40, 0.47, 0.44));
+  }
   private refreshMissionStage(): void {
     if (!this.delivered) { this.missionStage = this.collected >= TOTAL_TRASH ? 'deliver' : 'collect'; return; }
     if (this.electricVehicle && this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS) this.missionStage = 'complete';
@@ -1946,9 +2040,15 @@ export class GreenCityGame {
     this.createBuildingSolarPanels(building, index);
     if (this.solarBuildingsInstalled >= SOLAR_BUILDINGS_REQUIRED_FOR_EV) this.activateVehicleStation();
     this.refreshMissionStage();
-    this.message = this.solarBuildingsInstalled === SOLAR_BUILDINGS_REQUIRED_FOR_EV
-      ? `${building.label} recebeu energia solar! Três prédios já foram modernizados. A BASE DE ELETRIFICAÇÃO está ativa: entre no carro, dirija pela via de serviço, estacione na vaga marcada, desça e pressione E ao lado do veículo.`
-      : `${building.label} agora tem painéis solares (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS}). Continue visitando os prédios sem identificação solar. Custo por instalação: ${SOLAR_BUILDING_COST} CIT.`;
+    if (this.missionStage === 'complete') {
+      this.message = `Sistema solar instalado com sucesso em ${building.label} (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS})! Os oito prédios agora geram energia limpa. Centro Industrial recuperado; Porto liberado.`;
+    } else if (this.solarBuildingsInstalled === SOLAR_BUILDING_REQUIRED_FOR_EV) {
+      this.message = `Sistema solar instalado com sucesso em ${building.label} (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS})! A plaqueta lateral confirma a instalação. A BASE DE ELETRIFICAÇÃO está ativa: entre no carro, dirija pela via de serviço, estacione na vaga marcada, desça e pressione E ao lado do veículo.`;
+    } else if (this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS) {
+      this.message = `Sistema solar instalado com sucesso em ${building.label} (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS})! Todos os prédios já receberam placas solares. Agora conclua a conversão do veículo municipal para elétrico.`;
+    } else {
+      this.message = `Sistema solar instalado com sucesso em ${building.label} (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS})! A plaqueta na lateral do prédio identifica o sistema ativo. Siga para o próximo prédio sem a identificação solar. Custo por instalação: ${SOLAR_BUILDING_COST} CIT.`;
+    }
     this.emit();
   }
 
