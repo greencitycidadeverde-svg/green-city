@@ -2,7 +2,7 @@ import {
   ArcRotateCamera, Color3, Color4, DirectionalLight, DynamicTexture, Engine, HemisphericLight,
   Mesh, MeshBuilder, Scene, StandardMaterial, Vector3,
 } from '@babylonjs/core';
-import type { GameSnapshot, MissionStage, NearbyAction, SnapshotListener } from './types';
+import type { GameSnapshot, MissionStage, NearbyAction, PortMissionStage, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
 const TOTAL_SOLAR_BUILDINGS = 8;
@@ -13,6 +13,7 @@ const ELECTRIC_VEHICLE_COST = 20;
 interface SolarBuildingRecord {
   x: number; z: number; width: number; height: number; label: string; solarInstalled: boolean;
 }
+interface PortSite { x: number; z: number; }
 
 export class GreenCityGame {
   private readonly engine: Engine;
@@ -51,6 +52,25 @@ export class GreenCityGame {
   private lastSnapshotAt = 0;
   private readonly riverMaterial: StandardMaterial;
   private readonly parkTrees: Mesh[] = [];
+  private activePhase: 1 | 2 = 1;
+  private portMissionStage: PortMissionStage = 'inspect';
+  private readonly portOutfallPositions: PortSite[] = [{ x: 4, z: -20 }, { x: 4, z: 0 }, { x: 4, z: 20 }];
+  private readonly portSepticPositions: PortSite[] = [{ x: 8, z: -31 }, { x: 8, z: 31 }];
+  private readonly portCompanyNames = ['ARMAZÉM NORTE', 'DOCAS CENTRAIS', 'LOGÍSTICA SUL'];
+  private readonly portCompanyPositions: PortSite[] = [{ x: -8, z: -20 }, { x: -8, z: 0 }, { x: -8, z: 20 }];
+  private readonly portOutfallMarkers: Mesh[] = [];
+  private readonly portOutfallInspected = new Set<number>();
+  private readonly portOutletMaterials: StandardMaterial[] = [];
+  private readonly portWastePiles: Mesh[] = [];
+  private readonly portSepticInstalled: boolean[] = [false, false];
+  private readonly portMeshes: Mesh[] = [];
+  private phaseOneMeshes: Mesh[] = [];
+  private portTruck!: Mesh;
+  private portRiverMaterial!: StandardMaterial;
+  private portTreatmentInstalled = false;
+  private portOutfallsInspected = 0;
+  private portWasteCollected = 0;
+  private portWaterQuality = 24;
 
   constructor(canvas: HTMLCanvasElement, listener: SnapshotListener) {
     this.listener = listener;
@@ -90,6 +110,11 @@ export class GreenCityGame {
     this.riverMaterial.alpha = 0.92;
     this.buildRiver();
     this.buildTrash();
+    const portStartIndex = this.scene.meshes.length;
+    this.buildPortDistrict();
+    this.portMeshes.push(...this.scene.meshes.slice(portStartIndex) as Mesh[]);
+    this.portMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseOneMeshes = this.scene.meshes.slice(0, portStartIndex).filter((mesh) => !this.isPlayerPart(mesh)) as Mesh[];
     this.bindInput(canvas);
     this.emit();
 
@@ -576,6 +601,417 @@ export class GreenCityGame {
     instructionFace.material = instructionMaterial;
   }
 
+
+  private get activeVehicle(): Mesh {
+    return this.activePhase === 2 ? this.portTruck : this.vehicle;
+  }
+
+  private isPlayerPart(mesh: Mesh): boolean {
+    let node: any = mesh;
+    while (node) {
+      if (node === this.player) return true;
+      node = node.parent;
+    }
+    return false;
+  }
+
+  private buildPortDistrict(): void {
+    const ground = MeshBuilder.CreateGround('port-ground', { width: 90, height: 90 }, this.scene);
+    ground.position.y = -0.08;
+    ground.checkCollisions = true;
+    ground.material = this.material('port-ground-material', new Color3(0.47, 0.48, 0.39));
+
+    const concrete = this.material('port-concrete', new Color3(0.49, 0.53, 0.50));
+    const asphalt = this.material('port-asphalt', new Color3(0.16, 0.20, 0.20));
+    const hazard = this.material('port-hazard-yellow', new Color3(0.92, 0.68, 0.18));
+    const warehouseColors = [
+      new Color3(0.64, 0.47, 0.31), new Color3(0.47, 0.55, 0.57), new Color3(0.64, 0.60, 0.43),
+    ];
+    const road = MeshBuilder.CreateGround('port-service-road', { width: 82, height: 8 }, this.scene);
+    road.position.set(0, 0.02, 30);
+    road.material = asphalt;
+    for (let x = -37; x <= 37; x += 8) {
+      const dash = MeshBuilder.CreateBox('port-road-marking', { width: 3.2, height: 0.025, depth: 0.12 }, this.scene);
+      dash.position.set(x, 0.06, 30);
+      dash.material = hazard;
+    }
+    const quay = MeshBuilder.CreateGround('port-quay', { width: 23, height: 82 }, this.scene);
+    quay.position.set(24, 0.015, 0);
+    quay.material = concrete;
+
+    this.portRiverMaterial = this.material('port-polluted-river-material', new Color3(0.28, 0.34, 0.27));
+    this.portRiverMaterial.alpha = 0.94;
+    const river = MeshBuilder.CreateGround('port-polluted-river', { width: 13, height: 86 }, this.scene);
+    river.position.set(37, 0.025, 0);
+    river.material = this.portRiverMaterial;
+    const bank = this.material('port-river-bank', new Color3(0.36, 0.33, 0.25));
+    for (const x of [30.1, 43.8]) {
+      const edge = MeshBuilder.CreateBox('port-river-bank-edge', { width: 0.9, height: 0.5, depth: 86 }, this.scene);
+      edge.position.set(x, 0.17, 0);
+      edge.material = bank;
+      edge.checkCollisions = true;
+    }
+
+    // Three visible discharge pipes and dirty-water channels lead from the yards to the river.
+    for (const [index, site] of this.portOutfallPositions.entries()) {
+      const pipeMaterial = this.material(`port-outfall-pipe-${index}`, new Color3(0.26, 0.29, 0.27));
+      const pipe = MeshBuilder.CreateCylinder(`port-outfall-pipe-${index}`, { height: 2.4, diameter: 0.78, tessellation: 12 }, this.scene);
+      pipe.position.set(29.4, 1.15, site.z);
+      pipe.rotation.z = Math.PI / 2;
+      pipe.material = pipeMaterial;
+      const flowMaterial = this.material(`port-outfall-flow-${index}`, new Color3(0.36, 0.40, 0.27));
+      const flow = MeshBuilder.CreateBox(`port-polluted-discharge-${index}`, { width: 7.0, height: 0.055, depth: 0.82 }, this.scene);
+      flow.position.set(33.2, 0.09, site.z);
+      flow.material = flowMaterial;
+      this.portOutletMaterials.push(flowMaterial);
+
+      const marker = MeshBuilder.CreateCylinder(`port-sampling-marker-${index}`, { height: 1.15, diameterTop: 0.42, diameterBottom: 0.62, tessellation: 10 }, this.scene);
+      marker.position.set(site.x, 0.58, site.z);
+      marker.material = this.material(`port-sampling-marker-material-${index}`, new Color3(0.82, 0.62, 0.20));
+      this.portOutfallMarkers.push(marker);
+      const markerCap = MeshBuilder.CreateSphere(`port-sampling-beacon-${index}`, { diameter: 0.38, segments: 8 }, this.scene);
+      markerCap.position.set(site.x, 1.28, site.z);
+      markerCap.material = this.material(`port-sampling-beacon-material-${index}`, new Color3(0.94, 0.70, 0.20));
+    }
+
+    // Three port companies with visible signs and loading doors.
+    const warehouseZ = [-22, 0, 22];
+    warehouseZ.forEach((z, index) => {
+      const building = MeshBuilder.CreateBox(`port-warehouse-${index}`, { width: 13, height: 8.5, depth: 11 }, this.scene);
+      building.position.set(-25, 4.25, z);
+      building.material = this.material(`port-warehouse-material-${index}`, warehouseColors[index]);
+      building.checkCollisions = true;
+      const roof = MeshBuilder.CreateBox(`port-warehouse-roof-${index}`, { width: 13.5, height: 0.35, depth: 11.5 }, this.scene);
+      roof.position.set(-25, 8.62, z);
+      roof.material = this.material(`port-warehouse-roof-material-${index}`, new Color3(0.25, 0.30, 0.29));
+      const shutter = MeshBuilder.CreateBox(`port-warehouse-door-${index}`, { width: 0.18, height: 3.2, depth: 4.1 }, this.scene);
+      shutter.position.set(-18.35, 1.9, z);
+      shutter.material = this.material(`port-warehouse-door-material-${index}`, new Color3(0.16, 0.27, 0.29));
+      const sign = MeshBuilder.CreateBox(`port-warehouse-sign-${index}`, { width: 0.18, height: 0.85, depth: 5.3 }, this.scene);
+      sign.position.set(-18.22, 6.2, z);
+      sign.material = this.material(`port-warehouse-sign-material-${index}`, new Color3(0.10, 0.31, 0.26));
+      const signTexture = new DynamicTexture(`port-warehouse-label-${index}`, { width: 512, height: 128 }, this.scene, false);
+      const ctx = signTexture.getContext() as unknown as CanvasRenderingContext2D;
+      ctx.fillStyle = '#104432'; ctx.fillRect(0, 0, 512, 128);
+      ctx.fillStyle = '#E8F5D8'; ctx.font = 'bold 42px Arial'; ctx.textAlign = 'center';
+      ctx.fillText(this.portCompanyNames[index], 256, 82, 480);
+      signTexture.update();
+      const face = MeshBuilder.CreatePlane(`port-warehouse-label-face-${index}`, { width: 4.9, height: 0.62 }, this.scene);
+      face.position.set(-18.10, 6.2, z);
+      face.rotation.y = -Math.PI / 2;
+      const faceMat = this.material(`port-warehouse-label-face-mat-${index}`, new Color3(1, 1, 1));
+      faceMat.diffuseTexture = signTexture;
+      faceMat.emissiveColor = new Color3(0.1, 0.13, 0.1);
+      face.material = faceMat;
+    });
+
+    const containerColors = [
+      new Color3(0.63, 0.26, 0.20), new Color3(0.17, 0.39, 0.53), new Color3(0.72, 0.55, 0.20),
+      new Color3(0.20, 0.43, 0.33), new Color3(0.56, 0.31, 0.19),
+    ];
+    for (let i = 0; i < 5; i++) {
+      const container = MeshBuilder.CreateBox(`port-shipping-container-${i}`, { width: 5.6, height: 2.5, depth: 2.6 }, this.scene);
+      container.position.set(-7 + (i % 2) * 6.2, 1.25, -29 + Math.floor(i / 2) * 5.5);
+      container.material = this.material(`port-container-material-${i}`, containerColors[i]);
+      const ribMaterial = this.material(`port-container-rib-material-${i}`, new Color3(0.75, 0.72, 0.62));
+      for (let rib = -2; rib <= 2; rib++) {
+        const line = MeshBuilder.CreateBox(`port-container-rib-${i}`, { width: 0.055, height: 2.35, depth: 0.04 }, this.scene);
+        line.position.set(container.position.x + rib * 0.92, 1.25, container.position.z + 1.33);
+        line.material = ribMaterial;
+      }
+    }
+
+    const craneMat = this.material('port-crane-steel', new Color3(0.75, 0.58, 0.22));
+    for (const x of [13, 22]) {
+      const leg = MeshBuilder.CreateBox('port-crane-leg', { width: 0.65, height: 12, depth: 0.65 }, this.scene);
+      leg.position.set(x, 6, -31);
+      leg.material = craneMat;
+    }
+    const craneBeam = MeshBuilder.CreateBox('port-crane-main-beam', { width: 10, height: 0.72, depth: 0.72 }, this.scene);
+    craneBeam.position.set(17.5, 12.1, -31);
+    craneBeam.material = craneMat;
+    const craneArm = MeshBuilder.CreateBox('port-crane-jib', { width: 0.35, height: 0.35, depth: 12 }, this.scene);
+    craneArm.position.set(22.5, 12.0, -25);
+    craneArm.material = craneMat;
+    const craneCable = MeshBuilder.CreateCylinder('port-crane-cable', { height: 5.2, diameter: 0.08 }, this.scene);
+    craneCable.position.set(22.5, 9.2, -20.3);
+    craneCable.material = this.material('port-crane-cable-material', new Color3(0.13, 0.15, 0.15));
+
+    const treatmentPad = MeshBuilder.CreateGround('port-treatment-pad', { width: 13, height: 13 }, this.scene);
+    treatmentPad.position.set(14, 0.035, 0);
+    treatmentPad.material = this.material('port-treatment-pad-material', new Color3(0.34, 0.43, 0.37));
+    const treatmentOutline = this.material('port-treatment-outline', new Color3(0.92, 0.75, 0.30));
+    for (const z of [-6.1, 6.1]) {
+      const line = MeshBuilder.CreateBox('port-treatment-outline-line', { width: 13, height: 0.04, depth: 0.12 }, this.scene);
+      line.position.set(14, 0.075, z);
+      line.material = treatmentOutline;
+    }
+    const treatmentSign = MeshBuilder.CreateBox('port-treatment-empty-sign', { width: 0.2, height: 1.4, depth: 6.5 }, this.scene);
+    treatmentSign.position.set(7.45, 2.4, 0);
+    treatmentSign.material = this.material('port-treatment-empty-sign-material', new Color3(0.10, 0.29, 0.24));
+    const treatmentLabel = new DynamicTexture('port-treatment-empty-label', { width: 700, height: 180 }, this.scene, false);
+    const treatmentContext = treatmentLabel.getContext() as unknown as CanvasRenderingContext2D;
+    treatmentContext.fillStyle = '#124934'; treatmentContext.fillRect(0, 0, 700, 180);
+    treatmentContext.fillStyle = '#F0F6E7'; treatmentContext.font = 'bold 48px Arial'; treatmentContext.textAlign = 'center';
+    treatmentContext.fillText('ÁREA PARA ETE', 350, 112);
+    treatmentLabel.update();
+    const treatmentFace = MeshBuilder.CreatePlane('port-treatment-empty-face', { width: 5.9, height: 1.05 }, this.scene);
+    treatmentFace.position.set(7.30, 2.45, 0);
+    treatmentFace.rotation.y = -Math.PI / 2;
+    const treatmentFaceMat = this.material('port-treatment-empty-face-material', new Color3(1, 1, 1));
+    treatmentFaceMat.diffuseTexture = treatmentLabel; treatmentFaceMat.emissiveColor = new Color3(0.12, 0.15, 0.11);
+    treatmentFace.material = treatmentFaceMat;
+
+    // Septic systems serve isolated sanitary facilities; industrial effluent is treated by the ETE.
+    this.portSepticPositions.forEach((site, index) => {
+      const pad = MeshBuilder.CreateGround(`port-septic-pad-${index}`, { width: 8, height: 7 }, this.scene);
+      pad.position.set(site.x, 0.03, site.z);
+      pad.material = this.material(`port-septic-pad-material-${index}`, new Color3(0.42, 0.46, 0.39));
+      const building = MeshBuilder.CreateBox(`port-sanitary-building-${index}`, { width: 4.2, height: 2.7, depth: 3.2 }, this.scene);
+      building.position.set(site.x - 5.3, 1.35, site.z);
+      building.material = this.material(`port-sanitary-building-material-${index}`, new Color3(0.75, 0.69, 0.52));
+      building.checkCollisions = true;
+      const marker = MeshBuilder.CreateCylinder(`port-septic-marker-${index}`, { height: 0.6, diameter: 0.8, tessellation: 10 }, this.scene);
+      marker.position.set(site.x, 0.32, site.z);
+      marker.material = this.material(`port-septic-marker-material-${index}`, new Color3(0.77, 0.62, 0.27));
+    });
+
+    this.portCompanyPositions.forEach((site, index) => {
+      const bay = MeshBuilder.CreateGround(`port-company-waste-bay-${index}`, { width: 7.2, height: 6.2 }, this.scene);
+      bay.position.set(site.x, 0.035, site.z);
+      bay.material = this.material(`port-company-waste-bay-material-${index}`, new Color3(0.39, 0.42, 0.35));
+      for (const x of [site.x - 3.45, site.x + 3.45]) {
+        const stripe = MeshBuilder.CreateBox(`port-company-waste-bay-line-${index}`, { width: 0.12, height: 0.035, depth: 6.0 }, this.scene);
+        stripe.position.set(x, 0.075, site.z);
+        stripe.material = hazard;
+      }
+      const pile = MeshBuilder.CreateBox(`port-company-waste-pile-${index}`, { width: 2.3, height: 1.3, depth: 2.0 }, this.scene);
+      pile.position.set(site.x, 0.72, site.z);
+      pile.material = this.material(`port-company-waste-pile-material-${index}`, new Color3(0.55, 0.43, 0.27));
+      this.portWastePiles.push(pile);
+      const bag = MeshBuilder.CreateSphere(`port-company-waste-bag-${index}`, { diameter: 0.8, segments: 7 }, this.scene);
+      bag.position.set(site.x + 0.7, 0.65, site.z + 0.75);
+      bag.material = this.material(`port-company-waste-bag-material-${index}`, new Color3(0.21, 0.31, 0.27));
+    });
+
+    // A compact drivable collection truck for the three company pickup points.
+    const truck = MeshBuilder.CreateBox('port-collection-truck', { width: 2.35, height: 0.78, depth: 4.4 }, this.scene);
+    truck.position.set(-31, 0.52, 30);
+    truck.rotation.y = Math.PI / 2;
+    truck.checkCollisions = true;
+    const truckBody = this.material('port-truck-body', new Color3(0.83, 0.72, 0.31));
+    truck.material = truckBody;
+    const cargo = MeshBuilder.CreateBox('port-truck-cargo-box', { width: 2.15, height: 1.28, depth: 2.55 }, this.scene);
+    cargo.parent = truck; cargo.position.set(0, 0.95, -0.55);
+    cargo.material = this.material('port-truck-cargo-material', new Color3(0.20, 0.43, 0.31));
+    const cab = MeshBuilder.CreateBox('port-truck-cab', { width: 2.0, height: 1.25, depth: 1.35 }, this.scene);
+    cab.parent = truck; cab.position.set(0, 0.8, 1.28);
+    cab.material = truckBody;
+    const cabGlass = MeshBuilder.CreateBox('port-truck-cab-glass', { width: 1.7, height: 0.62, depth: 0.10 }, this.scene);
+    cabGlass.parent = truck; cabGlass.position.set(0, 1.0, 1.98);
+    cabGlass.material = this.material('port-truck-cab-glass-material', new Color3(0.12, 0.28, 0.32));
+    const headlight = this.material('port-truck-headlights', new Color3(0.98, 0.84, 0.48));
+    for (const side of [-1, 1]) {
+      for (const z of [-1.4, 1.4]) {
+        const wheel = MeshBuilder.CreateCylinder('port-truck-wheel', { height: 0.26, diameter: 0.88, tessellation: 12 }, this.scene);
+        wheel.parent = truck; wheel.position.set(side * 1.12, -0.27, z);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.material = this.material('port-truck-wheel-material', new Color3(0.07, 0.08, 0.08));
+      }
+      const lamp = MeshBuilder.CreateBox('port-truck-headlamp', { width: 0.32, height: 0.25, depth: 0.1 }, this.scene);
+      lamp.parent = truck; lamp.position.set(side * 0.78, 0.05, 2.18); lamp.material = headlight;
+    }
+    const truckMark = MeshBuilder.CreateBox('port-truck-door-mark', { width: 0.06, height: 0.42, depth: 0.82 }, this.scene);
+    truckMark.parent = truck; truckMark.position.set(1.19, 0.12, 1.12);
+    truckMark.material = this.material('port-truck-door-mark-material', new Color3(0.92, 0.93, 0.82));
+    this.portTruck = truck;
+  }
+
+  enterPortPhase(): void {
+    if (this.activePhase === 2) { this.setMapOpen(false); return; }
+    if (!this.isNextNeighborhoodUnlocked()) {
+      this.message = 'Conclua todas as metas do Centro Industrial para liberar o Porto.';
+      this.emit();
+      return;
+    }
+    this.activePhase = 2;
+    this.phaseOneMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.portMeshes.forEach((mesh) => mesh.setEnabled(true));
+    this.player.position.set(-25, 1, 30.5);
+    this.player.setEnabled(true);
+    this.inVehicle = false;
+    this.vehicleSpeed = 0;
+    this.keys.clear();
+    this.mapOpen = false;
+    this.paused = false;
+    this.camera.setTarget(new Vector3(-25, 1.2, 30.5));
+    this.message = 'Bem-vindo ao Porto. Inspecione os três pontos de despejo antes de escolher a solução de tratamento.';
+    this.emit();
+  }
+
+  private findNearestOutfall(): number {
+    let best = -1;
+    let bestDistance = 5.4;
+    this.portOutfallMarkers.forEach((marker, index) => {
+      if (this.portOutfallInspected.has(index)) return;
+      const distance = Math.hypot(this.player.position.x - marker.position.x, this.player.position.z - marker.position.z);
+      if (distance < bestDistance) { best = index; bestDistance = distance; }
+    });
+    return best;
+  }
+
+  private findNearestSepticSite(): number {
+    let best = -1;
+    let bestDistance = 6.2;
+    this.portSepticPositions.forEach((site, index) => {
+      if (this.portSepticInstalled[index]) return;
+      const distance = Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z);
+      if (distance < bestDistance) { best = index; bestDistance = distance; }
+    });
+    return best;
+  }
+
+  private findNearestCompanyWaste(): number {
+    let best = -1;
+    let bestDistance = 5.2;
+    this.portCompanyPositions.forEach((site, index) => {
+      if (!this.portWastePiles[index]?.isEnabled()) return;
+      const distance = Math.hypot(this.activeVehicle.position.x - site.x, this.activeVehicle.position.z - site.z);
+      if (distance < bestDistance) { best = index; bestDistance = distance; }
+    });
+    return best;
+  }
+
+  private getNearbyPortInteraction(): { action: NearbyAction; label: string } | null {
+    if (this.inVehicle) {
+      const moving = Math.abs(this.vehicleSpeed) > 0.45;
+      if (this.portMissionStage === 'collect') {
+        const company = this.findNearestCompanyWaste();
+        if (company >= 0) {
+          return {
+            action: 'collect-company-waste',
+            label: moving ? 'PARE O CAMINHÃO PARA COLETAR' : `E · COLETAR RESÍDUOS · ${this.portCompanyNames[company]}`,
+          };
+        }
+      }
+      return { action: 'exit-vehicle', label: moving ? 'F · PARE PARA DESCER DO CAMINHÃO' : 'F · DESCER DO CAMINHÃO' };
+    }
+    if (this.portMissionStage === 'inspect') {
+      const index = this.findNearestOutfall();
+      if (index >= 0) return { action: 'inspect-outfall', label: `E · ANALISAR DESPEJO ${index + 1}/3` };
+    }
+    if (this.portMissionStage === 'treatment') {
+      if (Math.hypot(this.player.position.x - 14, this.player.position.z) <= 7.2) {
+        return { action: 'install-treatment', label: 'E · CONSTRUIR ESTAÇÃO DE TRATAMENTO' };
+      }
+    }
+    if (this.portMissionStage === 'septic') {
+      const index = this.findNearestSepticSite();
+      if (index >= 0) return { action: 'install-septic', label: `E · INSTALAR FOSSA SÉPTICA ${index + 1}/2` };
+    }
+    if (this.portMissionStage === 'collect') {
+      const truckDistance = Math.hypot(this.player.position.x - this.portTruck.position.x, this.player.position.z - this.portTruck.position.z);
+      if (truckDistance <= 6.5) return { action: 'enter-vehicle', label: 'F · ENTRAR NO CAMINHÃO DE COLETA' };
+    }
+    return null;
+  }
+
+  private installPortTreatment(): void {
+    if (this.portTreatmentInstalled) return;
+    this.portTreatmentInstalled = true;
+    const tankMaterials = [
+      this.material('port-ete-tank-a', new Color3(0.72, 0.77, 0.72)),
+      this.material('port-ete-tank-b', new Color3(0.54, 0.68, 0.62)),
+    ];
+    for (const [index, x] of [10.5, 14.0, 17.5].entries()) {
+      const tank = MeshBuilder.CreateCylinder(`port-ete-treatment-tank-${index}`, { height: 2.4, diameter: 3.0, tessellation: 20 }, this.scene);
+      tank.position.set(x, 1.2, 0);
+      tank.material = tankMaterials[index % 2];
+      const cap = MeshBuilder.CreateCylinder(`port-ete-tank-cap-${index}`, { height: 0.20, diameter: 2.45, tessellation: 20 }, this.scene);
+      cap.position.set(x, 2.5, 0);
+      cap.material = this.material(`port-ete-tank-cap-material-${index}`, new Color3(0.24, 0.49, 0.39));
+    }
+    const control = MeshBuilder.CreateBox('port-ete-control-building', { width: 3.8, height: 2.5, depth: 3.2 }, this.scene);
+    control.position.set(14, 1.25, 4.7);
+    control.material = this.material('port-ete-control-building-material', new Color3(0.86, 0.84, 0.69));
+    const pipe = MeshBuilder.CreateTube('port-ete-clean-water-pipe', {
+      path: [new Vector3(18.5, 1.0, 0), new Vector3(23, 1.0, 0), new Vector3(27, 0.9, 0)],
+      radius: 0.16, tessellation: 10,
+    }, this.scene);
+    pipe.material = this.material('port-ete-clean-water-pipe-material', new Color3(0.22, 0.67, 0.72));
+    this.portRiverMaterial.diffuseColor = new Color3(0.17, 0.50, 0.62);
+    this.portOutletMaterials.forEach((material) => { material.diffuseColor = new Color3(0.22, 0.65, 0.70); });
+    this.portWaterQuality = 66;
+    this.portMissionStage = 'septic';
+    this.message = 'ETE implantada! Os efluentes industriais agora passam por tratamento. Instale duas fossas sépticas nas instalações sanitárias isoladas do porto.';
+    this.emit();
+  }
+
+  private installPortSeptic(): void {
+    const index = this.findNearestSepticSite();
+    if (index < 0) { this.message = 'Aproxime-se de uma das áreas sanitárias sinalizadas.'; this.emit(); return; }
+    this.portSepticInstalled[index] = true;
+    const site = this.portSepticPositions[index];
+    const tank = MeshBuilder.CreateCylinder(`port-septic-tank-${index}`, { height: 0.9, diameter: 2.7, tessellation: 16 }, this.scene);
+    tank.position.set(site.x, 0.35, site.z);
+    tank.material = this.material(`port-septic-tank-material-${index}`, new Color3(0.62, 0.69, 0.60));
+    const lid = MeshBuilder.CreateCylinder(`port-septic-tank-lid-${index}`, { height: 0.18, diameter: 0.9, tessellation: 12 }, this.scene);
+    lid.position.set(site.x, 0.9, site.z);
+    lid.material = this.material(`port-septic-tank-lid-material-${index}`, new Color3(0.18, 0.40, 0.32));
+    this.portWaterQuality = Math.min(90, this.portWaterQuality + 6);
+    if (this.portSepticInstalled.every(Boolean)) {
+      this.portMissionStage = 'collect';
+      this.message = 'As duas fossas sépticas foram instaladas. Agora use o caminhão amarelo para coletar os resíduos nos três pontos das empresas.';
+    } else {
+      this.message = `Sistema sanitário ${index + 1}/2 instalado. Vá até a outra instalação isolada para concluir a etapa.`;
+    }
+    this.emit();
+  }
+
+  private collectPortCompanyWaste(): void {
+    if (Math.abs(this.vehicleSpeed) > 0.45) {
+      this.message = 'Pare completamente o caminhão ao lado do ponto de coleta para carregar os resíduos.';
+      this.emit();
+      return;
+    }
+    const index = this.findNearestCompanyWaste();
+    if (index < 0) { this.message = 'Aproxime o caminhão de um ponto de coleta de uma empresa.'; this.emit(); return; }
+    this.portWastePiles[index].setEnabled(false);
+    this.portWasteCollected += 1;
+    if (this.portWasteCollected >= this.portCompanyPositions.length) {
+      this.portMissionStage = 'complete';
+      this.portWaterQuality = Math.min(100, this.portWaterQuality + 8);
+      this.message = 'Porto recuperado! Os efluentes estão sob tratamento, as fossas sanitárias foram instaladas e as três empresas tiveram seus resíduos coletados. Região 03 liberada no mapa.';
+    } else {
+      this.message = `Carga de ${this.portCompanyNames[index]} recolhida (${this.portWasteCollected}/3). Siga até a próxima empresa.`;
+    }
+    this.emit();
+  }
+
+  private performPortAction(action: NearbyAction): void {
+    if (action === 'enter-vehicle' || action === 'exit-vehicle') { this.toggleVehicle(); return; }
+    if (action === 'inspect-outfall') {
+      const index = this.findNearestOutfall();
+      if (index < 0) { this.message = 'Aproxime-se de um dos três pontos de despejo para analisar a água.'; this.emit(); return; }
+      this.portOutfallsInspected += 1;
+      this.portOutfallInspected.add(index);
+      this.portOutfallMarkers[index].material = this.material(`port-outfall-inspected-${index}`, new Color3(0.18, 0.62, 0.52));
+      if (this.portOutfallsInspected >= this.portOutfallPositions.length) {
+        this.portMissionStage = 'treatment';
+        this.message = 'Diagnóstico concluído. As três saídas estão contaminadas: construa a ETE no terreno sinalizado entre o pátio e o rio.';
+      } else {
+        this.message = `Amostra ${this.portOutfallsInspected}/3 registrada. Procure o próximo ponto de despejo indicado no terreno.`;
+      }
+      this.emit();
+      return;
+    }
+    if (action === 'install-treatment') { this.installPortTreatment(); return; }
+    if (action === 'install-septic') { this.installPortSeptic(); return; }
+    if (action === 'collect-company-waste') { this.collectPortCompanyWaste(); return; }
+    this.message = 'Aproxime-se do próximo objetivo indicado pela missão.';
+    this.emit();
+  }
+
   private buildRiver(): void {
     const river = MeshBuilder.CreateGround('polluted-river', { width: 18, height: 84, subdivisions: 1 }, this.scene);
     river.position.set(48, -0.015, 0);
@@ -850,7 +1286,7 @@ export class GreenCityGame {
     const key = event.key.toLowerCase();
     if (['w', 'a', 's', 'd', 'shift', ' ', 'm'].includes(key)) event.preventDefault();
     this.keys.add(key);
-    if (key === 'e' && !event.repeat && !this.inVehicle) this.interact();
+    if (key === 'e' && !event.repeat && (!this.inVehicle || this.activePhase === 2)) this.interact();
     if (key === 'f' && !event.repeat && !this.mapOpen && !this.paused) this.toggleVehicle();
     if (key === 'm' && !event.repeat && !this.paused) this.setMapOpen(!this.mapOpen);
     if (key === 'escape' && !event.repeat) {
@@ -863,20 +1299,22 @@ export class GreenCityGame {
   private update(dt: number): void {
     const step = Math.min(dt, 0.05);
     if (this.inVehicle) {
+      const activeVehicle = this.activeVehicle;
       const accelerating = this.keys.has('w');
       const braking = this.keys.has('s');
-      if (accelerating) this.vehicleSpeed = Math.min(15, this.vehicleSpeed + 10 * step);
+      const maximumSpeed = this.activePhase === 2 ? 10 : 15;
+      if (accelerating) this.vehicleSpeed = Math.min(maximumSpeed, this.vehicleSpeed + 8.5 * step);
       else if (braking) this.vehicleSpeed = this.vehicleSpeed > 0
         ? Math.max(0, this.vehicleSpeed - 18 * step)
         : Math.min(0, this.vehicleSpeed + 18 * step);
       else this.vehicleSpeed *= Math.max(0, 1 - 2.2 * step);
       const steering = (this.keys.has('a') ? -1 : 0) + (this.keys.has('d') ? 1 : 0);
       if (Math.abs(this.vehicleSpeed) > 0.25) {
-        this.vehicle.rotation.y += steering * 1.65 * step * Math.sign(this.vehicleSpeed);
-        const direction = new Vector3(Math.sin(this.vehicle.rotation.y), 0, Math.cos(this.vehicle.rotation.y));
-        this.vehicle.moveWithCollisions(direction.scale(this.vehicleSpeed * step));
+        activeVehicle.rotation.y += steering * 1.45 * step * Math.sign(this.vehicleSpeed);
+        const direction = new Vector3(Math.sin(activeVehicle.rotation.y), 0, Math.cos(activeVehicle.rotation.y));
+        activeVehicle.moveWithCollisions(direction.scale(this.vehicleSpeed * step));
       }
-      this.player.position.copyFrom(this.vehicle.position).addInPlace(new Vector3(0, 0.2, 0));
+      this.player.position.copyFrom(activeVehicle.position).addInPlace(new Vector3(0, 0.2, 0));
     } else {
       const forward = this.camera.target.subtract(this.camera.position);
       forward.y = 0;
@@ -906,7 +1344,7 @@ export class GreenCityGame {
       }
     }
     const focus = this.inVehicle
-      ? this.vehicle.position.add(new Vector3(0, 1.15, 0))
+      ? this.activeVehicle.position.add(new Vector3(0, 1.15, 0))
       : this.player.position.add(new Vector3(0, 0.8, 0));
     this.camera.target = Vector3.Lerp(this.camera.target, focus, 0.18);
     const now = performance.now();
@@ -996,29 +1434,39 @@ export class GreenCityGame {
   }
 
   private toggleVehicle(): void {
+    const activeVehicle = this.activeVehicle;
     if (this.inVehicle) {
       if (Math.abs(this.vehicleSpeed) > 0.45) {
-        this.message = 'Freie completamente dentro da vaga antes de descer do veículo.';
+        this.message = this.activePhase === 2
+          ? 'Pare completamente o caminhão antes de descer.'
+          : 'Freie completamente dentro da vaga antes de descer do veículo.';
         this.emit(); return;
       }
-      const atBase = Math.hypot(this.vehicle.position.x - this.vehicleBasePosition.x, this.vehicle.position.z - this.vehicleBasePosition.z) <= 4.2;
+      const atBase = this.activePhase === 1
+        && Math.hypot(activeVehicle.position.x - this.vehicleBasePosition.x, activeVehicle.position.z - this.vehicleBasePosition.z) <= 4.2;
       this.inVehicle = false; this.vehicleSpeed = 0;
-      this.player.position.copyFrom(this.vehicle.position).addInPlace(new Vector3(2.8, 0.55, 0));
+      this.player.position.copyFrom(activeVehicle.position).addInPlace(new Vector3(2.8, 0.55, 0));
       this.player.setEnabled(true);
-      this.message = atBase
-        ? 'Veículo estacionado na base. Desça e aproxime-se do carro; pressione E para iniciar a conversão elétrica.'
-        : 'Você saiu do veículo. Para converter, dirija até a BASE DE ELETRIFICAÇÃO, pare na vaga marcada e desça com F.';
+      this.message = this.activePhase === 2
+        ? 'Você desceu do caminhão. Entre novamente com F para dirigir até o próximo ponto de coleta.'
+        : atBase
+          ? 'Veículo estacionado na base. Desça e aproxime-se do carro; pressione E para iniciar a conversão elétrica.'
+          : 'Você saiu do veículo. Para converter, dirija até a BASE DE ELETRIFICAÇÃO, pare na vaga marcada e desça com F.';
     } else {
-      const dx = this.player.position.x - this.vehicle.position.x;
-      const dz = this.player.position.z - this.vehicle.position.z;
+      const dx = this.player.position.x - activeVehicle.position.x;
+      const dz = this.player.position.z - activeVehicle.position.z;
       if (Math.hypot(dx, dz) > 6.5) {
-        this.message = 'Aproxime-se do veículo municipal e pressione F quando aparecer o aviso para entrar.';
+        this.message = this.activePhase === 2
+          ? 'Aproxime-se do caminhão de coleta e pressione F para entrar.'
+          : 'Aproxime-se do veículo municipal e pressione F quando aparecer o aviso para entrar.';
         this.emit(); return;
       }
       this.inVehicle = true; this.player.setEnabled(false);
-      this.message = this.electricVehicle
-        ? 'Veículo 100% elétrico. W acelera, S freia, A/D viram. Pare antes de sair.'
-        : 'Missão: dirija até a BASE DE ELETRIFICAÇÃO. Siga pela via de serviço à direita, pare na vaga e pressione F para descer.';
+      this.message = this.activePhase === 2
+        ? 'Dirija o caminhão amarelo até os três pontos das empresas. W acelera, S freia, A/D viram. Pare para carregar cada ponto.'
+        : this.electricVehicle
+          ? 'Veículo 100% elétrico. W acelera, S freia, A/D viram. Pare antes de sair.'
+          : 'Missão: dirija até a BASE DE ELETRIFICAÇÃO. Siga pela via de serviço à direita, pare na vaga e pressione F para descer.';
     }
     this.keys.clear(); this.emit();
   }
@@ -1151,6 +1599,16 @@ export class GreenCityGame {
     const now = performance.now();
     if (now - this.lastInteract < 180) return;
     this.lastInteract = now;
+    if (this.activePhase === 2) {
+      const nearby = this.getNearbyInteraction();
+      if (!nearby) {
+        this.message = 'Aproxime-se de um ponto de inspeção, da estação de tratamento, de uma fossa ou entre no caminhão.';
+        this.emit();
+        return;
+      }
+      this.performPortAction(nearby.action);
+      return;
+    }
     if (this.missionStage === 'deliver') {
       const distance = Math.hypot(this.player.position.x - this.ecoCenterPosition.x, this.player.position.z - this.ecoCenterPosition.z);
       if (distance <= 8.5) this.deliverWaste();
@@ -1217,6 +1675,7 @@ export class GreenCityGame {
 
   private getNearbyInteraction(): { action: NearbyAction; label: string } | null {
     if (this.paused || this.mapOpen) return null;
+    if (this.activePhase === 2) return this.getNearbyPortInteraction();
     if (this.inVehicle) {
       const atBase = this.isVehicleInsideBase();
       const moving = Math.abs(this.vehicleSpeed) > 0.45;
@@ -1251,7 +1710,14 @@ export class GreenCityGame {
 
   performNearbyAction(): void {
     const nearby = this.getNearbyInteraction();
-    if (!nearby) { this.message = 'Aproxime-se de um resíduo, de um prédio sem painéis ou da base do veículo para interagir.'; this.emit(); return; }
+    if (!nearby) {
+      this.message = this.activePhase === 2
+        ? 'Aproxime-se do objetivo indicado na missão para interagir.'
+        : 'Aproxime-se de um resíduo, de um prédio sem painéis ou da base do veículo para interagir.';
+      this.emit();
+      return;
+    }
+    if (this.activePhase === 2) { this.performPortAction(nearby.action); return; }
     if (nearby.action === 'enter-vehicle' || nearby.action === 'exit-vehicle') { this.toggleVehicle(); return; }
     if (nearby.action === 'install-building-solar') { this.installNearbyBuildingSolar(); return; }
     if (nearby.action === 'convert-vehicle') { this.convertVehicleAtBase(); return; }
@@ -1272,6 +1738,20 @@ export class GreenCityGame {
       renewableShare: this.renewableShare,
       sustainableMobility: this.sustainableMobility,
       airQuality: this.airQuality,
+      phase: this.activePhase,
+      completedNeighborhoods: this.activePhase === 2
+        ? (this.portMissionStage === 'complete' ? 2 : 1)
+        : (this.missionStage === 'complete' ? 1 : 0),
+      thirdNeighborhoodUnlocked: this.activePhase === 2 && this.portMissionStage === 'complete',
+      portMissionStage: this.portMissionStage,
+      outfallsInspected: this.portOutfallsInspected,
+      outfallsTotal: this.portOutfallPositions.length,
+      treatmentInstalled: this.portTreatmentInstalled,
+      septicInstalled: this.portSepticInstalled.filter(Boolean).length,
+      septicTotal: this.portSepticPositions.length,
+      companyWasteCollected: this.portWasteCollected,
+      companyWasteTotal: this.portCompanyPositions.length,
+      waterQuality: this.portWaterQuality,
       missionStage: this.missionStage,
       nextNeighborhoodUnlocked: this.isNextNeighborhoodUnlocked(),
       paused: this.paused,
@@ -1282,8 +1762,8 @@ export class GreenCityGame {
       nearbyLabel: nearby?.label ?? '',
       playerX: this.player.position.x,
       playerZ: this.player.position.z,
-      vehicleX: this.vehicle.position.x,
-      vehicleZ: this.vehicle.position.z,
+      vehicleX: this.activeVehicle.position.x,
+      vehicleZ: this.activeVehicle.position.z,
       message: this.message,
     };
   }
