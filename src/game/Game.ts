@@ -114,7 +114,7 @@ export class GreenCityGame {
     this.buildPortDistrict();
     this.portMeshes.push(...this.scene.meshes.slice(portStartIndex) as Mesh[]);
     this.portMeshes.forEach((mesh) => mesh.setEnabled(false));
-    this.phaseOneMeshes = this.scene.meshes.slice(0, portStartIndex).filter((mesh) => !this.isPlayerPart(mesh)) as Mesh[];
+    this.phaseOneMeshes = this.scene.meshes.slice(0, portStartIndex).filter((mesh) => !this.isPlayerPart(mesh as Mesh)) as Mesh[];
     this.bindInput(canvas);
     this.emit();
 
