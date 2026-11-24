@@ -50,8 +50,8 @@ Verificações: **npm run typecheck** e **npm run build**.
 - Mouse: girar a câmera.
 - Shift: correr.
 - Espaço: pular.
-- E: recolher resíduos ou entregar a carga.
-- F: entrar ou sair do veículo.
+- E: recolher resíduos ou entregar a carga (o jogo mostra um botão contextual quando estiver no alcance).
+- F: entrar ou sair do veículo (um botão contextual também aparece ao se aproximar).
 - M: abrir ou fechar o mapa.
 - ESC: fechar o mapa ou pausar.
 

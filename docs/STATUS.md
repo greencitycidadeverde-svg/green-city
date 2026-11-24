@@ -3,6 +3,14 @@
 ## Direção do produto
 GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. Uma cidade grande é dividida em cinco regiões, cada uma funcionando como uma fase de recuperação.
 
+## Versão 0.3.1 — ponto de entrega e interações contextuais
+- EcoCentro ganhou área externa de descarga sinalizada, letreiro 3D com texto, rota de pedestres, piso de entrega e cinco contêineres por cor (papel, plástico, vidro, metal e orgânicos).
+- A posição do ponto de entrega foi alinhada à plataforma externa; a interação usa distância horizontal para não ser afetada por diferenças pequenas de altura.
+- Ao completar a coleta, o objetivo orienta o jogador até a placa ECOCENTRO; o botão contextual aparece quando ele chega perto e permite descarregar por clique ou tecla E.
+- O veículo municipal passou a aceitar entrada em raio maior, medido no plano horizontal. Um botão contextual mostra “F · ENTRAR NO VEÍCULO” e também permite sair.
+- O minimapa agora marca a posição do EcoCentro.
+- A tela inicial apresenta a visão ecológica ampla: água, solo, árvores, fauna, ar, energia, mobilidade e qualidade de vida.
+
 ## Versão 0.3.0 — base visual reconstruída e publicada
 - Reconstruída a folha de estilos global para tela de jogo em tela cheia, HUD, minimapa, missão, controles, mapa geral, Plano Urbano, carregamento e mensagens de erro.
 - A tela inicial aparece antes da inicialização do mundo Babylon.js. O motor 3D só é importado quando o jogador escolhe começar.
@@ -20,6 +28,13 @@ GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. Uma
 - Instalação solar com ponto local de recarga.
 - Conversão do veículo municipal a diesel para elétrico após a implantação solar.
 - Liberação lógica do Porto ao atingir as metas de recuperação do primeiro bairro.
+
+## Verificação da versão 0.3.1
+- Build TypeScript/Vite concluído com sucesso.
+- Vercel deployment `dpl_9ZVHsPHWiViTvsG2fb7pSwkKVnzH` — estado READY, produção.
+- Auditoria de npm: 70 pacotes, zero vulnerabilidades.
+- Página raiz verificada com HTTP 200.
+- Não houve teste manual interativo nesta sessão; a confirmação final do comportamento visual e físico precisa do teste no navegador.
 
 ## Verificação da versão 0.3.0
 - Commit publicado: 19c2193098f05f7653a30e2fa00a069183722379.
