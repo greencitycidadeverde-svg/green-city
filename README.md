@@ -64,7 +64,7 @@ Verificações: **npm run typecheck** e **npm run build**.
 
 ## Evolução de campanha
 
-A versão 0.4.0 adiciona a campanha de dez regiões e um cenário 3D inicial do Porto. A missão inclui três inspeções de despejos, implantação de uma ETE, duas fossas sépticas para instalações sanitárias isoladas e coleta de resíduos em três empresas com um caminhão dirigível. O conceito detalhado está em `docs/PHASE_02_PORTO.md`.
+A versão 0.4.1 mantém a campanha de dez regiões e o cenário 3D inicial do Porto. A primeira fase agora possui tela explícita de conclusão que abre o mapa antes de entrar no Porto. O cenário recebeu uma rodada inicial de suavização geométrica: personagem mais expressivo e animado, copas de árvores orgânicas, esquadrias e fachadas arredondadas, além de carro e caminhão com carrocerias mais curvas. A substituição por assets 3D profissionais próprios continua sendo a próxima etapa visual. O conceito detalhado está em `docs/PHASE_02_PORTO.md`.
 
 ## Limitações conhecidas
 
