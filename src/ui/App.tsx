@@ -4,6 +4,18 @@ import { CITY_NEIGHBORHOODS } from '../game/neighborhoods';
 import type { GameSnapshot } from '../game/types';
 
 const initial: GameSnapshot = {
+  phase: 1,
+  completedNeighborhoods: 0,
+  thirdNeighborhoodUnlocked: false,
+  portMissionStage: 'inspect',
+  outfallsInspected: 0,
+  outfallsTotal: 3,
+  treatmentInstalled: false,
+  septicInstalled: 0,
+  septicTotal: 2,
+  companyWasteCollected: 0,
+  companyWasteTotal: 3,
+  waterQuality: 24,
   cit: 0,
   collected: 0,
   total: 5,
@@ -46,6 +58,7 @@ export default function App() {
   const [gameReady, setGameReady] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
   const [playRequested, setPlayRequested] = useState(false);
+  const [phaseCompleteSeen, setPhaseCompleteSeen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,46 +86,42 @@ export default function App() {
     };
   }, [playRequested]);
 
-  const missionProgress = state.missionStage === 'complete'
-    ? 100
-    : state.missionStage === 'collect'
-      ? Math.round((state.collected / state.total) * 30)
-      : state.missionStage === 'deliver'
-        ? 35
-        : Math.min(99, 35 + Math.round((state.solarBuildingsInstalled / state.solarBuildingsTotal) * 50) + (state.electricVehicle ? 15 : 0));
+  const missionProgress = state.phase === 1
+    ? state.missionStage === 'complete'
+      ? 100
+      : state.missionStage === 'collect'
+        ? Math.round((state.collected / state.total) * 30)
+        : state.missionStage === 'deliver'
+          ? 35
+          : Math.min(99, 35 + Math.round((state.solarBuildingsInstalled / state.solarBuildingsTotal) * 50) + (state.electricVehicle ? 15 : 0))
+    : state.portMissionStage === 'complete'
+      ? 100
+      : state.portMissionStage === 'inspect'
+        ? Math.round((state.outfallsInspected / state.outfallsTotal) * 25)
+        : state.portMissionStage === 'treatment'
+          ? 35
+          : state.portMissionStage === 'septic'
+            ? 40 + Math.round((state.septicInstalled / state.septicTotal) * 25)
+            : 70 + Math.round((state.companyWasteCollected / state.companyWasteTotal) * 30);
 
-  const mission = {
-    collect: {
-      eyebrow: 'FASE 01 · DIAGNÓSTICO E COLETA',
-      title: 'Comece a recuperar o bairro',
-      description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para encaminhamento correto.',
-      progress: `${state.collected}/${state.total} resíduos`,
-    },
-    deliver: {
-      eyebrow: 'FASE 01 · GESTÃO DE RESÍDUOS',
-      title: 'Leve a carga ao EcoCentro',
-      description: 'Vá até a praça, identifique as cinco categorias pelas cores e símbolos e entregue os resíduos no ponto de triagem.',
-      progress: 'Coleta concluída · entrega pendente',
-    },
-    solar: {
-      eyebrow: 'FASE 01 · MISSÃO DE ENERGIA SOLAR',
-      title: 'Solarize os prédios',
-      description: `Aproxime-se da fachada de cada prédio ainda sem painéis e pressione E para instalar. ${state.solarBuildingsInstalled}/${state.solarBuildingsTotal} edifícios modernizados.`,
-      progress: `${state.solarBuildingsInstalled}/${state.solarBuildingsTotal} prédios`,
-    },
-    vehicle: {
-      eyebrow: 'FASE 01 · MISSÃO DE MOBILIDADE',
-      title: 'Dirija até a base de eletrificação',
-      description: 'Entre no carro com F, siga pela via de serviço até a base marcada no minimapa, pare completamente na vaga, desça com F e pressione E ao lado do veículo.',
-      progress: 'Base ativa · conversão pendente',
-    },
-    complete: {
-      eyebrow: 'FASE 01 · BAIRRO RECUPERADO',
-      title: 'Centro Industrial transformado',
-      description: 'Os oito prédios receberam energia solar e o veículo municipal foi convertido na base. O Porto está liberado no mapa.',
-      progress: 'Fase concluída',
-    },
+  const phaseOneMission = {
+    collect: { eyebrow: 'FASE 01 · DIAGNÓSTICO E COLETA', title: 'Comece a recuperar o bairro', description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para encaminhamento correto.', progress: `${state.collected}/${state.total} resíduos` },
+    deliver: { eyebrow: 'FASE 01 · GESTÃO DE RESÍDUOS', title: 'Leve a carga ao EcoCentro', description: 'Vá até a praça, identifique as cinco categorias pelas cores e símbolos e entregue os resíduos no ponto de triagem.', progress: 'Coleta concluída · entrega pendente' },
+    solar: { eyebrow: 'FASE 01 · MISSÃO DE ENERGIA SOLAR', title: 'Solarize os prédios', description: `Aproxime-se da fachada de cada prédio ainda sem painéis e pressione E para instalar. ${state.solarBuildingsInstalled}/${state.solarBuildingsTotal} edifícios modernizados.`, progress: `${state.solarBuildingsInstalled}/${state.solarBuildingsTotal} prédios` },
+    vehicle: { eyebrow: 'FASE 01 · MISSÃO DE MOBILIDADE', title: 'Dirija até a base de eletrificação', description: 'Entre no carro com F, siga pela via de serviço até a base marcada no minimapa, pare completamente na vaga, desça com F e pressione E ao lado do veículo.', progress: 'Base ativa · conversão pendente' },
+    complete: { eyebrow: 'FASE 01 · BAIRRO RECUPERADO', title: 'Centro Industrial transformado', description: 'Os oito prédios receberam energia solar e o veículo municipal foi convertido na base. O Porto está liberado no mapa.', progress: 'Fase concluída' },
   }[state.missionStage];
+
+  const portMission = {
+    inspect: { eyebrow: 'FASE 02 · DIAGNÓSTICO DA ÁGUA', title: 'Investigue os despejos no rio', description: 'Encontre os três pontos de descarga próximos ao rio e pressione E para registrar uma amostra de cada um.', progress: `${state.outfallsInspected}/${state.outfallsTotal} pontos inspecionados` },
+    treatment: { eyebrow: 'FASE 02 · TRATAMENTO DE EFLUENTES', title: 'Construa a estação de tratamento', description: 'Vá até a área sinalizada entre o pátio e o rio e pressione E para instalar a ETE. A estação tratará os efluentes industriais antes da descarga.', progress: 'Diagnóstico concluído · ETE pendente' },
+    septic: { eyebrow: 'FASE 02 · SANEAMENTO LOCAL', title: 'Instale as fossas sépticas', description: `Instale sistemas sépticos nas duas instalações sanitárias isoladas do porto. ${state.septicInstalled}/${state.septicTotal} concluídas.`, progress: `${state.septicInstalled}/${state.septicTotal} fossas instaladas` },
+    collect: { eyebrow: 'FASE 02 · COLETA NAS EMPRESAS', title: 'Use o caminhão de coleta', description: 'Entre no caminhão amarelo com F. Dirija até as áreas de resíduos das três empresas, pare perto de cada carga e pressione E para recolher.', progress: `${state.companyWasteCollected}/${state.companyWasteTotal} empresas atendidas` },
+    complete: { eyebrow: 'FASE 02 · PORTO RECUPERADO', title: 'A água e a logística estão melhores', description: 'A ETE está operando, as duas instalações sanitárias receberam fossas sépticas e os resíduos das três empresas foram coletados. A próxima região foi liberada.', progress: 'Fase concluída' },
+  }[state.portMissionStage];
+
+  const mission = state.phase === 1 ? phaseOneMission : portMission;
+
 
   return <main className="game-shell">
     <canvas ref={canvasRef} className="game-canvas" tabIndex={0} aria-label="Mundo 3D jogável de GREEN CITY" />
@@ -120,7 +129,7 @@ export default function App() {
     <header className="topbar">
       <div className="brand">
         <span className="brand-mark">G</span>
-        <div><strong>GREEN CITY</strong><small>CIDADE SUSTENTÁVEL · FASE 01/05</small></div>
+        <div><strong>GREEN CITY</strong><small>CIDADE SUSTENTÁVEL · FASE 0{state.phase}/10</small></div>
       </div>
       <div className="wallet"><span>CIT SIMULADOS</span><strong>◆ {state.cit.toString().padStart(3, '0')}</strong></div>
     </header>
@@ -133,7 +142,8 @@ export default function App() {
         <div className="progress-track"><span style={{ width: `${missionProgress}%` }} /></div>
         <b>{mission.progress}</b>
       </div>
-      {state.missionStage === 'complete' && <div className="success-line">✓ METAS AMBIENTAIS ATINGIDAS · PORTO LIBERADO</div>}
+      {state.phase === 1 && state.missionStage === 'complete' && <div className="success-line">✓ METAS AMBIENTAIS ATINGIDAS · PORTO LIBERADO</div>}
+      {state.phase === 2 && state.portMissionStage === 'complete' && <div className="success-line">✓ PORTO RECUPERADO · REGIÃO 03 LIBERADA</div>}
     </section>
 
     {!gameReady && !gameError && <div className="loading-overlay"><div className="loading-box"><span className="loading-spinner" /> Preparando o mundo de GREEN CITY…</div></div>}
@@ -145,7 +155,9 @@ export default function App() {
       onClick={() => gameRef.current?.performNearbyAction()}
       aria-label={state.nearbyLabel}
     >{state.nearbyLabel}<span>TOCAR / CLICAR</span></button>}
-    <div className="vehicle-status">{state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
+    <div className="vehicle-status">{state.phase === 2
+      ? state.inVehicle ? `CAMINHÃO DE COLETA · ${state.vehicleSpeed} KM/H` : 'CAMINHÃO DE COLETA · F PARA ENTRAR'
+      : state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
 
     <div className="minimap" aria-label="Minimapa do bairro">
       <div className="map-road map-road-v" />
@@ -178,7 +190,7 @@ export default function App() {
       <div className="welcome-panel welcome-hero">
         <div className="welcome-topline">
           <div className="welcome-logo"><span>G</span><div><b>GREEN CITY</b><small>JOGO DE TRANSFORMAÇÃO AMBIENTAL</small></div></div>
-          <span className="phase-pill">FASE 01 DE 05 · CENTRO INDUSTRIAL</span>
+          <span className="phase-pill">FASE 01 DE 10 · CENTRO INDUSTRIAL</span>
         </div>
         <div className="welcome-scene" aria-label="Ilustração de uma cidade verde com árvores, edifícios e energia limpa">
           <span className="scene-sun" />
@@ -215,29 +227,51 @@ export default function App() {
       <section className="world-map-panel city-map-panel">
         <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>FECHAR · M</button>
         <div className="eyebrow">GREEN CITY · MAPA GERAL</div>
-        <h2>Uma cidade dividida em cinco regiões</h2>
-        <p>Recupere uma região por vez. Cada bairro traz novos problemas e sistemas urbanos para transformar.</p>
-        <div className="city-map-grid">
-          {CITY_NEIGHBORHOODS.map((neighborhood, index) => {
-            const current = index === 0;
-            const available = index === 1 && state.nextNeighborhoodUnlocked;
-            const completed = current && state.missionStage === 'complete';
-            const status = completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : available ? 'LIBERADO' : 'BLOQUEADO';
-            return <article className={`district-card ${current ? 'district-current' : ''} ${available ? 'district-available' : ''} ${index > 1 || (index === 1 && !available) ? 'district-locked' : ''}`} key={neighborhood.id}>
-              <div className="district-card-top"><span>FASE 0{index + 1}</span><b>{status}</b></div>
-              <h3>{neighborhood.name}</h3>
-              <div className="district-theme">{neighborhood.theme}</div>
-              <p>{neighborhood.challenge}</p>
-              <small>{current ? completed ? 'Concluído nesta versão' : 'Você está aqui' : available ? 'Próxima região liberada · expansão 3D em desenvolvimento' : neighborhood.unlockLabel}</small>
-            </article>;
-          })}
+        <h2>Uma cidade, dez regiões para recuperar</h2>
+        <p>O mapa fictício mostra a campanha inteira. As regiões concluídas ficam verdes, a próxima região liberada pode ser acessada e as demais permanecem bloqueadas.</p>
+        <div className="city-map-board">
+          <div className="city-map-river" />
+          <div className="city-map-road city-map-road-one" />
+          <div className="city-map-road city-map-road-two" />
+          <div className="city-map-grid">
+            {CITY_NEIGHBORHOODS.map((neighborhood, index) => {
+              const completed = index < state.completedNeighborhoods;
+              const current = !completed && index === state.phase - 1;
+              const available = !completed && !current && index === state.completedNeighborhoods;
+              const canEnterPort = available && index === 1 && state.phase === 1;
+              const status = completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : available ? 'LIBERADO' : 'BLOQUEADO';
+              return <button type="button"
+                className={`district-card ${completed ? 'district-complete' : ''} ${current ? 'district-current' : ''} ${available ? 'district-available' : ''} ${!completed && !current && !available ? 'district-locked' : ''}`}
+                key={neighborhood.id} disabled={!canEnterPort}
+                onClick={() => { if (canEnterPort) gameRef.current?.enterPortPhase(); }}>
+                <div className="district-card-top"><span>FASE {String(index + 1).padStart(2, '0')}</span><b>{status}</b></div>
+                <div className="district-map-icon">{completed ? '✓' : available ? '🔓' : neighborhood.icon}</div>
+                <h3>{neighborhood.name}</h3>
+                <div className="district-theme">{neighborhood.theme}</div>
+                <p>{neighborhood.challenge}</p>
+                <small>{completed ? 'Região concluída e marcada no mapa' : current ? 'Você está nesta região' : canEnterPort ? 'Clique para entrar na Fase 02' : available ? 'Próxima região liberada · expansão seguinte' : neighborhood.unlockLabel}</small>
+              </button>;
+            })}
+          </div>
         </div>
         <div className="city-map-footer">
           <span><i className="legend-dot active" /> Fase atual</span>
           <span><i className="legend-dot available" /> Liberado</span>
           <span><i className="legend-dot locked" /> Bloqueado</span>
         </div>
-        <p className="map-disclaimer">O mapa apresenta a progressão planejada. Nesta versão, somente o Centro Industrial possui área 3D jogável; as próximas regiões serão construídas como novas fases.</p>
+        <p className="map-disclaimer">O mapa é uma representação fictícia da cidade. Nesta versão, o Centro Industrial e o Porto possuem cenários 3D; as outras oito regiões permanecem bloqueadas enquanto são desenvolvidas.</p>
+      </section>
+    </div>}
+
+    {state.phase === 1 && state.missionStage === 'complete' && !phaseCompleteSeen && <div className="phase-complete-overlay">
+      <section className="phase-complete-panel">
+        <div className="completion-medal">✓</div>
+        <div className="eyebrow">MISSÃO CONCLUÍDA · FASE 01 DE 10</div>
+        <h2>Centro Industrial recuperado!</h2>
+        <p>Você organizou os resíduos, modernizou os oito prédios com energia solar e converteu o veículo municipal. O Porto está liberado no mapa.</p>
+        <div className="completion-stats"><span>8 prédios solares</span><span>1 veículo elétrico</span><span>Região 02 liberada</span></div>
+        <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); gameRef.current?.enterPortPhase(); }}>AVANÇAR PARA A FASE 02 <span>→</span></button>
+        <button className="completion-map-button" onClick={() => { setPhaseCompleteSeen(true); gameRef.current?.setMapOpen(true); }}>VER MAPA DAS 10 REGIÕES</button>
       </section>
     </div>}
 
@@ -245,29 +279,33 @@ export default function App() {
       <section className="world-map-panel plan-panel">
         <button className="world-map-close" onClick={() => setShowPlan(false)}>FECHAR</button>
         <div className="eyebrow">CENTRO INDUSTRIAL · GESTÃO DA CIDADE</div>
-        <h2>Missões de recuperação do bairro</h2>
-        <p>Este painel acompanha os indicadores e objetivos. As instalações e conversões agora acontecem no cenário, por aproximação e interação do personagem.</p>
-        <div className="metrics-grid">
-          <Metric label="Reciclagem e destinação adequada" value={state.recyclingRate} />
-          <Metric label="Participação de energia renovável" value={state.renewableShare} />
-          <Metric label="Mobilidade sustentável" value={state.sustainableMobility} />
-          <Metric label="Qualidade do ar" value={state.airQuality} />
-        </div>
-        <div className="upgrade-grid">
-          <article className="upgrade-card">
-            <div className="eyebrow">ENERGIA SOLAR NOS EDIFÍCIOS</div>
-            <h3>{state.solarBuildingsInstalled}/{state.solarBuildingsTotal} prédios solarizados</h3>
-            <p>Aproxime-se de cada fachada sem painéis e pressione E. Cada instalação custa 10 CIT, coloca painéis no telhado e atualiza os indicadores de energia renovável.</p>
-          </article>
-          <article className="upgrade-card">
-            <div className="eyebrow">CONVERSÃO DO VEÍCULO</div>
-            <h3>{state.electricVehicle ? 'Veículo 100% elétrico' : state.solarBuildingsInstalled >= 3 ? 'Base de eletrificação ativa' : 'Aguardando três prédios solares'}</h3>
-            <p>{state.electricVehicle
-              ? 'O carro foi convertido dentro do jogo, estacionado na vaga e com o personagem fora do veículo.'
-              : 'Depois de solarizar três prédios, dirija até a base, estacione, desça e pressione E ao lado do carro. A conversão custa 20 CIT.'}</p>
-          </article>
-        </div>
-        {!state.delivered && <div className="plan-hint">Primeiro: recolha os cinco resíduos e entregue a carga no EcoCentro.</div>}
+        <h2>{state.phase === 1 ? 'Missões de recuperação do bairro' : 'Missões de recuperação do Porto'}</h2>
+        <p>Este painel acompanha os indicadores e objetivos da região atual. As obras e coletas acontecem no cenário, por aproximação e interação do personagem.</p>
+        {state.phase === 1 ? <>
+          <div className="metrics-grid">
+            <Metric label="Reciclagem e destinação adequada" value={state.recyclingRate} />
+            <Metric label="Participação de energia renovável" value={state.renewableShare} />
+            <Metric label="Mobilidade sustentável" value={state.sustainableMobility} />
+            <Metric label="Qualidade do ar" value={state.airQuality} />
+          </div>
+          <div className="upgrade-grid">
+            <article className="upgrade-card"><div className="eyebrow">ENERGIA SOLAR NOS EDIFÍCIOS</div><h3>{state.solarBuildingsInstalled}/{state.solarBuildingsTotal} prédios solarizados</h3><p>Aproxime-se de cada fachada sem painéis e pressione E. Cada instalação custa 10 CIT, coloca painéis no telhado e atualiza os indicadores de energia renovável.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">CONVERSÃO DO VEÍCULO</div><h3>{state.electricVehicle ? 'Veículo 100% elétrico' : state.solarBuildingsInstalled >= 3 ? 'Base de eletrificação ativa' : 'Aguardando três prédios solares'}</h3><p>{state.electricVehicle ? 'O carro foi convertido dentro do jogo, estacionado na vaga e com o personagem fora do veículo.' : 'Depois de solarizar três prédios, dirija até a base, estacione, desça e pressione E ao lado do carro. A conversão custa 20 CIT.'}</p></article>
+          </div>
+        </> : <>
+          <div className="metrics-grid">
+            <Metric label="Qualidade da água (simulada)" value={state.waterQuality} />
+            <Metric label="Pontos de despejo inspecionados" value={Math.round(state.outfallsInspected / state.outfallsTotal * 100)} />
+            <Metric label="Tratamento de efluentes" value={state.treatmentInstalled ? 100 : 0} />
+            <Metric label="Coleta nas empresas" value={Math.round(state.companyWasteCollected / state.companyWasteTotal * 100)} />
+          </div>
+          <div className="upgrade-grid">
+            <article className="upgrade-card"><div className="eyebrow">ESTAÇÃO DE TRATAMENTO · ETE</div><h3>{state.treatmentInstalled ? 'ETE implantada' : 'Aguardando diagnóstico'}</h3><p>Os efluentes industriais são conduzidos à estação, onde passam por etapas de tratamento antes da saída para o rio. A água do cenário muda após a implantação.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">SANEAMENTO LOCAL</div><h3>{state.septicInstalled}/{state.septicTotal} fossas sépticas instaladas</h3><p>As fossas atendem instalações sanitárias isoladas. Elas não substituem o tratamento específico dos efluentes industriais realizado pela ETE.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">LOGÍSTICA DE RESÍDUOS</div><h3>{state.companyWasteCollected}/{state.companyWasteTotal} empresas atendidas</h3><p>Use o caminhão amarelo, pare junto aos pontos sinalizados e pressione E para carregar os resíduos de cada empresa.</p></article>
+          </div>
+        </>}
+        {state.phase === 1 && !state.delivered && <div className="plan-hint">Primeiro: recolha os cinco resíduos e entregue a carga no EcoCentro.</div>}
         {state.delivered && state.solarBuildingsInstalled < 3 && <div className="plan-hint">Missão atual: instale energia solar em três prédios. A base do veículo será ativada automaticamente depois da terceira instalação.</div>}
         {state.delivered && state.solarBuildingsInstalled >= 3 && !state.electricVehicle && <div className="plan-hint">A base está ativa. Siga o marcador amarelo no minimapa, estacione completamente, desça e converta o veículo ao lado da vaga.</div>}
         {state.electricVehicle && state.solarBuildingsInstalled < state.solarBuildingsTotal && <div className="plan-hint">O veículo já é elétrico. Continue solarizando os prédios restantes para concluir a fase.</div>}
