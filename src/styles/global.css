@@ -510,69 +510,144 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .minimap { bottom: 68px; }
 }
 
+/* 0.4.6 — controles separados por dispositivo, padrão familiar de jogo 3D */
+.desktop-only { display: inline; }
+.mobile-only { display: none; }
+.mobile-zoom-stack { display: none; }
 
-/* Camera look pad: right thumb or finger orbits the world independently
-   from the movement joystick on the left. */
 @media (max-width: 980px), (pointer: coarse) {
-  .mobile-camera-zone {
-    pointer-events: auto;
-    position: absolute;
-    z-index: 9;
-    right: max(16px, env(safe-area-inset-right));
-    top: 32%;
-    width: clamp(92px, 25vw, 122px);
-    height: clamp(132px, 22vh, 176px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 11px;
-    border: 1px dashed rgba(215, 248, 195, .28);
-    border-radius: 28px;
-    background: linear-gradient(145deg, rgba(14, 42, 31, .22), rgba(10, 28, 23, .10));
-    color: rgba(240, 255, 229, .78);
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
+  .desktop-only { display: none !important; }
+  .mobile-only { display: inline !important; }
+
+  .game-shell { height: 100dvh; min-height: 100dvh; touch-action: none; }
+  .topbar { min-height: 58px; padding: 8px 11px; gap: 8px; }
+  .brand { min-width: 0; gap: 8px; }
+  .brand-mark { width: 32px; height: 32px; border-radius: 9px; font-size: 19px; }
+  .brand strong { font-size: 11px; }
+  .brand small { font-size: 6px; letter-spacing: .04em; }
+  .wallet { min-width: 82px; padding: 6px 8px; border-radius: 8px; }
+  .wallet span { font-size: 6px; }
+  .wallet strong { font-size: 10px; }
+
+  /* Objective stays readable without covering the play area. */
+  .mission-card {
+    top: 70px; left: 10px; width: min(238px, calc(100vw - 112px));
+    padding: 10px 11px; border-radius: 11px;
   }
-  .camera-zone-ring {
-    width: 48px;
-    height: 48px;
-    border: 2px solid rgba(215, 248, 195, .56);
-    border-radius: 50%;
-    box-shadow: inset 0 0 0 8px rgba(215, 248, 195, .08), 0 0 22px rgba(141, 210, 120, .10);
-    position: relative;
+  .mission-card .eyebrow { font-size: 6px; letter-spacing: .07em; }
+  .mission-card h1 { margin: 5px 0 4px; font-size: 13px; line-height: 1.16; }
+  .mission-card p { display: none; }
+  .progress-row { gap: 7px; margin-top: 7px; }
+  .progress-track { height: 5px; }
+  .progress-row b { font-size: 7px; }
+  .success-line { margin-top: 6px; font-size: 6px; }
+  .vehicle-status, .minimap, .bottom-left, .controls { display: none !important; }
+
+  /* Navigation and planning are compact and stay away from the movement controls. */
+  .plan-button, .map-button {
+    top: 72px; right: 10px; bottom: auto; width: 88px; min-height: 29px;
+    padding: 0 6px; border-radius: 8px; font-size: 7px; letter-spacing: .04em;
   }
-  .camera-zone-ring::before,
-  .camera-zone-ring::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    background: rgba(215, 248, 195, .56);
-    transform: translate(-50%, -50%);
+  .map-button { top: 106px; }
+  .help-button { top: 140px; right: 13px; width: 25px; height: 25px; }
+  .status-message {
+    left: 10px; bottom: calc(143px + env(safe-area-inset-bottom));
+    max-width: min(55vw, 215px); max-height: 42px; overflow: hidden;
+    padding: 7px 9px; border-radius: 8px; font-size: 8px; line-height: 1.35;
   }
-  .camera-zone-ring::before { width: 62px; height: 1px; }
-  .camera-zone-ring::after { width: 1px; height: 62px; }
-  .mobile-camera-zone small {
-    font: 800 7px var(--gc-mono);
-    letter-spacing: .12em;
-    line-height: 1.55;
-    text-align: center;
-    text-shadow: 0 1px 4px rgba(0,0,0,.8);
+  /* The dedicated action button replaces the duplicate desktop interaction banner. */
+  .interaction-prompt { display: none !important; }
+
+  .mobile-controls {
+    display: block; position: absolute; z-index: 8; inset: 0;
     pointer-events: none;
   }
-  .mobile-camera-zone--active {
-    border-color: rgba(190, 242, 145, .82);
-    background: rgba(32, 82, 47, .42);
+  .mobile-joystick {
+    pointer-events: auto; position: absolute; z-index: 2;
+    left: max(14px, env(safe-area-inset-left));
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    width: clamp(112px, 29vw, 136px); height: clamp(112px, 29vw, 136px);
+    border: 1px solid rgba(232,255,220,.42); border-radius: 50%;
+    background: radial-gradient(circle, rgba(26,77,54,.66), rgba(8,36,28,.48));
+    box-shadow: 0 10px 30px rgba(0,0,0,.30), inset 0 0 0 8px rgba(205,245,181,.07);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .mobile-camera-zone--active .camera-zone-ring {
-    border-color: #c5ef9a;
-    box-shadow: inset 0 0 0 8px rgba(215, 248, 195, .12), 0 0 26px rgba(141, 210, 120, .40);
+  .mobile-stick-base {
+    position: absolute; inset: 23px; border: 1px dashed rgba(229,255,215,.38);
+    border-radius: 50%; background: rgba(213,247,191,.05); pointer-events: none;
   }
+  .mobile-stick-knob {
+    position: absolute; left: 50%; top: 50%; width: 48px; height: 48px;
+    border: 2px solid rgba(244,255,229,.94); border-radius: 50%;
+    background: linear-gradient(145deg, #c4f39a, #63b77a);
+    box-shadow: 0 5px 18px rgba(0,0,0,.34); pointer-events: none;
+  }
+  .mobile-joystick small {
+    position: absolute; left: 0; right: 0; bottom: 7px; text-align: center;
+    color: #e6f7dc; font: 800 7px var(--gc-mono); letter-spacing: .14em;
+    text-shadow: 0 1px 4px #10251b; pointer-events: none;
+  }
+  .mobile-action-stack {
+    pointer-events: auto; position: absolute; z-index: 3;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    display: flex; align-items: flex-end; gap: 8px;
+  }
+  .mobile-action-button {
+    display: grid; place-items: center; min-width: 64px; min-height: 54px; height: 54px; padding: 0 10px;
+    border: 1px solid rgba(236,255,223,.78); border-radius: 17px;
+    background: linear-gradient(145deg, #8fd77b, #3a9c6b); color: #102d20;
+    box-shadow: 0 8px 20px rgba(0,0,0,.32); font: 900 9px var(--gc-mono);
+    letter-spacing: .04em; touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-action-button--jump {
+    width: 70px; min-width: 70px; height: 70px; min-height: 70px; border-radius: 50%;
+    background: linear-gradient(145deg, #ffe38c, #e9a94d); color: #392611;
+  }
+  .mobile-zoom-stack {
+    display: flex; pointer-events: auto; position: absolute; z-index: 4;
+    right: max(21px, env(safe-area-inset-right));
+    bottom: calc(104px + env(safe-area-inset-bottom));
+    flex-direction: column; gap: 6px;
+  }
+  .mobile-zoom-button {
+    display: grid; place-items: center; width: 38px; height: 38px;
+    border: 1px solid rgba(230,250,222,.68); border-radius: 12px;
+    background: rgba(8,35,25,.76); color: #f0ffe7;
+    box-shadow: 0 5px 15px rgba(0,0,0,.28); font: 800 21px var(--gc-mono);
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-zoom-button:active, .mobile-action-button:active { filter: brightness(1.18); transform: scale(.96); }
+}
+
+@media (max-width: 680px) {
+  .game-shell { min-height: 100dvh; }
+  .welcome-panel.welcome-hero { padding: 13px; }
+  .welcome-scene { height: 128px; }
+  .welcome-objectives { grid-template-columns: 1fr; }
+  .welcome-foot { justify-content: center; gap: 6px 9px; font-size: 6px; }
+  .welcome-foot span { white-space: nowrap; }
+  .world-map-overlay { padding: 8px; }
+  .world-map-panel { max-height: 96dvh; padding: 17px 13px; }
+  .city-map-grid, .metrics-grid, .upgrade-grid { grid-template-columns: 1fr; }
+  .district-card { min-height: 145px; }
+  .phase-complete-panel { padding: 18px 14px; }
+  .phase-complete-panel h2 { font-size: 21px; }
 }
 @media (max-height: 520px) and (pointer: coarse) {
-  .mobile-camera-zone { top: 25%; height: 126px; width: 86px; }
-  .camera-zone-ring { width: 38px; height: 38px; }
+  .mobile-joystick { width: 102px; height: 102px; bottom: calc(9px + env(safe-area-inset-bottom)); }
+  .mobile-stick-base { inset: 18px; }
+  .mobile-stick-knob { width: 42px; height: 42px; }
+  .mobile-action-stack { bottom: calc(9px + env(safe-area-inset-bottom)); }
+  .mobile-action-button { min-height: 48px; height: 48px; }
+  .mobile-action-button--jump { width: 58px; min-width: 58px; min-height: 58px; height: 58px; }
+  .mobile-zoom-stack { bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .mobile-zoom-button { width: 33px; height: 33px; }
+  .mission-card { top: 65px; padding: 8px 9px; }
+  .mission-card h1 { font-size: 12px; }
+  .plan-button { top: 66px; }
+  .map-button { top: 99px; }
+  .help-button { top: 132px; }
 }

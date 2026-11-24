@@ -119,21 +119,24 @@ export class GreenCityGame {
     this.player = this.createPlayer();
     void this.loadPlayerModel();
     this.vehicle = this.createVehicle();
-    this.camera = new ArcRotateCamera('third-person-camera', -Math.PI / 2, 1.15, 8, new Vector3(0, 1.3, 0), this.scene);
-    this.camera.lowerRadiusLimit = 5;
-    this.camera.upperRadiusLimit = 11;
+    this.camera = new ArcRotateCamera('third-person-camera', -Math.PI / 2, 1.15, 13, new Vector3(0, 1.3, 0), this.scene);
+    this.camera.lowerRadiusLimit = 7;
+    this.camera.upperRadiusLimit = 24;
     this.camera.lowerBetaLimit = 0.65;
     this.camera.upperBetaLimit = 1.45;
     this.camera.panningSensibility = 0;
-    this.camera.wheelPrecision = 45;
+    this.camera.wheelPrecision = 38;
     this.camera.attachControl(canvas, true);
-    // Mouse drag rotates the orbit camera; touch look is handled by the
-    // dedicated right-side gesture zone so the left joystick remains isolated.
+    // Free-screen gestures use Babylon's native pointer controls: mouse drag / one-finger touch
+    // rotates the view, while the mouse wheel / two-finger pinch changes camera distance.
+    // The mobile joystick and action buttons sit above the canvas and keep their own touch input.
     const pointerInput = this.camera.inputs.attached.pointers as any;
     if (pointerInput) {
       pointerInput.buttons = [0];
-      pointerInput.angularSensibilityX = 850;
-      pointerInput.angularSensibilityY = 850;
+      pointerInput.angularSensibilityX = 800;
+      pointerInput.angularSensibilityY = 800;
+      pointerInput.pinchPrecision = 9;
+      pointerInput.pinchInwards = true;
     }
     this.camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
     this.camera.setTarget(new Vector3(8.5, 1.2, 23.5));
@@ -1337,7 +1340,7 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.4`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.6`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -2072,6 +2075,15 @@ export class GreenCityGame {
   setMobileMovement(horizontal: number, vertical: number): void {
     this.mobileMoveX = Math.max(-1, Math.min(1, horizontal));
     this.mobileMoveY = Math.max(-1, Math.min(1, vertical));
+  }
+
+  /** Ajuste direto do zoom, usado pelos controles táteis de + e −. */
+  zoomCameraBy(radiusDelta: number): void {
+    if (this.paused || this.mapOpen || !Number.isFinite(radiusDelta)) return;
+    this.camera.radius = Math.max(
+      this.camera.lowerRadiusLimit ?? 7,
+      Math.min(this.camera.upperRadiusLimit ?? 24, this.camera.radius + radiusDelta),
+    );
   }
 
   setMobileJump(pressed: boolean): void {

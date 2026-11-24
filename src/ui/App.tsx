@@ -58,8 +58,7 @@ export default function App() {
   const [state, setState] = useState(initial);
   const [showHelp, setShowHelp] = useState(true);
   const [joystick, setJoystick] = useState({ x: 0, y: 0 });
-  const cameraLookPointerRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
-  const [cameraLookActive, setCameraLookActive] = useState(false);
+  const joystickPointerRef = useRef<number | null>(null);
   const [showPlan, setShowPlan] = useState(false);
   const [gameReady, setGameReady] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
@@ -101,6 +100,8 @@ export default function App() {
   }, [playRequested]);
 
   const moveJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (joystickPointerRef.current !== event.pointerId) return;
+    event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
     const radius = Math.max(1, Math.min(rect.width, rect.height) * 0.36);
     let x = (event.clientX - (rect.left + rect.width / 2)) / radius;
@@ -110,32 +111,20 @@ export default function App() {
     setJoystick({ x, y });
     gameRef.current?.setMobileMovement(x, y);
   };
+  const startJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    joystickPointerRef.current = event.pointerId;
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* o toque continua rastreado enquanto estiver na área */ }
+    moveJoystick(event);
+  };
   const stopJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (joystickPointerRef.current !== event.pointerId) return;
+    joystickPointerRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* captura já liberada pelo navegador */ }
+    }
     setJoystick({ x: 0, y: 0 });
     gameRef.current?.setMobileMovement(0, 0);
-  };
-
-  const startCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    cameraLookPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
-    setCameraLookActive(true);
-  };
-  const moveCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointer = cameraLookPointerRef.current;
-    if (!pointer || pointer.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    const deltaX = event.clientX - pointer.x;
-    const deltaY = event.clientY - pointer.y;
-    cameraLookPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
-    gameRef.current?.rotateCameraBy(deltaX, deltaY);
-  };
-  const stopCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (cameraLookPointerRef.current?.pointerId !== event.pointerId) return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    cameraLookPointerRef.current = null;
-    setCameraLookActive(false);
   };
 
   const missionProgress = state.phase === 1
@@ -222,19 +211,15 @@ export default function App() {
     >{interactionLabel}<span>TOCAR / CLICAR</span></button>}
     {gameReady && !state.paused && !state.mapOpen && !showHelp && <div className="mobile-controls">
       <div className="mobile-joystick" role="group" aria-label="Direcional: arraste para mover o personagem ou dirigir"
-        onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); moveJoystick(event); }}
-        onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) moveJoystick(event); }}
-        onPointerUp={stopJoystick} onPointerCancel={stopJoystick}>
+        onPointerDown={startJoystick} onPointerMove={moveJoystick}
+        onPointerUp={stopJoystick} onPointerCancel={stopJoystick} onLostPointerCapture={stopJoystick}>
         <span className="mobile-stick-base" />
         <span className="mobile-stick-knob" style={{ transform: `translate(calc(-50% + ${joystick.x * 32}px), calc(-50% + ${joystick.y * 32}px))` }} />
-        <small>ANDAR</small>
+        <small>MOVER</small>
       </div>
-      <div className={`mobile-camera-zone ${cameraLookActive ? 'mobile-camera-zone--active' : ''}`}
-        role="group" aria-label="Arraste para girar a câmera e mudar a direção da visão"
-        onPointerDown={startCameraLook} onPointerMove={moveCameraLook}
-        onPointerUp={stopCameraLook} onPointerCancel={stopCameraLook}>
-        <span className="camera-zone-ring" />
-        <small>ARRASTE<br/>PARA GIRAR</small>
+      <div className="mobile-zoom-stack" aria-label="Controles de zoom">
+        <button type="button" className="mobile-zoom-button" aria-label="Aproximar a câmera" onClick={() => gameRef.current?.zoomCameraBy(-2)}>+</button>
+        <button type="button" className="mobile-zoom-button" aria-label="Afastar a câmera" onClick={() => gameRef.current?.zoomCameraBy(2)}>−</button>
       </div>
       <div className="mobile-action-stack">
         {state.nearbyAction && <button type="button" className="mobile-action-button" aria-label={interactionLabel} onClick={() => gameRef.current?.performNearbyAction()}>{mobileActionLabel}</button>}
@@ -312,7 +297,7 @@ export default function App() {
           <div className="objective-tile objective-energy"><span>03</span><b>MODERNIZAR</b><small>Use energia limpa e mobilidade elétrica</small></div>
         </div>
         <button className="start-game-button" onClick={() => { setShowHelp(false); setPlayRequested(true); }}>JOGAR FASE 01 <span>▶</span></button>
-        <div className="welcome-foot"><span>WASD · MOVIMENTAR</span><span>E · INTERAGIR</span><span>M · MAPA DA CIDADE</span><span>SEM INSTALAÇÃO · JOGA NO NAVEGADOR</span></div>
+        <div className="welcome-foot"><span className="desktop-only">WASD · MOVIMENTAR</span><span className="desktop-only">E · INTERAGIR</span><span className="desktop-only">M · MAPA DA CIDADE</span><span className="mobile-only">JOYSTICK · MOVER</span><span className="mobile-only">TOQUE · AÇÃO</span><span className="mobile-only">ARRASTE · CÂMERA · PINÇA · ZOOM</span><span>SEM INSTALAÇÃO · JOGA NO NAVEGADOR</span></div>
       </div>
     </div>}
 
