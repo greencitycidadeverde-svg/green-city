@@ -40,12 +40,13 @@ export default function App() {
   const [showPlan, setShowPlan] = useState(false);
   const [gameReady, setGameReady] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
+  const [playRequested, setPlayRequested] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     let game: GreenCityGame | null = null;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !playRequested) return;
 
     void import('../game/Game')
       .then(({ GreenCityGame: Game }) => {
@@ -65,7 +66,7 @@ export default function App() {
       game?.dispose();
       gameRef.current = null;
     };
-  }, []);
+  }, [playRequested]);
 
   const missionProgress = state.missionStage === 'complete'
     ? 100
@@ -157,7 +158,7 @@ export default function App() {
         <div className="eyebrow">PLANT IN REAL LIFE. RULE THE GREEN CITY.</div>
         <h2>Uma cidade. Muitos bairros. Uma transformação.</h2>
         <p>O Centro Industrial é a primeira fase. Recolha os resíduos, entregue-os no EcoCentro e invista em energia solar e mobilidade elétrica. Cada solução muda os indicadores da cidade.</p>
-        <button onClick={() => setShowHelp(false)}>COMEÇAR A RECUPERAÇÃO <span>→</span></button>
+        <button onClick={() => { setShowHelp(false); setPlayRequested(true); }}>COMEÇAR A RECUPERAÇÃO <span>→</span></button>
         <small>WASD movimenta. E interage. M abre o mapa com os cinco bairros da cidade.</small>
       </div>
     </div>}
