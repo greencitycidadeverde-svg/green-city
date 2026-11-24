@@ -61,9 +61,12 @@ export class GreenCityGame {
   private mobileMoveY = 0;
   private playerModelHeadingRoot?: TransformNode;
   private playerModelHeadingOffset = 0;
-  private vehicleModelRoot?: AbstractMesh;
+  private vehicleModelRoot?: TransformNode;
+  private vehicleModelHeadingOffset = 0;
+  private lastDriveCameraHeading?: number;
   private readonly vehicleModelPaintMaterials: PBRMaterial[] = [];
-  private portTruckModelRoot?: AbstractMesh;
+  private portTruckModelRoot?: TransformNode;
+  private portTruckModelHeadingOffset = 0;
   private vehicleVisualRoot?: TransformNode;
   private portTruckVisualRoot?: TransformNode;
   private activePhase: 1 | 2 = 1;
@@ -1341,7 +1344,7 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.9`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.10`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -1480,11 +1483,12 @@ export class GreenCityGame {
     try {
       const car = await this.importModel('carro_eletrico.glb.gz');
       this.vehicleVisualRoot?.setEnabled(false);
-      car.root.parent = null;
-      car.root.position.set(this.vehicle.position.x, 0, this.vehicle.position.z);
-      car.root.rotation.y = this.vehicle.rotation.y;
+      this.vehicleModelHeadingOffset = this.getImportedModelHeadingOffset(car.root);
+      const carHeadingRoot = new TransformNode('municipal-car-heading-pivot', this.scene);
+      carHeadingRoot.position.set(this.vehicle.position.x, 0, this.vehicle.position.z);
+      car.root.parent = carHeadingRoot;
       car.root.scaling.setAll(0.90);
-      this.vehicleModelRoot = car.root;
+      this.vehicleModelRoot = carHeadingRoot;
       this.vehicleModelPaintMaterials.length = 0;
       for (const mesh of car.meshes) {
         if (mesh instanceof Mesh && mesh.material instanceof PBRMaterial && mesh.material.name === 'green'
@@ -1500,11 +1504,12 @@ export class GreenCityGame {
     try {
       const truck = await this.importModel('caminhao_coleta.glb.gz');
       this.portTruckVisualRoot?.setEnabled(false);
-      truck.root.parent = null;
-      truck.root.position.set(this.portTruck.position.x, 0.04, this.portTruck.position.z);
-      truck.root.rotation.y = this.portTruck.rotation.y;
+      this.portTruckModelHeadingOffset = this.getImportedModelHeadingOffset(truck.root);
+      const truckHeadingRoot = new TransformNode('port-truck-heading-pivot', this.scene);
+      truckHeadingRoot.position.set(this.portTruck.position.x, 0.04, this.portTruck.position.z);
+      truck.root.parent = truckHeadingRoot;
       truck.root.scaling.setAll(0.56);
-      this.portTruckModelRoot = truck.root;
+      this.portTruckModelRoot = truckHeadingRoot;
       this.portModelRoots.push(truck.root);
     } catch (error) {
       console.warn('[GREEN CITY] Modelo do caminhão não carregado; mantendo o caminhão reserva.', error);
@@ -1679,10 +1684,43 @@ export class GreenCityGame {
   };
   private readonly keyUp = (event: KeyboardEvent) => this.keys.delete(event.key.toLowerCase());
 
-  private syncVehicleModel(root: TransformNode | undefined, collider: Mesh, groundOffset: number): void {
+  private getImportedModelHeadingOffset(root: AbstractMesh): number {
+    // GLB roots can carry a quaternion from the glTF importer. Measure the model's
+    // actual +Z front before attaching it to a separate gameplay heading pivot.
+    root.parent = null;
+    root.computeWorldMatrix(true);
+    const importedForward = Vector3.TransformNormal(
+      new Vector3(0, 0, 1),
+      root.getWorldMatrix(),
+    );
+    const horizontalForward = new Vector3(importedForward.x, 0, importedForward.z);
+    if (horizontalForward.lengthSquared() <= 1e-6) return 0;
+    horizontalForward.normalize();
+    return Math.atan2(horizontalForward.x, horizontalForward.z);
+  }
+
+  private getCameraHeading(): number {
+    const cameraView = this.camera.getTarget().subtract(this.camera.position);
+    cameraView.y = 0;
+    if (cameraView.lengthSquared() <= 1e-6) return 0;
+    cameraView.normalize();
+    return Math.atan2(cameraView.x, cameraView.z);
+  }
+
+  private angleDelta(target: number, current: number): number {
+    return Math.atan2(Math.sin(target - current), Math.cos(target - current));
+  }
+
+  private syncVehicleModel(
+    root: TransformNode | undefined,
+    collider: Mesh,
+    groundOffset: number,
+    importedHeadingOffset = 0,
+  ): void {
     if (!root) return;
     root.position.set(collider.position.x, collider.position.y - groundOffset, collider.position.z);
-    root.rotation.y = collider.rotation.y;
+    // Keep the imported GLB's native front aligned with the collision/steering body.
+    root.rotation.y = collider.rotation.y - importedHeadingOffset;
   }
 
   private update(dt: number): void {
@@ -1690,6 +1728,15 @@ export class GreenCityGame {
     let playerMoving = false;
     if (this.inVehicle) {
       const activeVehicle = this.activeVehicle;
+      // The orbit camera is the same directional reference used on foot. Rotating
+      // the camera therefore rotates the vehicle's heading instead of making it slide
+      // sideways across the road; A/D (or the joystick X axis) still provide steering.
+      const cameraHeading = this.getCameraHeading();
+      if (this.lastDriveCameraHeading !== undefined) {
+        activeVehicle.rotation.y += this.angleDelta(cameraHeading, this.lastDriveCameraHeading);
+      }
+      this.lastDriveCameraHeading = cameraHeading;
+
       const accelerateInput = Math.max(this.keys.has('w') ? 1 : 0, Math.max(0, -this.mobileMoveY));
       const brakeInput = Math.max(this.keys.has('s') ? 1 : 0, Math.max(0, this.mobileMoveY));
       const maximumSpeed = this.activePhase === 2 ? 10 : 15;
@@ -1754,9 +1801,9 @@ export class GreenCityGame {
       this.playerModelHeadingRoot.rotation.y = this.player.rotation.y - this.playerModelHeadingOffset;
     }
     this.syncVehicleModel(this.vehicleVisualRoot, this.vehicle, 0);
-    this.syncVehicleModel(this.vehicleModelRoot, this.vehicle, 0.48);
+    this.syncVehicleModel(this.vehicleModelRoot, this.vehicle, 0.48, this.vehicleModelHeadingOffset);
     this.syncVehicleModel(this.portTruckVisualRoot, this.portTruck, 0);
-    this.syncVehicleModel(this.portTruckModelRoot, this.portTruck, 0.48);
+    this.syncVehicleModel(this.portTruckModelRoot, this.portTruck, 0.48, this.portTruckModelHeadingOffset);
     this.characterAnimationTime += step * (playerMoving ? 10.5 : 1.8);
     const gait = playerMoving ? 0.58 : 0.035;
     this.playerArms.forEach((arm, index) => {
@@ -1875,6 +1922,7 @@ export class GreenCityGame {
       const atBase = this.activePhase === 1
         && Math.hypot(activeVehicle.position.x - this.vehicleBasePosition.x, activeVehicle.position.z - this.vehicleBasePosition.z) <= 4.2;
       this.inVehicle = false; this.vehicleSpeed = 0;
+      this.lastDriveCameraHeading = undefined;
       this.player.position.copyFrom(activeVehicle.position).addInPlace(new Vector3(2.8, 0.55, 0));
       this.player.setEnabled(true);
       this.message = this.activePhase === 2
@@ -1891,6 +1939,11 @@ export class GreenCityGame {
           : 'Aproxime-se do veículo municipal e pressione F quando aparecer o aviso para entrar.';
         this.emit(); return;
       }
+      // Line up the car/truck with the direction currently shown by the camera
+      // as soon as the player enters. Subsequent camera orbit deltas keep it aligned.
+      const cameraHeading = this.getCameraHeading();
+      activeVehicle.rotation.y = cameraHeading;
+      this.lastDriveCameraHeading = cameraHeading;
       this.inVehicle = true; this.player.setEnabled(false);
       this.message = this.activePhase === 2
         ? 'Dirija o caminhão amarelo até os três pontos das empresas. W acelera, S freia, A/D viram. Pare para carregar cada ponto.'
