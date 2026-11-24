@@ -340,3 +340,90 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   box-shadow:0 0 0 4px rgba(56,186,120,.2),0 0 16px rgba(56,186,120,.8);
   transform:translate(-50%,-50%);
 }
+
+
+/* GREEN CITY 0.4.0 — city campaign map and phase handoff */
+.city-map-panel { width:min(1180px,100%); }
+.city-map-board {
+  position:relative; margin-top:22px; padding:22px; overflow:hidden;
+  border:1px solid rgba(156,205,170,.22); border-radius:18px;
+  background:linear-gradient(145deg,#1e4436,#18392f 52%,#24483a);
+}
+.city-map-river {
+  position:absolute; z-index:0; left:-5%; top:46%; width:110%; height:46px;
+  transform:rotate(-5deg); border:6px solid rgba(183,226,223,.16);
+  border-left:0; border-right:0; border-radius:50%;
+  background:linear-gradient(90deg,#2b8191,#55b2bd,#287e8e); opacity:.78;
+}
+.city-map-road { position:absolute; z-index:0; background:#9da99a; box-shadow:0 0 0 5px rgba(25,42,34,.45); opacity:.58; }
+.city-map-road-one { left:50%; top:-8%; width:12px; height:116%; transform:rotate(17deg); }
+.city-map-road-two { left:-4%; top:50%; width:108%; height:9px; transform:rotate(-5deg); }
+.city-map-grid {
+  position:relative; z-index:1; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-top:0;
+}
+.district-card {
+  min-width:0; min-height:195px; display:flex; flex-direction:column; padding:13px;
+  border:1px solid rgba(176,205,185,.25); border-radius:13px;
+  background:linear-gradient(145deg,rgba(36,61,48,.97),rgba(20,39,30,.97));
+  color:#edf8ec; text-align:left; cursor:default; backdrop-filter:blur(3px); font-family:inherit;
+}
+.district-card:disabled { cursor:default; }
+.district-card:not(:disabled) { cursor:pointer; }
+.district-map-icon {
+  display:grid; place-items:center; width:35px; height:35px; margin:10px 0 0;
+  border-radius:11px; background:rgba(220,240,211,.12); font-size:18px;
+}
+.district-card h3 { font-size:14px; margin:10px 0 4px; }
+.district-card p { font-size:10px; }
+.district-card small { font-size:8px; }
+.district-complete {
+  border-color:rgba(114,220,128,.82);
+  background:linear-gradient(145deg,rgba(30,93,58,.97),rgba(18,61,41,.97));
+  box-shadow:inset 0 0 0 1px rgba(141,231,141,.16),0 0 18px rgba(82,191,101,.14);
+}
+.district-complete .district-map-icon { background:rgba(116,221,125,.19); color:#aaf2a7; }
+.district-available { border-color:rgba(106,205,230,.9); box-shadow:0 0 22px rgba(99,197,224,.14); }
+.district-available:not(:disabled):hover {
+  transform:translateY(-2px); background:linear-gradient(145deg,#285e55,#1e4940);
+}
+.phase-complete-overlay {
+  position:absolute; z-index:30; inset:0; display:grid; place-items:center; padding:24px;
+  background:rgba(4,17,12,.76); backdrop-filter:blur(8px);
+}
+.phase-complete-panel {
+  width:min(520px,100%); padding:30px; border:1px solid rgba(169,225,161,.45);
+  border-radius:22px; background:linear-gradient(145deg,#173d2b,#0b2117);
+  box-shadow:0 28px 90px rgba(0,0,0,.5); text-align:center;
+}
+.completion-medal {
+  display:grid; place-items:center; width:62px; height:62px; margin:0 auto 15px;
+  border:2px solid #b7eb9b; border-radius:50%; background:rgba(112,194,93,.18);
+  color:#c8f6a8; font-size:32px; font-weight:900;
+}
+.phase-complete-panel h2 { margin:8px 0; font-size:28px; letter-spacing:-.04em; }
+.phase-complete-panel p { color:#c4d9c9; font-size:12px; line-height:1.65; }
+.completion-stats { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:18px 0; }
+.completion-stats span {
+  padding:8px 10px; border:1px solid rgba(191,224,188,.18); border-radius:9px;
+  background:rgba(225,245,221,.07); color:#cfe6d0; font:800 8px var(--gc-mono);
+}
+.phase-complete-panel .start-game-button {
+  display:flex; width:100%; min-height:51px; align-items:center; justify-content:center; gap:12px;
+  border:0; border-radius:12px; background:linear-gradient(100deg,#ffcf55,#8cda61 60%,#58c88b);
+  color:#123c27; font:900 11px var(--gc-mono); letter-spacing:.07em; cursor:pointer;
+}
+.completion-map-button {
+  margin-top:12px; padding:10px; border:0; background:transparent;
+  color:#c4e4c4; font:800 9px var(--gc-mono); cursor:pointer;
+}
+@media (max-width:980px) {
+  .city-map-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .city-map-board { padding:12px; }
+  .district-card { min-height:165px; }
+}
+@media (max-width:680px) {
+  .city-map-grid { grid-template-columns:1fr; }
+  .phase-complete-panel { padding:22px 17px; }
+  .phase-complete-panel h2 { font-size:23px; }
+  .city-map-river { top:48%; height:30px; }
+}
