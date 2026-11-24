@@ -1,3 +1,7 @@
+## [0.3.4] - 2026-11-24
+- Adicionado marcador dedicado da vaga municipal/estação solar no minimapa.
+- Mensagens após instalar painéis e converter o veículo orientam o jogador até o local físico da intervenção.
+
 ## [0.3.3] - 2026-11-24
 - Tela de abertura redesenhada como menu de jogo, com objetivos claros e linguagem visual mais colorida.
 - EcoCentro com recipientes ampliados, pictogramas/nomenclaturas maiores e painel educativo frontal com as cinco categorias.

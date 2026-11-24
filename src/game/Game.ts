@@ -1011,7 +1011,7 @@ export class GreenCityGame {
     carportSignMaterial.diffuseTexture = carportSignTexture;
     carportSignMaterial.emissiveColor = new Color3(0.12, 0.20, 0.13);
     carportSignFace.material = carportSignMaterial;
-    this.message = 'Energia solar instalada: os painéis no EcoCentro e na cobertura da vaga municipal alimentam o carregador ao lado do veículo.';
+    this.message = 'Energia solar instalada! Abra o minimapa e siga o marcador VAGA SOLAR: a cobertura com painéis e o carregador estão junto ao veículo municipal.';
     this.emit();
   }
 
@@ -1066,7 +1066,7 @@ export class GreenCityGame {
     this.missionStage = this.isNextNeighborhoodUnlocked() ? 'complete' : 'improve';
     this.message = this.isNextNeighborhoodUnlocked()
       ? 'Bairro recuperado! O Porto foi liberado no mapa da cidade. Você concluiu a primeira fase!'
-      : 'Veículo municipal eletrificado. Continue acompanhando os indicadores do bairro.';
+      : 'Veículo municipal eletrificado! Siga o marcador VAGA SOLAR no minimapa para ver o carro convertido e a estação de recarga.';
     this.emit();
   }
 

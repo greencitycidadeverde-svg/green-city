@@ -143,6 +143,7 @@ export default function App() {
       <div className="map-road map-road-h" />
       <div className="map-river" />
       <span className="map-ecocenter" title="EcoCentro · entrega e triagem" />
+      <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"} title="Vaga municipal · estação solar e veículo" />
       <span className="map-player" style={{ left: `${Math.max(8, Math.min(92, 50 + state.playerX * 0.75))}%`, top: `${Math.max(8, Math.min(92, 50 + state.playerZ * 0.75))}%` }} />
     </div>
 
