@@ -2042,7 +2042,7 @@ export class GreenCityGame {
     this.refreshMissionStage();
     if (this.missionStage === 'complete') {
       this.message = `Sistema solar instalado com sucesso em ${building.label} (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS})! Os oito prédios agora geram energia limpa. Centro Industrial recuperado; Porto liberado.`;
-    } else if (this.solarBuildingsInstalled === SOLAR_BUILDING_REQUIRED_FOR_EV) {
+    } else if (this.solarBuildingsInstalled === SOLAR_BUILDINGS_REQUIRED_FOR_EV) {
       this.message = `Sistema solar instalado com sucesso em ${building.label} (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS})! A plaqueta lateral confirma a instalação. A BASE DE ELETRIFICAÇÃO está ativa: entre no carro, dirija pela via de serviço, estacione na vaga marcada, desça e pressione E ao lado do veículo.`;
     } else if (this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS) {
       this.message = `Sistema solar instalado com sucesso em ${building.label} (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS})! Todos os prédios já receberam placas solares. Agora conclua a conversão do veículo municipal para elétrico.`;
