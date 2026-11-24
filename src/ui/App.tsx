@@ -59,6 +59,7 @@ export default function App() {
   const [gameError, setGameError] = useState<string | null>(null);
   const [playRequested, setPlayRequested] = useState(false);
   const [phaseCompleteSeen, setPhaseCompleteSeen] = useState(false);
+  const [phaseCompleteOpen, setPhaseCompleteOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +70,12 @@ export default function App() {
     void import('../game/Game')
       .then(({ GreenCityGame: Game }) => {
         if (cancelled) return;
-        game = new Game(canvas, setState);
+        game = new Game(canvas, (snapshot) => {
+          setState(snapshot);
+          if (snapshot.phase === 1 && snapshot.missionStage === 'complete') {
+            setPhaseCompleteOpen(true);
+          }
+        });
         gameRef.current = game;
         setGameReady(true);
       })
@@ -263,15 +269,15 @@ export default function App() {
       </section>
     </div>}
 
-    {state.phase === 1 && state.missionStage === 'complete' && !phaseCompleteSeen && <div className="phase-complete-overlay">
+    {state.phase === 1 && state.missionStage === 'complete' && phaseCompleteOpen && !phaseCompleteSeen && <div className="phase-complete-overlay">
       <section className="phase-complete-panel">
         <div className="completion-medal">✓</div>
         <div className="eyebrow">MISSÃO CONCLUÍDA · FASE 01 DE 10</div>
-        <h2>Centro Industrial recuperado!</h2>
-        <p>Você organizou os resíduos, modernizou os oito prédios com energia solar e converteu o veículo municipal. O Porto está liberado no mapa.</p>
+        <h2>FASE 01 CONCLUÍDA!</h2>
+        <p>Parabéns! Você recuperou o Centro Industrial. Agora abra o mapa da cidade, veja o Porto destacado como liberado e escolha quando deseja começar a próxima missão.</p>
         <div className="completion-stats"><span>8 prédios solares</span><span>1 veículo elétrico</span><span>Região 02 liberada</span></div>
-        <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); gameRef.current?.enterPortPhase(); }}>AVANÇAR PARA A FASE 02 <span>→</span></button>
-        <button className="completion-map-button" onClick={() => { setPhaseCompleteSeen(true); gameRef.current?.setMapOpen(true); }}>VER MAPA DAS 10 REGIÕES</button>
+        <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); gameRef.current?.setMapOpen(true); }}>VER MAPA E ESCOLHER A FASE 02 <span>→</span></button>
+        <button className="completion-map-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); gameRef.current?.setMapOpen(true); }}>VER MAPA DAS 10 REGIÕES</button>
       </section>
     </div>}
 
