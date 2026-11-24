@@ -52,6 +52,9 @@ export class GreenCityGame {
   private lastSnapshotAt = 0;
   private readonly riverMaterial: StandardMaterial;
   private readonly parkTrees: Mesh[] = [];
+  private readonly playerArms: Mesh[] = [];
+  private readonly playerLegs: Mesh[] = [];
+  private characterAnimationTime = 0;
   private activePhase: 1 | 2 = 1;
   private portMissionStage: PortMissionStage = 'inspect';
   private readonly portOutfallPositions: PortSite[] = [{ x: 4, z: -20 }, { x: 4, z: 0 }, { x: 4, z: 20 }];
@@ -79,15 +82,17 @@ export class GreenCityGame {
     this.scene.clearColor = new Color4(0.56, 0.78, 0.91, 1);
     this.scene.collisionsEnabled = true;
     this.scene.fogMode = Scene.FOGMODE_EXP2;
-    this.scene.fogDensity = 0.0015;
+    this.scene.fogDensity = 0.0011;
     this.scene.fogColor = new Color3(0.56, 0.78, 0.91);
     this.scene.imageProcessingConfiguration.toneMappingEnabled = true;
+    this.scene.imageProcessingConfiguration.contrast = 1.18;
+    this.scene.imageProcessingConfiguration.exposure = 1.12;
 
     const sky = new HemisphericLight('sky-light', new Vector3(0, 1, 0), this.scene);
-    sky.intensity = 1.08;
+    sky.intensity = 1.22;
     const sun = new DirectionalLight('sun-light', new Vector3(-0.45, -1, 0.35), this.scene);
     sun.position = new Vector3(25, 45, -20);
-    sun.intensity = 1.12;
+    sun.intensity = 1.28;
 
     this.buildDistrict();
     this.buildEcoCenter();
@@ -130,7 +135,8 @@ export class GreenCityGame {
   private material(name: string, color: Color3): StandardMaterial {
     const material = new StandardMaterial(name, this.scene);
     material.diffuseColor = color;
-    material.specularColor = new Color3(0.08, 0.08, 0.08);
+    material.specularColor = new Color3(0.16, 0.16, 0.16);
+    material.specularPower = 56;
     return material;
   }
 
@@ -197,14 +203,22 @@ export class GreenCityGame {
       [20, -30, 12, 17], [30, -10, 10, 14], [20, 15, 13, 16], [31, 34, 11, 12],
     ];
     positions.forEach(([x, z, w, h], i) => {
-      const building = MeshBuilder.CreateBox(`building-${i}`, { width: w, depth: 10, height: h }, this.scene);
+      const building = MeshBuilder.CreateBox(`building-${i}`, { width: w - 0.66, depth: 9.34, height: h }, this.scene);
       building.position.set(x, h / 2, z);
       const facadeMaterial = this.material(`building-mat-${i}`, buildingColors[i % buildingColors.length]);
       facadeMaterial.diffuseTexture = facadeTexture;
       building.material = facadeMaterial;
       building.checkCollisions = true;
-      const roof = MeshBuilder.CreateBox(`roof-${i}`, { width: w + 0.5, depth: 10.5, height: 0.35 }, this.scene);
-      roof.position.set(x, h + 0.17, z);
+      // Soft vertical corners turn the old block silhouette into a rounded animated-city facade.
+      for (const cornerX of [-1, 1]) for (const cornerZ of [-1, 1]) {
+        const roundedCorner = MeshBuilder.CreateCapsule(`building-rounded-corner-${i}`, { height: h + 0.08, radius: 0.34, tessellation: 18 }, this.scene);
+        roundedCorner.position.set(x + cornerX * (w / 2 - 0.33), h / 2, z + cornerZ * 4.66);
+        roundedCorner.material = facadeMaterial;
+        roundedCorner.checkCollisions = true;
+      }
+      const roof = MeshBuilder.CreateSphere(`roof-${i}`, { diameter: 1, segments: 24 }, this.scene);
+      roof.position.set(x, h + 0.12, z);
+      roof.scaling.set(w / 2 + 0.36, 0.22, 5.18);
       roof.material = this.material(`roof-mat-${i}`, new Color3(0.31, 0.35, 0.32));
       const roofTrim = this.material(`roof-trim-${i}`, new Color3(0.82, 0.79, 0.68));
       for (const side of [-1, 1]) {
@@ -216,7 +230,7 @@ export class GreenCityGame {
       const rooftopUnit = MeshBuilder.CreateBox(`rooftop-service-unit-${i}`, { width: 1.6, height: 0.75, depth: 1.45 }, this.scene);
       rooftopUnit.position.set(x - w * 0.34, h + 0.72, z - 4.05);
       rooftopUnit.material = this.material(`rooftop-service-unit-mat-${i}`, new Color3(0.55, 0.60, 0.57));
-      const rooftopVent = MeshBuilder.CreateCylinder(`rooftop-vent-${i}`, { height: 0.8, diameterTop: 0.36, diameterBottom: 0.48, tessellation: 10 }, this.scene);
+      const rooftopVent = MeshBuilder.CreateCylinder(`rooftop-vent-${i}`, { height: 0.8, diameterTop: 0.36, diameterBottom: 0.48, tessellation: 20 }, this.scene);
       rooftopVent.position.set(x + w * 0.34, h + 0.75, z + 4.05);
       rooftopVent.material = this.material(`rooftop-vent-mat-${i}`, new Color3(0.40, 0.44, 0.42));
 
@@ -238,21 +252,21 @@ export class GreenCityGame {
       const windowRows = Math.max(1, Math.floor((h - 3) / 4));
       for (let row = 0; row < windowRows; row++) {
         for (const offset of [-3, 0, 3]) {
-          const frame = MeshBuilder.CreateBox('facade-window-frame', { width: 0.16, height: 1.6, depth: 1.75 }, this.scene);
+          const frame = MeshBuilder.CreateCapsule('facade-window-frame', { height: 1.72, radius: 0.58, tessellation: 16 }, this.scene);
           frame.position.set(facadeX, 3.5 + row * 3.5, z + offset);
           frame.material = frameMat;
-          const glass = MeshBuilder.CreateBox('facade-window-glass', { width: 0.18, height: 1.28, depth: 1.42 }, this.scene);
-          glass.position.set(facadeX + facadeSide * 0.025, 3.5 + row * 3.5, z + offset);
+          const glass = MeshBuilder.CreateCapsule('facade-window-glass', { height: 1.48, radius: 0.46, tessellation: 16 }, this.scene);
+          glass.position.set(facadeX + facadeSide * 0.035, 3.5 + row * 3.5, z + offset);
           glass.material = glassMat;
-          const mullion = MeshBuilder.CreateBox('facade-window-mullion', { width: 0.22, height: 1.18, depth: 0.07 }, this.scene);
-          mullion.position.set(facadeX + facadeSide * 0.13, 3.5 + row * 3.5, z + offset);
+          const mullion = MeshBuilder.CreateCapsule('facade-window-mullion', { height: 1.10, radius: 0.035, tessellation: 10 }, this.scene);
+          mullion.position.set(facadeX + facadeSide * 0.14, 3.5 + row * 3.5, z + offset);
           mullion.material = frameMat;
         }
       }
-      const entrance = MeshBuilder.CreateBox('facade-entry', { width: 0.18, height: 2.2, depth: 1.35 }, this.scene);
+      const entrance = MeshBuilder.CreateCapsule('facade-entry', { height: 2.25, radius: 0.66, tessellation: 18 }, this.scene);
       entrance.position.set(facadeX + facadeSide * 0.03, 1.16, z - 2.9);
       entrance.material = glassMat;
-      const storefront = MeshBuilder.CreateBox('storefront-sign-panel', { width: 0.18, height: 0.62, depth: 4.1 }, this.scene);
+      const storefront = MeshBuilder.CreateCapsule('storefront-sign-panel', { height: 4.1, radius: 0.32, tessellation: 16 }, this.scene);
       storefront.position.set(facadeX + facadeSide * 0.03, 2.65, z + 1.25);
       storefront.material = this.material(`storefront-sign-${i}`, new Color3(0.12, 0.35, 0.24));
       const storefrontTexture = new DynamicTexture(`storefront-label-texture-${i}`, { width: 512, height: 128 }, this.scene, false);
@@ -271,9 +285,14 @@ export class GreenCityGame {
       storefrontFaceMaterial.diffuseTexture = storefrontTexture;
       storefrontFaceMaterial.emissiveColor = new Color3(0.10, 0.16, 0.11);
       storefrontFace.material = storefrontFaceMaterial;
-      const awning = MeshBuilder.CreateBox('storefront-awning', { width: 0.48, height: 0.12, depth: 4.35 }, this.scene);
-      awning.position.set(facadeX + facadeSide * 0.22, 2.34, z + 1.25);
+      const awning = MeshBuilder.CreateCapsule('storefront-awning', { height: 4.35, radius: 0.20, tessellation: 16 }, this.scene);
+      awning.position.set(facadeX + facadeSide * 0.28, 2.34, z + 1.25);
+      awning.rotation.x = Math.PI / 2;
       awning.material = frameMat;
+      const awningAccent = MeshBuilder.CreateCapsule('storefront-awning-accent', { height: 4.15, radius: 0.055, tessellation: 12 }, this.scene);
+      awningAccent.position.set(facadeX + facadeSide * 0.43, 2.22, z + 1.25);
+      awningAccent.rotation.x = Math.PI / 2;
+      awningAccent.material = this.material(`storefront-awning-accent-${i}`, new Color3(0.94, 0.72, 0.34));
     });
 
     const treeMaterials = [
@@ -284,19 +303,19 @@ export class GreenCityGame {
     const trunkMat = this.material('tree-trunk', new Color3(0.25, 0.15, 0.09));
     const branchMat = this.material('tree-branch', new Color3(0.31, 0.20, 0.12));
     for (const [treeIndex, [x, z]] of [[-11, -29], [-11, -14], [-11, 4], [-11, 24], [11, -25], [11, -6], [11, 13], [11, 30], [-35, 5], [35, -20]].entries()) {
-      const trunk = MeshBuilder.CreateCylinder('tree-trunk', { height: 2.65, diameterTop: 0.18, diameterBottom: 0.43, tessellation: 7 }, this.scene);
+      const trunk = MeshBuilder.CreateCylinder('tree-trunk', { height: 2.65, diameterTop: 0.22, diameterBottom: 0.46, tessellation: 18 }, this.scene);
       trunk.position.set(x, 1.32, z);
       trunk.material = trunkMat;
       trunk.checkCollisions = true;
 
       for (const side of [-1, 1]) {
-        const branch = MeshBuilder.CreateCylinder('tree-branch', { height: 1.45, diameterTop: 0.10, diameterBottom: 0.19, tessellation: 6 }, this.scene);
+        const branch = MeshBuilder.CreateCylinder('tree-branch', { height: 1.45, diameterTop: 0.12, diameterBottom: 0.20, tessellation: 14 }, this.scene);
         branch.position.set(x + side * 0.37, 2.05, z);
         branch.rotation.z = side * -0.62;
         branch.material = branchMat;
       }
 
-      const crown = MeshBuilder.CreateIcoSphere('tree-crown', { radius: 1.28, subdivisions: 2 }, this.scene);
+      const crown = MeshBuilder.CreateSphere('tree-crown', { diameter: 2.62, segments: 24 }, this.scene);
       crown.position.set(x, 3.18, z); crown.scaling.set(1.02, 1.08, 0.98);
       crown.material = treeMaterials[treeIndex % treeMaterials.length]; this.parkTrees.push(crown);
       const foliageClusters = [
@@ -304,8 +323,8 @@ export class GreenCityGame {
         [-0.12, 3.70, 0.12, 1.20], [0.18, 2.82, 0.60, 0.96], [-0.45, 3.45, -0.55, 0.92],
       ];
       foliageClusters.forEach(([dx, y, dz, diameter], clusterIndex) => {
-        const foliage = MeshBuilder.CreateIcoSphere('tree-foliage-cluster', { radius: diameter / 2, subdivisions: 1 }, this.scene);
-        foliage.position.set(x + dx, y, z + dz); foliage.scaling.set(1.0, 0.92, 1.0);
+        const foliage = MeshBuilder.CreateSphere('tree-foliage-cluster', { diameter, segments: 20 }, this.scene);
+        foliage.position.set(x + dx, y, z + dz); foliage.scaling.set(1.0 + (clusterIndex % 2) * 0.08, 0.92, 1.0);
         foliage.material = treeMaterials[(treeIndex + clusterIndex + 1) % treeMaterials.length];
       });
     }
@@ -795,17 +814,20 @@ export class GreenCityGame {
     });
 
     // A compact drivable collection truck for the three company pickup points.
-    const truck = MeshBuilder.CreateBox('port-collection-truck', { width: 2.35, height: 0.78, depth: 4.4 }, this.scene);
+    const truck = MeshBuilder.CreateBox('port-collection-truck-collider', { width: 2.35, height: 0.78, depth: 4.4 }, this.scene);
     truck.position.set(-31, 0.52, 30);
     truck.rotation.y = Math.PI / 2;
     truck.checkCollisions = true;
-    const truckBody = this.material('port-truck-body', new Color3(0.83, 0.72, 0.31));
-    truck.material = truckBody;
-    const cargo = MeshBuilder.CreateBox('port-truck-cargo-box', { width: 2.15, height: 1.28, depth: 2.55 }, this.scene);
-    cargo.parent = truck; cargo.position.set(0, 0.95, -0.55);
-    cargo.material = this.material('port-truck-cargo-material', new Color3(0.20, 0.43, 0.31));
-    const cab = MeshBuilder.CreateBox('port-truck-cab', { width: 2.0, height: 1.25, depth: 1.35 }, this.scene);
-    cab.parent = truck; cab.position.set(0, 0.8, 1.28);
+    truck.visibility = 0;
+    const truckBody = this.material('port-truck-body', new Color3(0.93, 0.70, 0.13));
+    const truckHull = MeshBuilder.CreateSphere('port-collection-truck-rounded-hull', { diameter: 1, segments: 26 }, this.scene);
+    truckHull.parent = truck; truckHull.position.set(0, 0.0, 0); truckHull.scaling.set(1.16, 0.42, 2.16); truckHull.material = truckBody;
+    const cargo = MeshBuilder.CreateCapsule('port-truck-cargo-box', { height: 2.8, radius: 0.94, tessellation: 18 }, this.scene);
+    cargo.parent = truck; cargo.position.set(0, 0.95, -0.55); cargo.rotation.x = Math.PI / 2;
+    cargo.scaling.set(1.12, 1.0, 0.68);
+    cargo.material = this.material('port-truck-cargo-material', new Color3(0.20, 0.49, 0.34));
+    const cab = MeshBuilder.CreateSphere('port-truck-cab', { diameter: 1, segments: 24 }, this.scene);
+    cab.parent = truck; cab.position.set(0, 0.8, 1.28); cab.scaling.set(0.98, 0.70, 0.75);
     cab.material = truckBody;
     const cabGlass = MeshBuilder.CreateBox('port-truck-cab-glass', { width: 1.7, height: 0.62, depth: 0.10 }, this.scene);
     cabGlass.parent = truck; cabGlass.position.set(0, 1.0, 1.98);
@@ -1115,8 +1137,8 @@ export class GreenCityGame {
   }
 
   private createPlayer(): Mesh {
-    // Invisible capsule maintains collision logic; attached meshes provide the visible field-agent silhouette.
-    const root = MeshBuilder.CreateCapsule('player-collider', { height: 1.8, radius: 0.38, tessellation: 10 }, this.scene);
+    // Collision capsule stays invisible; the rendered character uses smooth, rounded cartoon proportions.
+    const root = MeshBuilder.CreateCapsule('player-collider', { height: 1.8, radius: 0.38, tessellation: 20 }, this.scene);
     root.position.set(8.5, 1.0, 23.5);
     root.ellipsoid = new Vector3(0.40, 0.9, 0.40);
     root.ellipsoidOffset = Vector3.Zero();
@@ -1124,129 +1146,111 @@ export class GreenCityGame {
     root.visibility = 0;
     root.isPickable = false;
 
-    const jacket = this.material('agent-jacket', new Color3(0.07, 0.34, 0.24));
-    const vestMaterial = this.material('agent-safety-vest', new Color3(0.16, 0.48, 0.30));
-    const pants = this.material('agent-trousers', new Color3(0.13, 0.19, 0.17));
-    const skin = this.material('agent-skin', new Color3(0.70, 0.49, 0.34));
-    const helmet = this.material('agent-helmet', new Color3(0.91, 0.70, 0.20));
-    const boots = this.material('agent-boots', new Color3(0.07, 0.09, 0.09));
-    const gloves = this.material('agent-gloves', new Color3(0.12, 0.19, 0.16));
-    const reflective = this.material('agent-reflective-strip', new Color3(0.94, 0.83, 0.36));
-    const badgeMaterial = this.material('agent-identification-badge', new Color3(0.90, 0.94, 0.83));
+    const jacket = this.material('agent-jacket', new Color3(0.035, 0.42, 0.30));
+    const vestMaterial = this.material('agent-safety-vest', new Color3(0.45, 0.82, 0.22));
+    const pants = this.material('agent-trousers', new Color3(0.12, 0.23, 0.31));
+    const skin = this.material('agent-skin', new Color3(0.76, 0.52, 0.36));
+    const helmet = this.material('agent-helmet', new Color3(1.0, 0.72, 0.12));
+    const boots = this.material('agent-boots', new Color3(0.07, 0.11, 0.13));
+    const gloves = this.material('agent-gloves', new Color3(0.17, 0.23, 0.21));
+    const reflective = this.material('agent-reflective-strip', new Color3(1.0, 0.91, 0.43));
+    const badgeMaterial = this.material('agent-identification-badge', new Color3(0.95, 0.98, 0.86));
+    const eyeWhite = this.material('agent-eye-white', new Color3(1.0, 0.99, 0.93));
+    const eyePupil = this.material('agent-eye-pupil', new Color3(0.055, 0.085, 0.075));
+    const cheekMaterial = this.material('agent-cheeks', new Color3(0.91, 0.43, 0.35));
+    const hairMaterial = this.material('agent-hair', new Color3(0.20, 0.12, 0.09));
+    const smileMaterial = this.material('agent-smile', new Color3(0.24, 0.12, 0.10));
 
-    const torso = MeshBuilder.CreateCapsule('agent-torso', { height: 0.86, radius: 0.29, tessellation: 10 }, this.scene);
-    torso.parent = root;
-    torso.position.set(0, 0.10, 0);
-    torso.material = jacket;
-    const neck = MeshBuilder.CreateCylinder('agent-neck', { height: 0.18, diameter: 0.22, tessellation: 8 }, this.scene);
-    neck.parent = root;
-    neck.position.set(0, 0.56, 0);
-    neck.material = skin;
-    const vest = MeshBuilder.CreateBox('agent-utility-vest', { width: 0.59, height: 0.65, depth: 0.34 }, this.scene);
-    vest.parent = root;
-    vest.position.set(0, 0.10, 0.22);
-    vest.material = vestMaterial;
-    for (const side of [-1, 1]) {
-      const vestPocket = MeshBuilder.CreateBox('agent-vest-pocket', { width: 0.18, height: 0.19, depth: 0.05 }, this.scene);
-      vestPocket.parent = root;
-      vestPocket.position.set(side * 0.17, -0.12, 0.405);
-      vestPocket.material = jacket;
-    }
-    const head = MeshBuilder.CreateSphere('agent-head', { diameter: 0.42, segments: 10 }, this.scene);
-    head.parent = root;
-    head.position.set(0, 0.78, 0.02);
-    head.material = skin;
-    const eyeMaterial = this.material('agent-eyes', new Color3(0.08, 0.10, 0.09));
-    for (const side of [-1, 1]) {
-      const eye = MeshBuilder.CreateSphere('agent-eye', { diameter: 0.045, segments: 6 }, this.scene);
-      eye.parent = root;
-      eye.position.set(side * 0.075, 0.80, 0.205);
-      eye.material = eyeMaterial;
-    }
-    const nose = MeshBuilder.CreateSphere('agent-nose', { diameter: 0.07, segments: 6 }, this.scene);
-    nose.parent = root;
-    nose.position.set(0, 0.72, 0.215);
-    nose.material = skin;
-    const hat = MeshBuilder.CreateCylinder('agent-safety-helmet', { height: 0.18, diameterTop: 0.38, diameterBottom: 0.50, tessellation: 10 }, this.scene);
-    hat.parent = root;
-    hat.position.set(0, 1.0, 0);
-    hat.material = helmet;
-    const brim = MeshBuilder.CreateCylinder('agent-helmet-brim', { height: 0.055, diameter: 0.57, tessellation: 12 }, this.scene);
-    brim.parent = root;
-    brim.position.set(0, 0.94, 0);
-    brim.material = helmet;
-    const helmetBadge = MeshBuilder.CreateBox('agent-helmet-badge', { width: 0.17, height: 0.09, depth: 0.035 }, this.scene);
-    helmetBadge.parent = root;
-    helmetBadge.position.set(0, 1.0, 0.245);
-    helmetBadge.material = vestMaterial;
+    const torso = MeshBuilder.CreateCapsule('agent-torso', { height: 0.94, radius: 0.31, tessellation: 20 }, this.scene);
+    torso.parent = root; torso.position.set(0, 0.08, 0); torso.material = jacket;
+
+    const vest = MeshBuilder.CreateCapsule('agent-utility-vest', { height: 0.77, radius: 0.30, tessellation: 18 }, this.scene);
+    vest.parent = root; vest.position.set(0, 0.10, 0.16); vest.scaling.z = 0.68; vest.material = vestMaterial;
+
+    const neck = MeshBuilder.CreateCylinder('agent-neck', { height: 0.18, diameter: 0.25, tessellation: 18 }, this.scene);
+    neck.parent = root; neck.position.set(0, 0.54, 0); neck.material = skin;
+
+    const head = MeshBuilder.CreateSphere('agent-head', { diameter: 0.58, segments: 24 }, this.scene);
+    head.parent = root; head.position.set(0, 0.78, 0.015); head.material = skin;
+
+    // Hair peeks out beneath the safety helmet to make the face more characterful.
+    const hair = MeshBuilder.CreateSphere('agent-hair-back', { diameter: 0.57, segments: 20 }, this.scene);
+    hair.parent = root; hair.position.set(0, 0.83, -0.055); hair.scaling.set(1.0, 0.78, 0.92); hair.material = hairMaterial;
 
     for (const side of [-1, 1]) {
-      const arm = MeshBuilder.CreateCapsule('agent-arm', { height: 0.72, radius: 0.13, tessellation: 8 }, this.scene);
-      arm.parent = root;
-      arm.position.set(side * 0.36, 0.12, 0);
-      arm.rotation.z = side * -0.12;
-      arm.material = jacket;
-      const hand = MeshBuilder.CreateSphere('agent-hand', { diameter: 0.18, segments: 8 }, this.scene);
-      hand.parent = root;
-      hand.position.set(side * 0.38, -0.25, 0.02);
-      hand.material = gloves;
-      const armBand = MeshBuilder.CreateCylinder('agent-sleeve-reflector', { height: 0.10, diameter: 0.29, tessellation: 8 }, this.scene);
-      armBand.parent = root;
-      armBand.position.set(side * 0.36, 0.02, 0);
-      armBand.rotation.z = side * -0.12;
-      armBand.material = reflective;
-      const leg = MeshBuilder.CreateCapsule('agent-leg', { height: 0.68, radius: 0.14, tessellation: 8 }, this.scene);
-      leg.parent = root;
-      leg.position.set(side * 0.15, -0.53, 0);
-      leg.material = pants;
-      const kneePad = MeshBuilder.CreateBox('agent-knee-pad', { width: 0.24, height: 0.14, depth: 0.08 }, this.scene);
-      kneePad.parent = root;
-      kneePad.position.set(side * 0.15, -0.55, 0.145);
-      kneePad.material = jacket;
-      const boot = MeshBuilder.CreateBox('agent-boot', { width: 0.28, height: 0.18, depth: 0.40 }, this.scene);
-      boot.parent = root;
-      boot.position.set(side * 0.15, -0.88, 0.06);
-      boot.material = boots;
-      const sole = MeshBuilder.CreateBox('agent-boot-sole', { width: 0.30, height: 0.07, depth: 0.43 }, this.scene);
-      sole.parent = root;
-      sole.position.set(side * 0.15, -0.98, 0.07);
-      sole.material = gloves;
+      const cheek = MeshBuilder.CreateSphere('agent-cheek', { diameter: 0.12, segments: 16 }, this.scene);
+      cheek.parent = root; cheek.position.set(side * 0.17, 0.69, 0.235); cheek.scaling.set(1.15, 0.72, 0.55); cheek.material = cheekMaterial;
+
+      const eye = MeshBuilder.CreateSphere('agent-eye-white', { diameter: 0.115, segments: 18 }, this.scene);
+      eye.parent = root; eye.position.set(side * 0.105, 0.82, 0.255); eye.scaling.z = 0.55; eye.material = eyeWhite;
+      const pupil = MeshBuilder.CreateSphere('agent-eye-pupil', { diameter: 0.058, segments: 16 }, this.scene);
+      pupil.parent = root; pupil.position.set(side * 0.095, 0.815, 0.292); pupil.scaling.z = 0.62; pupil.material = eyePupil;
+      const brow = MeshBuilder.CreateCapsule('agent-eyebrow', { height: 0.15, radius: 0.035, tessellation: 12 }, this.scene);
+      brow.parent = root; brow.position.set(side * 0.105, 0.91, 0.25); brow.rotation.z = side * -0.28; brow.material = hairMaterial;
+
+      const shoulder = MeshBuilder.CreateSphere('agent-rounded-shoulder', { diameter: 0.34, segments: 18 }, this.scene);
+      shoulder.parent = root; shoulder.position.set(side * 0.34, 0.34, 0); shoulder.material = jacket;
     }
 
-    const chestStrip = MeshBuilder.CreateBox('agent-reflective-strip', { width: 0.48, height: 0.10, depth: 0.34 }, this.scene);
-    chestStrip.parent = root;
-    chestStrip.position.set(0, 0.17, 0.25);
-    chestStrip.material = reflective;
-    const idBadge = MeshBuilder.CreateBox('agent-identification-badge', { width: 0.22, height: 0.18, depth: 0.045 }, this.scene);
-    idBadge.parent = root;
-    idBadge.position.set(0, 0.31, 0.43);
-    idBadge.material = badgeMaterial;
-    const badgeMark = MeshBuilder.CreateBox('agent-identification-mark', { width: 0.10, height: 0.055, depth: 0.015 }, this.scene);
-    badgeMark.parent = root;
-    badgeMark.position.set(0, 0.31, 0.46);
-    badgeMark.material = vestMaterial;
-    const backpack = MeshBuilder.CreateBox('agent-field-backpack', { width: 0.40, height: 0.48, depth: 0.19 }, this.scene);
-    backpack.parent = root;
-    backpack.position.set(0, 0.12, -0.27);
-    backpack.material = this.material('agent-backpack', new Color3(0.19, 0.27, 0.22));
+    const nose = MeshBuilder.CreateSphere('agent-nose', { diameter: 0.09, segments: 18 }, this.scene);
+    nose.parent = root; nose.position.set(0, 0.735, 0.29); nose.scaling.set(0.82, 0.82, 0.72); nose.material = skin;
+    const smile = MeshBuilder.CreateTube('agent-smile', {
+      path: [new Vector3(-0.075, 0.665, 0.275), new Vector3(-0.035, 0.642, 0.292), new Vector3(0.035, 0.642, 0.292), new Vector3(0.075, 0.665, 0.275)],
+      radius: 0.012, tessellation: 10,
+    }, this.scene);
+    smile.parent = root; smile.material = smileMaterial;
+
+    const helmetCap = MeshBuilder.CreateSphere('agent-safety-helmet', { diameter: 0.62, segments: 24 }, this.scene);
+    helmetCap.parent = root; helmetCap.position.set(0, 1.02, 0.0); helmetCap.scaling.set(1.02, 0.42, 0.96); helmetCap.material = helmet;
+    const brim = MeshBuilder.CreateCylinder('agent-helmet-brim', { height: 0.075, diameter: 0.70, tessellation: 24 }, this.scene);
+    brim.parent = root; brim.position.set(0, 0.96, 0); brim.material = helmet;
+    const helmetBadge = MeshBuilder.CreateSphere('agent-helmet-badge', { diameter: 0.16, segments: 16 }, this.scene);
+    helmetBadge.parent = root; helmetBadge.position.set(0, 1.01, 0.30); helmetBadge.scaling.set(1.2, 0.75, 0.38); helmetBadge.material = vestMaterial;
+
     for (const side of [-1, 1]) {
-      const strap = MeshBuilder.CreateBox('agent-backpack-strap', { width: 0.08, height: 0.52, depth: 0.06 }, this.scene);
-      strap.parent = root;
-      strap.position.set(side * 0.22, 0.12, 0.18);
-      strap.rotation.z = side * 0.12;
-      strap.material = vestMaterial;
+      const arm = MeshBuilder.CreateCapsule('agent-arm', { height: 0.78, radius: 0.15, tessellation: 18 }, this.scene);
+      arm.parent = root; arm.position.set(side * 0.38, 0.12, 0); arm.rotation.z = side * -0.12; arm.material = jacket;
+      this.playerArms.push(arm);
+
+      const hand = MeshBuilder.CreateSphere('agent-hand', { diameter: 0.21, segments: 18 }, this.scene);
+      hand.parent = root; hand.position.set(side * 0.39, -0.27, 0.04); hand.material = gloves;
+
+      const armBand = MeshBuilder.CreateCylinder('agent-sleeve-reflector', { height: 0.12, diameter: 0.31, tessellation: 18 }, this.scene);
+      armBand.parent = root; armBand.position.set(side * 0.37, 0.02, 0); armBand.rotation.z = side * -0.12; armBand.material = reflective;
+
+      const leg = MeshBuilder.CreateCapsule('agent-leg', { height: 0.70, radius: 0.15, tessellation: 18 }, this.scene);
+      leg.parent = root; leg.position.set(side * 0.15, -0.53, 0); leg.material = pants;
+      this.playerLegs.push(leg);
+
+      const kneePad = MeshBuilder.CreateSphere('agent-knee-pad', { diameter: 0.25, segments: 16 }, this.scene);
+      kneePad.parent = root; kneePad.position.set(side * 0.15, -0.55, 0.14); kneePad.scaling.set(1.0, 0.70, 0.45); kneePad.material = jacket;
+
+      const boot = MeshBuilder.CreateSphere('agent-boot', { diameter: 0.34, segments: 18 }, this.scene);
+      boot.parent = root; boot.position.set(side * 0.15, -0.88, 0.09); boot.scaling.set(0.9, 0.58, 1.25); boot.material = boots;
+      const sole = MeshBuilder.CreateCapsule('agent-boot-sole', { height: 0.38, radius: 0.085, tessellation: 16 }, this.scene);
+      sole.parent = root; sole.position.set(side * 0.15, -0.98, 0.09); sole.rotation.x = Math.PI / 2; sole.material = gloves;
     }
-    const backpackPocket = MeshBuilder.CreateBox('agent-backpack-pocket', { width: 0.29, height: 0.20, depth: 0.08 }, this.scene);
-    backpackPocket.parent = root;
-    backpackPocket.position.set(0, 0.02, -0.39);
-    backpackPocket.material = jacket;
-    const utilityBelt = MeshBuilder.CreateCylinder('agent-utility-belt', { height: 0.12, diameter: 0.62, tessellation: 12 }, this.scene);
+
+    const chestStrip = MeshBuilder.CreateCapsule('agent-reflective-strip', { height: 0.49, radius: 0.055, tessellation: 14 }, this.scene);
+    chestStrip.parent = root; chestStrip.position.set(0, 0.16, 0.34); chestStrip.rotation.z = Math.PI / 2; chestStrip.material = reflective;
+    const idBadge = MeshBuilder.CreateSphere('agent-identification-badge', { diameter: 0.24, segments: 18 }, this.scene);
+    idBadge.parent = root; idBadge.position.set(0.18, 0.31, 0.34); idBadge.scaling.set(0.9, 0.9, 0.36); idBadge.material = badgeMaterial;
+    const badgeMark = MeshBuilder.CreateSphere('agent-identification-mark', { diameter: 0.09, segments: 14 }, this.scene);
+    badgeMark.parent = root; badgeMark.position.set(0.18, 0.31, 0.39); badgeMark.scaling.z = 0.3; badgeMark.material = vestMaterial;
+
+    const backpack = MeshBuilder.CreateSphere('agent-field-backpack', { diameter: 0.55, segments: 18 }, this.scene);
+    backpack.parent = root; backpack.position.set(0, 0.12, -0.28); backpack.scaling.set(0.78, 0.90, 0.48);
+    backpack.material = this.material('agent-backpack', new Color3(0.12, 0.28, 0.26));
+    const backpackPocket = MeshBuilder.CreateSphere('agent-backpack-pocket', { diameter: 0.28, segments: 16 }, this.scene);
+    backpackPocket.parent = root; backpackPocket.position.set(0, 0.02, -0.43); backpackPocket.scaling.set(0.86, 0.72, 0.50); backpackPocket.material = jacket;
+    const utilityBelt = MeshBuilder.CreateCylinder('agent-utility-belt', { height: 0.13, diameter: 0.68, tessellation: 20 }, this.scene);
     utilityBelt.parent = root; utilityBelt.position.set(0, -0.22, 0); utilityBelt.scaling.y = 0.45;
     utilityBelt.material = this.material('agent-utility-belt-material', new Color3(0.12, 0.16, 0.14));
-    const radio = MeshBuilder.CreateBox('agent-radio', { width: 0.14, height: 0.24, depth: 0.10 }, this.scene);
-    radio.parent = root; radio.position.set(-0.38, 0.25, -0.02);
+
+    const radio = MeshBuilder.CreateSphere('agent-radio', { diameter: 0.25, segments: 16 }, this.scene);
+    radio.parent = root; radio.position.set(-0.38, 0.25, -0.02); radio.scaling.set(0.58, 1.0, 0.72);
     radio.material = this.material('agent-radio-material', new Color3(0.12, 0.17, 0.19));
-    const antenna = MeshBuilder.CreateCylinder('agent-radio-antenna', { height: 0.20, diameter: 0.025, tessellation: 6 }, this.scene);
+    const antenna = MeshBuilder.CreateCylinder('agent-radio-antenna', { height: 0.22, diameter: 0.03, tessellation: 12 }, this.scene);
     antenna.parent = root; antenna.position.set(-0.40, 0.46, -0.02); antenna.material = reflective;
     return root;
   }
@@ -1343,6 +1347,16 @@ export class GreenCityGame {
         this.onGround = true;
       }
     }
+    const playerMoving = !this.inVehicle && ['w', 'a', 's', 'd'].some((key) => this.keys.has(key));
+    this.characterAnimationTime += step * (playerMoving ? 10.5 : 1.8);
+    const gait = playerMoving ? 0.58 : 0.035;
+    this.playerArms.forEach((arm, index) => {
+      arm.rotation.x = Math.sin(this.characterAnimationTime + index * Math.PI) * gait;
+    });
+    this.playerLegs.forEach((leg, index) => {
+      leg.rotation.x = -Math.sin(this.characterAnimationTime + index * Math.PI) * gait * 0.9;
+    });
+
     const focus = this.inVehicle
       ? this.activeVehicle.position.add(new Vector3(0, 1.15, 0))
       : this.player.position.add(new Vector3(0, 0.8, 0));
@@ -1369,16 +1383,19 @@ export class GreenCityGame {
       line.position.set(x, 0.06, 23.5);
       line.material = bayLines;
     }
-    const car = MeshBuilder.CreateBox('municipal-service-vehicle', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
+    const car = MeshBuilder.CreateBox('municipal-service-vehicle-collider', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
     car.position.set(5.1, 0.48, 23.5);
     car.rotation.y = Math.PI / 2;
     car.checkCollisions = true;
-    this.vehicleMaterial = this.material('vehicle-body', new Color3(0.34, 0.37, 0.36));
-    car.material = this.vehicleMaterial;
+    car.visibility = 0;
+    this.vehicleMaterial = this.material('vehicle-body', new Color3(0.18, 0.48, 0.36));
+    const roundedHull = MeshBuilder.CreateSphere('municipal-service-vehicle-rounded-hull', { diameter: 1, segments: 28 }, this.scene);
+    roundedHull.parent = car; roundedHull.position.set(0, 0.02, 0); roundedHull.scaling.set(1.08, 0.40, 1.96);
+    roundedHull.material = this.vehicleMaterial;
 
-    const cabin = MeshBuilder.CreateBox('vehicle-cabin-shell', { width: 1.72, height: 0.78, depth: 1.82 }, this.scene);
-    cabin.parent = car; cabin.position.set(0, 0.68, -0.15);
-    cabin.material = this.material('vehicle-cabin-frame', new Color3(0.27, 0.34, 0.31));
+    const cabin = MeshBuilder.CreateSphere('vehicle-cabin-shell', { diameter: 1, segments: 24 }, this.scene);
+    cabin.parent = car; cabin.position.set(0, 0.68, -0.15); cabin.scaling.set(0.86, 0.60, 0.94);
+    cabin.material = this.material('vehicle-cabin-frame', new Color3(0.88, 0.77, 0.47));
     const glass = this.material('vehicle-glass', new Color3(0.10, 0.24, 0.30));
     const windshield = MeshBuilder.CreatePlane('vehicle-windshield', { width: 1.42, height: 0.54 }, this.scene);
     windshield.parent = car; windshield.position.set(0, 0.84, 0.78); windshield.material = glass;
@@ -1388,21 +1405,21 @@ export class GreenCityGame {
       const sideGlass = MeshBuilder.CreatePlane('vehicle-side-window', { width: 1.35, height: 0.48 }, this.scene);
       sideGlass.parent = car; sideGlass.position.set(side * 0.87, 0.84, -0.15);
       sideGlass.rotation.y = side * Math.PI / 2; sideGlass.material = glass;
-      const mirror = MeshBuilder.CreateSphere('vehicle-side-mirror', { diameter: 0.24, segments: 8 }, this.scene);
+      const mirror = MeshBuilder.CreateSphere('vehicle-side-mirror', { diameter: 0.24, segments: 18 }, this.scene);
       mirror.parent = car; mirror.position.set(side * 1.03, 0.58, 0.52);
       mirror.scaling.set(0.55, 0.8, 1.15);
       mirror.material = this.material('vehicle-mirror-material', new Color3(0.13, 0.17, 0.16));
     }
-    const roofCap = MeshBuilder.CreateSphere('vehicle-rounded-roof', { diameter: 1.7, segments: 10 }, this.scene);
+    const roofCap = MeshBuilder.CreateSphere('vehicle-rounded-roof', { diameter: 1.7, segments: 24 }, this.scene);
     roofCap.parent = car; roofCap.position.set(0, 1.04, -0.15); roofCap.scaling.set(0.92, 0.24, 0.88);
     roofCap.material = this.material('vehicle-roof-material', new Color3(0.23, 0.30, 0.28));
-    const hood = MeshBuilder.CreateSphere('vehicle-rounded-hood', { diameter: 1.8, segments: 10 }, this.scene);
+    const hood = MeshBuilder.CreateSphere('vehicle-rounded-hood', { diameter: 1.8, segments: 24 }, this.scene);
     hood.parent = car; hood.position.set(0, 0.22, 1.12); hood.scaling.set(0.92, 0.28, 0.70); hood.material = this.vehicleMaterial;
     const wheelMat = this.material('vehicle-tires', new Color3(0.045, 0.05, 0.05));
     const hubMat = this.material('vehicle-wheel-hubs', new Color3(0.62, 0.67, 0.63));
     const tailLightMat = this.material('vehicle-tail-light-material', new Color3(0.75, 0.14, 0.10));
     for (const side of [-1, 1]) {
-      const tailLight = MeshBuilder.CreateSphere('vehicle-tail-light', { diameter: 0.26, segments: 8 }, this.scene);
+      const tailLight = MeshBuilder.CreateSphere('vehicle-tail-light', { diameter: 0.26, segments: 18 }, this.scene);
       tailLight.parent = car; tailLight.position.set(side * 0.78, 0.12, -1.90);
       tailLight.scaling.set(0.55, 0.75, 0.35); tailLight.material = tailLightMat;
     }
@@ -1422,11 +1439,11 @@ export class GreenCityGame {
       headlight.material = headlightMaterial;
     }
     for (const x of [-1.08, 1.08]) for (const z of [-1.25, 1.25]) {
-      const wheel = MeshBuilder.CreateCylinder('vehicle-wheel', { diameter: 0.72, height: 0.22, tessellation: 12 }, this.scene);
+      const wheel = MeshBuilder.CreateCylinder('vehicle-wheel', { diameter: 0.72, height: 0.22, tessellation: 20 }, this.scene);
       wheel.parent = car;
       wheel.position.set(x, -0.12, z);
       wheel.rotation.z = Math.PI / 2; wheel.material = wheelMat;
-      const hub = MeshBuilder.CreateCylinder('vehicle-wheel-hub', { diameter: 0.34, height: 0.24, tessellation: 12 }, this.scene);
+      const hub = MeshBuilder.CreateCylinder('vehicle-wheel-hub', { diameter: 0.34, height: 0.24, tessellation: 20 }, this.scene);
       hub.parent = car; hub.position.set(x * 1.02, -0.12, z);
       hub.rotation.z = Math.PI / 2; hub.material = hubMat;
     }
