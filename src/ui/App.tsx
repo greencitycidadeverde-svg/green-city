@@ -23,8 +23,10 @@ const initial: GameSnapshot = {
   vehicleSpeed: 0,
   nearbyAction: null,
   nearbyLabel: '',
-  playerX: 0,
+  playerX: 8.5,
   playerZ: 23.5,
+  vehicleX: 5.1,
+  vehicleZ: 23.5,
   message: 'Investigue o bairro e recolha os resíduos espalhados.',
 };
 
@@ -150,7 +152,10 @@ export default function App() {
       <div className="map-road map-road-h" />
       <div className="map-river" />
       <span className="map-ecocenter" title="EcoCentro · entrega e triagem" />
-      <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"} title="Vaga municipal · estação solar e veículo" />
+      <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"}
+        style={{ left: `${Math.max(8, Math.min(92, 50 + state.vehicleX * 0.75))}%`, top: `${Math.max(8, Math.min(92, 50 + state.vehicleZ * 0.75))}%` }}
+        title="Veículo municipal · posição atual" />
+      <span className="map-base" title="Base de eletrificação · destino da missão" />
       <span className="map-player" style={{ left: `${Math.max(8, Math.min(92, 50 + state.playerX * 0.75))}%`, top: `${Math.max(8, Math.min(92, 50 + state.playerZ * 0.75))}%` }} />
     </div>
 

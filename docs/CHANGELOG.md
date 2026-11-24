@@ -1,3 +1,8 @@
+## [0.3.6] - 2026-11-24
+- Adicionada vaga de estacionamento inicial para localizar o veículo municipal após a missão do EcoCentro.
+- O minimapa agora acompanha a posição atual do carro e exibe separadamente a base de eletrificação como destino.
+- Reposicionados os equipamentos de telhado para não interferirem visualmente com as áreas dos painéis solares.
+
 ## [0.3.5] - 2026-11-24
 - Removidos botões de instalar energia solar e converter veículo do painel; ambas as ações agora são missões físicas no mundo 3D.
 - Cada um dos oito prédios recebe painéis solares individualmente ao se aproximar da fachada e pressionar E (10 CIT por edifício).

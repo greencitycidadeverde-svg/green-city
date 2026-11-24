@@ -328,9 +328,15 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
 
 /* Navigation point for the solar carport and municipal vehicle */
 .map-vehicle {
-  position:absolute; z-index:5; left:73%; top:68%; width:13px; height:13px;
+  position:absolute; z-index:5; left:0; top:0; width:13px; height:13px;
   border:2px solid #fff; border-radius:4px; background:#efbd43;
   box-shadow:0 0 0 4px rgba(239,189,67,.22),0 0 15px rgba(255,209,88,.82);
   transform:translate(-50%,-50%) rotate(45deg);
 }
 .map-vehicle-electric { background:#45d6a0; box-shadow:0 0 0 4px rgba(69,214,160,.22),0 0 17px rgba(69,214,160,.9); }
+.map-base {
+  position:absolute; z-index:4; left:73%; top:68%; width:14px; height:14px;
+  border:2px solid #fff; border-radius:50%; background:#288b60;
+  box-shadow:0 0 0 4px rgba(56,186,120,.2),0 0 16px rgba(56,186,120,.8);
+  transform:translate(-50%,-50%);
+}

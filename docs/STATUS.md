@@ -95,3 +95,7 @@ O minimapa agora identifica a vaga municipal com a cor de status do veículo (am
 As opções de instalação e conversão foram removidas do painel. Após entregar a carga, o jogador instala painéis em cada edifício individualmente por proximidade e tecla E. Cada instalação custa 10 CIT. Depois de três prédios, a base de eletrificação fica ativa. O jogador entra no carro no ponto inicial, dirige pela via de serviço, estaciona na vaga, para completamente, sai e interage ao lado do veículo para convertê-lo por 20 CIT. A conclusão exige oito telhados solarizados e o veículo elétrico.
 A recompensa de entrega é de 100 CIT: 8 edifícios a 10 CIT e a conversão do veículo a 20 CIT.
 O painel urbano agora é apenas informativo. Os prédios receberam acabamento texturizado e detalhes de cobertura; a árvore ganhou copa multifacetada e o carro recebeu janelas, espelhos, capô arredondado, lanternas e cubos de roda. São melhorias procedurais low-poly; não equivalem ainda a modelos artísticos GLB de produção.
+
+
+## Orientação para a missão do veículo 0.3.6
+O minimapa acompanha o veículo em tempo real e mantém a base de eletrificação como marcador de destino. O veículo começa em uma vaga demarcada próxima à avenida para facilitar sua localização após o jogador entregar os resíduos. Equipamentos de telhado foram movidos para as bordas para reduzir sobreposição com os arranjos fotovoltaicos.

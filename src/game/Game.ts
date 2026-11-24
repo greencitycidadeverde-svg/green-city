@@ -189,10 +189,10 @@ export class GreenCityGame {
         sideParapet.position.set(x + side * (w / 2 + 0.12), h + 0.44, z); sideParapet.material = roofTrim;
       }
       const rooftopUnit = MeshBuilder.CreateBox(`rooftop-service-unit-${i}`, { width: 1.6, height: 0.75, depth: 1.45 }, this.scene);
-      rooftopUnit.position.set(x - w * 0.24, h + 0.72, z - 2.8);
+      rooftopUnit.position.set(x - w * 0.34, h + 0.72, z - 4.05);
       rooftopUnit.material = this.material(`rooftop-service-unit-mat-${i}`, new Color3(0.55, 0.60, 0.57));
       const rooftopVent = MeshBuilder.CreateCylinder(`rooftop-vent-${i}`, { height: 0.8, diameterTop: 0.36, diameterBottom: 0.48, tessellation: 10 }, this.scene);
-      rooftopVent.position.set(x + w * 0.25, h + 0.75, z + 2.7);
+      rooftopVent.position.set(x + w * 0.34, h + 0.75, z + 4.05);
       rooftopVent.material = this.material(`rooftop-vent-mat-${i}`, new Color3(0.40, 0.44, 0.42));
 
       // Low-poly facade kit: recessed storefront, framed glazing and readable entrances.
@@ -917,8 +917,22 @@ export class GreenCityGame {
   }
 
   private createVehicle(): Mesh {
+    const startBay = MeshBuilder.CreateGround('municipal-start-parking-bay', { width: 7.5, height: 4.7 }, this.scene);
+    startBay.position.set(5.1, 0.025, 23.5);
+    startBay.material = this.material('municipal-start-parking-bay-material', new Color3(0.25, 0.31, 0.29));
+    const bayLines = this.material('municipal-start-parking-lines', new Color3(0.93, 0.88, 0.67));
+    for (const z of [21.2, 25.8]) {
+      const line = MeshBuilder.CreateBox('municipal-start-parking-line', { width: 7.1, height: 0.035, depth: 0.12 }, this.scene);
+      line.position.set(5.1, 0.06, z);
+      line.material = bayLines;
+    }
+    for (const x of [1.55, 8.65]) {
+      const line = MeshBuilder.CreateBox('municipal-start-parking-side-line', { width: 0.12, height: 0.035, depth: 4.6 }, this.scene);
+      line.position.set(x, 0.06, 23.5);
+      line.material = bayLines;
+    }
     const car = MeshBuilder.CreateBox('municipal-service-vehicle', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
-    car.position.set(3.0, 0.48, 23.5);
+    car.position.set(5.1, 0.48, 23.5);
     car.rotation.y = Math.PI / 2;
     car.checkCollisions = true;
     this.vehicleMaterial = this.material('vehicle-body', new Color3(0.34, 0.37, 0.36));
@@ -1268,6 +1282,8 @@ export class GreenCityGame {
       nearbyLabel: nearby?.label ?? '',
       playerX: this.player.position.x,
       playerZ: this.player.position.z,
+      vehicleX: this.vehicle.position.x,
+      vehicleZ: this.vehicle.position.z,
       message: this.message,
     };
   }

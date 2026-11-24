@@ -23,6 +23,8 @@ export interface GameSnapshot {
   nearbyLabel: string;
   playerX: number;
   playerZ: number;
+  vehicleX: number;
+  vehicleZ: number;
   message: string;
 }
 export type SnapshotListener = (snapshot: GameSnapshot) => void;
