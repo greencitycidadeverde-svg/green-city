@@ -14,7 +14,8 @@ GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. A c
 
 ## Verificação já executada
 - O commit da nova progressão foi compilado com sucesso na Vercel: `tsc -b` e `vite build` passaram.
-- Deploy de produção foi concluído com estado READY; página retornou HTTP 200.
+- Deploy de produção do commit `7365412` foi concluído com estado READY; a URL estável retornou HTTP 200.
+- `tsc -b` e `vite build` passaram com Node 22.x e Vite 7.3.7.
 - A compilação reportou bundle JavaScript principal de aproximadamente 5,6 MB (1,26 MB gzip), acima da recomendação de 500 kB. Code splitting e otimização Babylon.js permanecem pendentes.
 - O build anterior apontou uma vulnerabilidade alta durante `npm install`; Vite foi atualizado para 7.3.7 nesta revisão para corrigir advisories conhecidos. A nova instalação precisa confirmar o resultado do audit.
 - Node foi restringido a 22.x no package.json para alinhar com a versão configurada na Vercel.
