@@ -60,6 +60,8 @@ export class GreenCityGame {
   private mobileMoveX = 0;
   private mobileMoveY = 0;
   private playerModelRoot?: AbstractMesh;
+  private playerModelHeadingRoot?: TransformNode;
+  private playerModelHeadingOffset = 0;
   private vehicleModelRoot?: AbstractMesh;
   private readonly vehicleModelPaintMaterials: PBRMaterial[] = [];
   private portTruckModelRoot?: AbstractMesh;
@@ -1340,7 +1342,7 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.8`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.9`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -1372,14 +1374,29 @@ export class GreenCityGame {
       const modelRoot = imported.meshes.find((mesh) => mesh.name === '__root__') ?? imported.meshes[0];
       if (!modelRoot) throw new Error('O arquivo GLB não retornou uma malha principal.');
 
+      // Keep the transform supplied by the glTF importer. It may contain the axis
+      // conversion that defines which side of the imported model is its actual front.
+      // A separate heading pivot lets gameplay rotate the character without erasing it.
       modelRoot.parent = null;
-      // glTF imports normally carry a rotationQuaternion, which takes precedence over Euler rotation.
-      // Clear it so the per-frame heading below actually turns the visible character.
-      modelRoot.rotationQuaternion = null;
-      modelRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
-      modelRoot.rotation.set(0, this.player.rotation.y, 0);
+      modelRoot.computeWorldMatrix(true);
+      const importedForward = Vector3.TransformNormal(
+        new Vector3(0, 0, 1),
+        modelRoot.getWorldMatrix(),
+      );
+      const horizontalImportedForward = new Vector3(importedForward.x, 0, importedForward.z);
+      if (horizontalImportedForward.lengthSquared() > 1e-6) {
+        horizontalImportedForward.normalize();
+        this.playerModelHeadingOffset = Math.atan2(horizontalImportedForward.x, horizontalImportedForward.z);
+      } else {
+        this.playerModelHeadingOffset = 0;
+      }
+
+      const headingRoot = new TransformNode('player-model-heading-pivot', this.scene);
+      headingRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
+      modelRoot.parent = headingRoot;
       modelRoot.scaling.scaleInPlace(0.82);
       modelRoot.isPickable = false;
+      this.playerModelHeadingRoot = headingRoot;
       this.playerModelRoot = modelRoot;
 
       this.playerArms.length = 0;
@@ -1693,9 +1710,12 @@ export class GreenCityGame {
       }
       this.player.position.copyFrom(activeVehicle.position).addInPlace(new Vector3(0, 0.2, 0));
     } else {
-      // Character motion is relative to camera yaw, never fixed to world axes.
-      // Pushing up always walks toward the top of the screen after camera rotation.
-      const forward = new Vector3(-Math.cos(this.camera.alpha), 0, -Math.sin(this.camera.alpha)).normalize();
+      // Read the camera's real view direction instead of reconstructing it from alpha.
+      // Forward always means "where the camera is looking", even after mouse orbit.
+      const cameraView = this.camera.getTarget().subtract(this.camera.position);
+      const forward = new Vector3(cameraView.x, 0, cameraView.z);
+      if (forward.lengthSquared() > 1e-6) forward.normalize();
+      else forward.set(0, 0, 1);
       const right = new Vector3(forward.z, 0, -forward.x).normalize();
       const forwardInput = (this.keys.has('w') ? 1 : 0) - (this.keys.has('s') ? 1 : 0) - this.mobileMoveY;
       const strafeInput = (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0) + this.mobileMoveX;
@@ -1725,10 +1745,15 @@ export class GreenCityGame {
         this.onGround = true;
       }
     }
-    if (this.playerModelRoot) {
-      this.playerModelRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
-      // The visible GLB follows the collision body's smoothed heading every frame.
-      this.playerModelRoot.rotation.y = this.player.rotation.y;
+    if (this.playerModelHeadingRoot) {
+      this.playerModelHeadingRoot.position.set(
+        this.player.position.x,
+        this.player.position.y - 1,
+        this.player.position.z,
+      );
+      // Compensate for the imported model's own forward-axis offset so its face,
+      // not its back, points toward the direction chosen by the player.
+      this.playerModelHeadingRoot.rotation.y = this.player.rotation.y - this.playerModelHeadingOffset;
     }
     this.syncVehicleModel(this.vehicleVisualRoot, this.vehicle, 0);
     this.syncVehicleModel(this.vehicleModelRoot, this.vehicle, 0.48);
