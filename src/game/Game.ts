@@ -59,7 +59,6 @@ export class GreenCityGame {
   private characterAnimationTime = 0;
   private mobileMoveX = 0;
   private mobileMoveY = 0;
-  private modelManifestPromise?: Promise<Record<string, string>>;
   private playerModelRoot?: AbstractMesh;
   private vehicleModelRoot?: AbstractMesh;
   private portTruckModelRoot?: AbstractMesh;
@@ -1327,28 +1326,11 @@ export class GreenCityGame {
   }
 
 
-  /** Lê os GLBs gzipados de um manifesto de texto para manter o download leve. */
-  private async loadCompressedAsset(assetName: string): Promise<ArrayBuffer> {
-    if (!this.modelManifestPromise) {
-      this.modelManifestPromise = fetch('/models/manifest.json', { cache: 'force-cache' })
-        .then(async (response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o manifesto 3D.`);
-          return await response.json() as Record<string, string>;
-        })
-        .catch((error: unknown) => {
-          this.modelManifestPromise = undefined;
-          throw error;
-        });
-    }
-    const manifest = await this.modelManifestPromise;
-    const encoded = manifest[assetName];
-    if (!encoded) throw new Error(`O modelo ${assetName} não está no manifesto 3D.`);
-    if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador não oferece suporte à descompactação dos modelos 3D.');
-    const binary = atob(encoded);
-    const compressed = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) compressed[index] = binary.charCodeAt(index);
-    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
-    return await new Response(stream).arrayBuffer();
+  /** Carrega diretamente um arquivo GLB estático de /public/models. */
+  private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
+    const response = await fetch(`/models/${assetName}`, { cache: 'force-cache' });
+    if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
+    return await response.arrayBuffer();
   }
 
   /**
@@ -1360,7 +1342,7 @@ export class GreenCityGame {
     let objectUrl: string | undefined;
     try {
       await import('@babylonjs/loaders/glTF/2.0');
-      const glbBytes = await this.loadCompressedAsset('personagem.glb.gz');
+      const glbBytes = await this.loadModelBytes('personagem.glb');
       const fallbackParts = this.player.getChildMeshes();
       objectUrl = URL.createObjectURL(new Blob([glbBytes], { type: 'model/gltf-binary' }));
 
@@ -1409,9 +1391,9 @@ export class GreenCityGame {
 
 
   /** Importa um GLB compactado em gzip e preserva os materiais PBR embutidos. */
-  private async importCompressedModel(assetName: string): Promise<{ root: AbstractMesh; meshes: AbstractMesh[] }> {
+  private async importModel(assetName: string): Promise<{ root: AbstractMesh; meshes: AbstractMesh[] }> {
     await import('@babylonjs/loaders/glTF/2.0');
-    const bytes = await this.loadCompressedAsset(assetName);
+    const bytes = await this.loadModelBytes(assetName);
     const url = URL.createObjectURL(new Blob([bytes], { type: 'model/gltf-binary' }));
     try {
       const imported = await ImportMeshAsync(url, this.scene, { pluginExtension: '.glb' });
@@ -1430,7 +1412,7 @@ export class GreenCityGame {
   /** Modelos estáticos e veículos GLB, mantendo os colisores de movimento existentes. */
   private async loadWorldModels(): Promise<void> {
     try {
-      const tree = await this.importCompressedModel('arvore.glb.gz');
+      const tree = await this.importModel('arvore.glb');
       tree.root.position.set(-38, 0, 8);
       tree.root.scaling.setAll(0.72);
       this.phaseOneModelRoots.push(tree.root);
@@ -1447,7 +1429,7 @@ export class GreenCityGame {
     }
 
     try {
-      const building = await this.importCompressedModel('edificio.glb.gz');
+      const building = await this.importModel('edificio.glb');
       building.root.position.set(-34, 0, -31);
       building.root.scaling.setAll(0.58);
       this.phaseOneModelRoots.push(building.root);
@@ -1456,7 +1438,7 @@ export class GreenCityGame {
     }
 
     try {
-      const car = await this.importCompressedModel('carro_eletrico.glb.gz');
+      const car = await this.importModel('carro_eletrico.glb');
       this.vehicleVisualRoot?.setEnabled(false);
       car.root.parent = null;
       car.root.position.set(this.vehicle.position.x, 0, this.vehicle.position.z);
@@ -1469,7 +1451,7 @@ export class GreenCityGame {
     }
 
     try {
-      const truck = await this.importCompressedModel('caminhao_coleta.glb.gz');
+      const truck = await this.importModel('caminhao_coleta.glb');
       this.portTruckVisualRoot?.setEnabled(false);
       truck.root.parent = null;
       truck.root.position.set(this.portTruck.position.x, 0.04, this.portTruck.position.z);
