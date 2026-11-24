@@ -1,6 +1,6 @@
 import {
   ArcRotateCamera, Color3, Color4, DirectionalLight, DynamicTexture, Engine, HemisphericLight,
-  Mesh, MeshBuilder, Scene, StandardMaterial, TransformNode, Vector3,
+  Mesh, MeshBuilder, PBRMaterial, Scene, StandardMaterial, TransformNode, Vector3,
 } from '@babylonjs/core';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import type { AbstractMesh } from '@babylonjs/core';
@@ -61,6 +61,7 @@ export class GreenCityGame {
   private mobileMoveY = 0;
   private playerModelRoot?: AbstractMesh;
   private vehicleModelRoot?: AbstractMesh;
+  private readonly vehicleModelPaintMaterials: PBRMaterial[] = [];
   private portTruckModelRoot?: AbstractMesh;
   private vehicleVisualRoot?: TransformNode;
   private portTruckVisualRoot?: TransformNode;
@@ -1328,9 +1329,19 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.4`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
-    return await response.arrayBuffer();
+    const bytes = await response.arrayBuffer();
+    const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
+    // Vercel/CDN may transparently decompress .gz files. Detect gzip first.
+    if (signature.length === 2 && signature[0] === 0x1f && signature[1] === 0x8b) {
+      if (typeof DecompressionStream === 'undefined') {
+        throw new Error('Este navegador não oferece descompactação gzip para os modelos 3D.');
+      }
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return await new Response(stream).arrayBuffer();
+    }
+    return bytes;
   }
 
   /**
@@ -1342,7 +1353,7 @@ export class GreenCityGame {
     let objectUrl: string | undefined;
     try {
       await import('@babylonjs/loaders/glTF/2.0');
-      const glbBytes = await this.loadModelBytes('personagem.glb');
+      const glbBytes = await this.loadModelBytes('personagem.glb.gz');
       const fallbackParts = this.player.getChildMeshes();
       objectUrl = URL.createObjectURL(new Blob([glbBytes], { type: 'model/gltf-binary' }));
 
@@ -1366,12 +1377,12 @@ export class GreenCityGame {
         if (part.name === 'UpperArm_L' || part.name === 'UpperArm_R') {
           const side = part.name.endsWith('_L') ? -1 : 1;
           part.rotationQuaternion = null;
-          part.setPivotPoint(new Vector3(side * 0.33, 1.40, 0));
+          part.setPivotPoint(new Vector3(side * 0.36, 1.55, 0));
           this.playerArms.push(part);
         } else if (part.name === 'Trouser_L_Thigh' || part.name === 'Trouser_R_Thigh') {
           const side = part.name.includes('_L_') ? -1 : 1;
           part.rotationQuaternion = null;
-          part.setPivotPoint(new Vector3(side * 0.12, 0.94, 0));
+          part.setPivotPoint(new Vector3(side * 0.19, 1.01, 0));
           this.playerLegs.push(part);
         }
       }
@@ -1412,7 +1423,7 @@ export class GreenCityGame {
   /** Modelos estáticos e veículos GLB, mantendo os colisores de movimento existentes. */
   private async loadWorldModels(): Promise<void> {
     try {
-      const tree = await this.importModel('arvore.glb');
+      const tree = await this.importModel('arvore.glb.gz');
       tree.root.position.set(-38, 0, 8);
       tree.root.scaling.setAll(0.72);
       this.phaseOneModelRoots.push(tree.root);
@@ -1429,7 +1440,7 @@ export class GreenCityGame {
     }
 
     try {
-      const building = await this.importModel('edificio.glb');
+      const building = await this.importModel('edificio.glb.gz');
       building.root.position.set(-34, 0, -31);
       building.root.scaling.setAll(0.58);
       this.phaseOneModelRoots.push(building.root);
@@ -1438,20 +1449,27 @@ export class GreenCityGame {
     }
 
     try {
-      const car = await this.importModel('carro_eletrico.glb');
+      const car = await this.importModel('carro_eletrico.glb.gz');
       this.vehicleVisualRoot?.setEnabled(false);
       car.root.parent = null;
       car.root.position.set(this.vehicle.position.x, 0, this.vehicle.position.z);
       car.root.rotation.y = this.vehicle.rotation.y;
       car.root.scaling.setAll(0.90);
       this.vehicleModelRoot = car.root;
+      this.vehicleModelPaintMaterials.length = 0;
+      for (const mesh of car.meshes) {
+        if (mesh instanceof Mesh && mesh.material instanceof PBRMaterial && mesh.material.name === 'green'
+          && !this.vehicleModelPaintMaterials.includes(mesh.material)) {
+          this.vehicleModelPaintMaterials.push(mesh.material);
+        }
+      }
       this.phaseOneModelRoots.push(car.root);
     } catch (error) {
       console.warn('[GREEN CITY] Modelo de carro não carregado; mantendo o veículo reserva.', error);
     }
 
     try {
-      const truck = await this.importModel('caminhao_coleta.glb');
+      const truck = await this.importModel('caminhao_coleta.glb.gz');
       this.portTruckVisualRoot?.setEnabled(false);
       truck.root.parent = null;
       truck.root.position.set(this.portTruck.position.x, 0.04, this.portTruck.position.z);
@@ -1938,6 +1956,10 @@ export class GreenCityGame {
 
     this.cit -= ELECTRIC_VEHICLE_COST; this.electricVehicle = true;
     this.vehicleMaterial.diffuseColor = new Color3(0.08, 0.52, 0.34);
+    this.vehicleModelPaintMaterials.forEach((paint) => {
+      paint.albedoColor = new Color3(0.17, 0.78, 0.39);
+      paint.emissiveColor = new Color3(0.012, 0.055, 0.025);
+    });
     const badgeTexture = new DynamicTexture('municipal-ev-badge-texture', { width: 512, height: 192 }, this.scene, false);
     const badgeContext = badgeTexture.getContext() as unknown as CanvasRenderingContext2D;
     badgeContext.fillStyle = '#063F31'; badgeContext.fillRect(0, 0, 512, 192);

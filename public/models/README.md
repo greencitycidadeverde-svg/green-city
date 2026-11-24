@@ -1,11 +1,12 @@
 # Modelos 3D do GREEN CITY
 
-Coloque nesta pasta os cinco arquivos GLB do pacote oficial:
+Os modelos são gerados automaticamente durante o build de produção pelo script `scripts/generate-models.mjs`.
 
-- personagem.glb
-- arvore.glb
-- edificio.glb
-- carro_eletrico.glb
-- caminhao_coleta.glb
+Arquivos produzidos:
+- `personagem.glb.gz`
+- `arvore.glb.gz`
+- `edificio.glb.gz`
+- `carro_eletrico.glb.gz`
+- `caminhao_coleta.glb.gz`
 
-O jogo carrega esses arquivos diretamente de /models. Mantenha os nomes exatamente como estão escritos.
+O jogo carrega os GLBs diretamente de `/models`. O carregador reconhece quando o navegador/CDN entrega os bytes ainda compactados e descompacta antes de importar pelo Babylon.js. O build valida o cabeçalho GLB e gera todos os cinco arquivos sempre que uma nova versão é publicada.
