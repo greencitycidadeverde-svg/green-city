@@ -184,7 +184,7 @@ export class GreenCityGame {
       storefront.position.set(facadeX + facadeSide * 0.03, 2.65, z + 1.25);
       storefront.material = this.material(`storefront-sign-${i}`, new Color3(0.12, 0.35, 0.24));
       const storefrontTexture = new DynamicTexture(`storefront-label-texture-${i}`, { width: 512, height: 128 }, this.scene, false);
-      const storefrontContext = storefrontTexture.getContext();
+      const storefrontContext = storefrontTexture.getContext() as unknown as CanvasRenderingContext2D;
       storefrontContext.fillStyle = '#123F2B';
       storefrontContext.fillRect(0, 0, 512, 128);
       storefrontContext.fillStyle = '#D9F2C5';
@@ -361,7 +361,7 @@ export class GreenCityGame {
       labelFrame.material = this.material('eco-center-container-label-frame-' + index, new Color3(0.91, 0.94, 0.86));
 
       const labelTexture = new DynamicTexture('eco-center-container-label-texture-' + index, { width: 512, height: 256 }, this.scene, false);
-      const labelContext = labelTexture.getContext();
+      const labelContext = labelTexture.getContext() as unknown as CanvasRenderingContext2D;
       labelContext.fillStyle = '#F4F5E9';
       labelContext.fillRect(0, 0, 512, 256);
       labelContext.fillStyle = hex;
@@ -443,7 +443,7 @@ export class GreenCityGame {
     instructionBoard.position.set(-32.2, 2.6, 8.6);
     instructionBoard.material = this.material('eco-center-instruction-board-material', new Color3(0.12, 0.39, 0.23));
     const instructionTexture = new DynamicTexture('eco-center-instruction-texture', { width: 640, height: 320 }, this.scene, false);
-    const instructionContext = instructionTexture.getContext();
+    const instructionContext = instructionTexture.getContext() as unknown as CanvasRenderingContext2D;
     instructionContext.fillStyle = '#123F2B';
     instructionContext.fillRect(0, 0, 640, 320);
     instructionContext.fillStyle = '#B9EE91';
