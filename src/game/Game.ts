@@ -1410,7 +1410,7 @@ export class GreenCityGame {
     try {
       const imported = await ImportMeshAsync(url, this.scene, { pluginExtension: '.glb' });
       const root = imported.meshes.find((mesh) => mesh.name === '__root__') ?? imported.meshes[0];
-      if (!root) throw new Error(`O GLB ${path} não contém uma malha principal.`);
+      if (!root) throw new Error(`O GLB ${assetName} não contém uma malha principal.`);
       imported.meshes.forEach((mesh) => {
         mesh.isPickable = false;
         if (mesh instanceof Mesh) mesh.checkCollisions = false;
