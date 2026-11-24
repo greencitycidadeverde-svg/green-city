@@ -1,9 +1,18 @@
+export type MissionStage = 'collect' | 'deliver' | 'improve' | 'complete';
+
 export interface GameSnapshot {
   cit: number;
   collected: number;
   total: number;
-  missionComplete: boolean;
-  restored: boolean;
+  delivered: boolean;
+  solarInstalled: boolean;
+  electricVehicle: boolean;
+  recyclingRate: number;
+  renewableShare: number;
+  sustainableMobility: number;
+  airQuality: number;
+  missionStage: MissionStage;
+  nextNeighborhoodUnlocked: boolean;
   paused: boolean;
   mapOpen: boolean;
   inVehicle: boolean;

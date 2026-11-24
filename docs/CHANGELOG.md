@@ -1,17 +1,15 @@
-# Histórico de versões
+# Changelog
 
-## 0.2.0 — 24/11/2026
-- Adicionado mapa ampliado do Distrito Central.
-- Tecla M, botão MAPA e tecla ESC para fechar o mapa.
-- A simulação congela enquanto o mapa ampliado está aberto.
-- Ajustada a orientação lateral de WASD para respeitar a direção da câmera.
-- Alinhado o elipsoide de colisão ao centro da malha do personagem.
-- Fixadas versões exatas das dependências declaradas no package.json.
-- Atualizadas instruções e checklists.
+## 2026-11-24 — Progressão por bairros e primeira cadeia de recuperação
+- Definida a cidade como mapa geral dividido em cinco regiões/fases.
+- Adicionado mapa da cidade com Centro Industrial, Porto, Periferia Verde, Reserva Florestal e Zona Costeira.
+- Centro Industrial passa a ser a primeira região jogável.
+- Coleta agora exige entrega física da carga no EcoCentro.
+- Adicionado Plano Urbano com indicadores de reciclagem, energia renovável, mobilidade sustentável e qualidade do ar (simulados).
+- Adicionada instalação visual de energia solar com ponto de recarga.
+- Veículo municipal começa a diesel e pode ser convertido para elétrico após instalação solar.
+- O Porto é liberado quando as metas da primeira região são atingidas.
+- Indicadas claramente as regiões ainda sem cenário 3D implementado.
 
-## 0.1.0 — base do First Impact
-- Cena urbana procedural.
-- Personagem e câmera em terceira pessoa.
-- Primeiro veículo elétrico com condução arcade e interação F.
-- Coleta de resíduos, missão ambiental e CIT local simulado.
-- Minimapa esquemático e HUD.
+## 2026-11-24 — First Impact Web MVP
+- Protótipo 3D web, câmera em terceira pessoa, movimentação, veículo, coleta e HUD inicial.
