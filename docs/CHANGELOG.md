@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2 — refinamento visual e desenho do Porto
+- Personagem agente ambiental recebeu uniforme de campo mais completo, colete, faixas refletivas, identificação, luvas, proteções e mochila detalhada.
+- Árvores ganharam troncos afunilados, galhos e copas em camadas com variação de tons.
+- Fachadas receberam pilastras, divisórias nas janelas e letreiros com nomes de estabelecimentos.
+- Recipientes do EcoCentro passaram a exibir pictogramas diferentes, cores, nomes em português e exemplos de materiais: papel, plástico, vidro, metal e orgânico.
+- Placa educativa ampliada para explicar a separação dos materiais.
+- Criado o documento de conceito e fluxo jogável da Fase 02 — Porto. O bairro continua em planejamento, sem cenário 3D jogável nesta versão.
+
+
 ## 0.3.1 — EcoCentro e ações contextuais
 - Construído um ponto físico externo de entrega de resíduos com sinalização ECOCENTRO, área de descarga, caminho de acesso e cinco recipientes coloridos de triagem.
 - A entrega usa distância horizontal e raio de interação maior, com indicação contextual e ação por tecla E ou clique.

@@ -152,8 +152,17 @@ export class GreenCityGame {
       // Low-poly facade kit: recessed storefront, framed glazing and readable entrances.
       const facadeSide = x < 0 ? 1 : -1;
       const facadeX = x + facadeSide * (w / 2 + 0.08);
-      const glassMat = this.material(`window-glass-${i}`, new Color3(0.16, 0.29, 0.30));
+      const glassMat = this.material(`window-glass-${i}`, new Color3(0.12, 0.27, 0.31));
       const frameMat = this.material(`window-frame-${i}`, new Color3(0.77, 0.74, 0.63));
+      const storefrontLabels = ['OFICINAS', 'ARMAZÉM', 'MERCADO', 'SERVIÇOS', 'LOGÍSTICA', 'ENERGIA', 'RECICLAGEM', 'COMÉRCIO'];
+      const facadeBase = MeshBuilder.CreateBox(`facade-base-${i}`, { width: 0.34, height: 0.48, depth: 10.15 }, this.scene);
+      facadeBase.position.set(facadeX + facadeSide * 0.13, 0.26, z);
+      facadeBase.material = frameMat;
+      for (const edge of [-4.72, 4.72]) {
+        const pilaster = MeshBuilder.CreateBox(`facade-pilaster-${i}`, { width: 0.34, height: h, depth: 0.38 }, this.scene);
+        pilaster.position.set(facadeX + facadeSide * 0.14, h / 2, z + edge);
+        pilaster.material = frameMat;
+      }
       const windowRows = Math.max(1, Math.floor((h - 3) / 4));
       for (let row = 0; row < windowRows; row++) {
         for (const offset of [-3, 0, 3]) {
@@ -163,6 +172,9 @@ export class GreenCityGame {
           const glass = MeshBuilder.CreateBox('facade-window-glass', { width: 0.18, height: 1.28, depth: 1.42 }, this.scene);
           glass.position.set(facadeX + facadeSide * 0.025, 3.5 + row * 3.5, z + offset);
           glass.material = glassMat;
+          const mullion = MeshBuilder.CreateBox('facade-window-mullion', { width: 0.22, height: 1.18, depth: 0.07 }, this.scene);
+          mullion.position.set(facadeX + facadeSide * 0.13, 3.5 + row * 3.5, z + offset);
+          mullion.material = frameMat;
         }
       }
       const entrance = MeshBuilder.CreateBox('facade-entry', { width: 0.18, height: 2.2, depth: 1.35 }, this.scene);
@@ -171,22 +183,64 @@ export class GreenCityGame {
       const storefront = MeshBuilder.CreateBox('storefront-sign-panel', { width: 0.18, height: 0.62, depth: 4.1 }, this.scene);
       storefront.position.set(facadeX + facadeSide * 0.03, 2.65, z + 1.25);
       storefront.material = this.material(`storefront-sign-${i}`, new Color3(0.12, 0.35, 0.24));
+      const storefrontTexture = new DynamicTexture(`storefront-label-texture-${i}`, { width: 512, height: 128 }, this.scene, false);
+      const storefrontContext = storefrontTexture.getContext();
+      storefrontContext.fillStyle = '#123F2B';
+      storefrontContext.fillRect(0, 0, 512, 128);
+      storefrontContext.fillStyle = '#D9F2C5';
+      storefrontContext.font = 'bold 56px Arial';
+      storefrontContext.textAlign = 'center';
+      storefrontContext.fillText(storefrontLabels[i], 256, 83, 470);
+      storefrontTexture.update();
+      const storefrontFace = MeshBuilder.CreatePlane(`storefront-sign-face-${i}`, { width: 3.85, height: 0.48 }, this.scene);
+      storefrontFace.position.set(facadeX + facadeSide * 0.14, 2.65, z + 1.25);
+      storefrontFace.rotation.y = facadeSide * Math.PI / 2;
+      const storefrontFaceMaterial = this.material(`storefront-face-material-${i}`, new Color3(1, 1, 1));
+      storefrontFaceMaterial.diffuseTexture = storefrontTexture;
+      storefrontFaceMaterial.emissiveColor = new Color3(0.10, 0.16, 0.11);
+      storefrontFace.material = storefrontFaceMaterial;
       const awning = MeshBuilder.CreateBox('storefront-awning', { width: 0.48, height: 0.12, depth: 4.35 }, this.scene);
       awning.position.set(facadeX + facadeSide * 0.22, 2.34, z + 1.25);
       awning.material = frameMat;
     });
 
-    const treeMat = this.material('tree-leaves', new Color3(0.12, 0.34, 0.20));
-    const trunkMat = this.material('tree-trunk', new Color3(0.27, 0.17, 0.10));
-    for (const [x, z] of [[-11, -29], [-11, -14], [-11, 4], [-11, 24], [11, -25], [11, -6], [11, 13], [11, 30], [-35, 5], [35, -20]]) {
-      const trunk = MeshBuilder.CreateCylinder('tree-trunk', { height: 2.2, diameter: 0.35 }, this.scene);
-      trunk.position.set(x, 1.1, z);
+    const treeMaterials = [
+      this.material('tree-leaves-deep', new Color3(0.10, 0.29, 0.17)),
+      this.material('tree-leaves-main', new Color3(0.16, 0.40, 0.22)),
+      this.material('tree-leaves-light', new Color3(0.24, 0.48, 0.25)),
+    ];
+    const trunkMat = this.material('tree-trunk', new Color3(0.25, 0.15, 0.09));
+    const branchMat = this.material('tree-branch', new Color3(0.31, 0.20, 0.12));
+    for (const [treeIndex, [x, z]] of [[-11, -29], [-11, -14], [-11, 4], [-11, 24], [11, -25], [11, -6], [11, 13], [11, 30], [-35, 5], [35, -20]].entries()) {
+      const trunk = MeshBuilder.CreateCylinder('tree-trunk', { height: 2.65, diameterTop: 0.18, diameterBottom: 0.43, tessellation: 7 }, this.scene);
+      trunk.position.set(x, 1.32, z);
       trunk.material = trunkMat;
       trunk.checkCollisions = true;
-      const crown = MeshBuilder.CreateSphere('tree-crown', { diameter: 2.4, segments: 6 }, this.scene);
-      crown.position.set(x, 2.7, z);
-      crown.material = treeMat;
+
+      for (const side of [-1, 1]) {
+        const branch = MeshBuilder.CreateCylinder('tree-branch', { height: 1.45, diameterTop: 0.10, diameterBottom: 0.19, tessellation: 6 }, this.scene);
+        branch.position.set(x + side * 0.37, 2.05, z);
+        branch.rotation.z = side * -0.62;
+        branch.material = branchMat;
+      }
+
+      const crown = MeshBuilder.CreateSphere('tree-crown', { diameter: 2.55, segments: 8 }, this.scene);
+      crown.position.set(x, 3.2, z);
+      crown.scaling.set(1.02, 1.12, 0.98);
+      crown.material = treeMaterials[treeIndex % treeMaterials.length];
       this.parkTrees.push(crown);
+
+      const foliageClusters = [
+        [-0.68, 3.05, 0.05, 1.42],
+        [0.66, 3.14, -0.10, 1.38],
+        [-0.12, 3.68, 0.12, 1.48],
+      ];
+      foliageClusters.forEach(([dx, y, dz, diameter], clusterIndex) => {
+        const foliage = MeshBuilder.CreateSphere('tree-foliage-cluster', { diameter, segments: 7 }, this.scene);
+        foliage.position.set(x + dx, y, z + dz);
+        foliage.scaling.set(1.0, 0.88, 1.0);
+        foliage.material = treeMaterials[(treeIndex + clusterIndex + 1) % treeMaterials.length];
+      });
     }
 
     const plaza = MeshBuilder.CreateGround('plaza', { width: 14, height: 12 }, this.scene);
@@ -286,14 +340,14 @@ export class GreenCityGame {
     marker.material = this.material('eco-center-marker-material', new Color3(0.18, 0.58, 0.28));
 
     // Containers follow Brazil's selective collection color palette.
-    const containers: Array<{ x: number; color: Color3 }> = [
-      { x: -29.5, color: new Color3(0.12, 0.34, 0.66) }, // paper
-      { x: -27.2, color: new Color3(0.72, 0.18, 0.18) }, // plastic
-      { x: -24.9, color: new Color3(0.12, 0.48, 0.29) }, // glass
-      { x: -22.6, color: new Color3(0.82, 0.64, 0.10) }, // metal
-      { x: -20.3, color: new Color3(0.43, 0.27, 0.16) }, // organic
+    const containers = [
+      { x: -29.5, color: new Color3(0.12, 0.34, 0.66), hex: '#1F5B9B', label: 'PAPEL', examples: 'PAPELÃO · JORNAIS', icon: 'paper' },
+      { x: -27.2, color: new Color3(0.72, 0.18, 0.18), hex: '#B83232', label: 'PLÁSTICO', examples: 'GARRAFAS · EMBALAGENS', icon: 'plastic' },
+      { x: -24.9, color: new Color3(0.12, 0.48, 0.29), hex: '#237D4B', label: 'VIDRO', examples: 'POTES · GARRAFAS', icon: 'glass' },
+      { x: -22.6, color: new Color3(0.82, 0.64, 0.10), hex: '#A98013', label: 'METAL', examples: 'LATAS · ALUMÍNIO', icon: 'metal' },
+      { x: -20.3, color: new Color3(0.43, 0.27, 0.16), hex: '#70452C', label: 'ORGÂNICO', examples: 'ALIMENTOS · FOLHAS', icon: 'organic' },
     ];
-    containers.forEach(({ x, color }, index) => {
+    containers.forEach(({ x, color, hex, label, examples, icon }, index) => {
       const body = MeshBuilder.CreateBox('eco-center-recycling-container', { width: 1.55, height: 1.45, depth: 1.25 }, this.scene);
       body.position.set(x, 0.78, 12.0);
       body.material = this.material('eco-center-container-' + index, color);
@@ -302,21 +356,113 @@ export class GreenCityGame {
       lid.position.set(x, 1.56, 12.0);
       lid.material = this.material('eco-center-container-lid-' + index, new Color3(0.09, 0.13, 0.11));
 
-      const labelPanel = MeshBuilder.CreateBox('eco-center-container-label', { width: 1.25, height: 0.36, depth: 0.06 }, this.scene);
-      labelPanel.position.set(x, 1.05, 12.66);
-      labelPanel.material = this.material('eco-center-container-label-' + index, new Color3(0.91, 0.94, 0.86));
+      const labelFrame = MeshBuilder.CreateBox('eco-center-container-label-frame', { width: 1.48, height: 0.72, depth: 0.07 }, this.scene);
+      labelFrame.position.set(x, 1.12, 12.66);
+      labelFrame.material = this.material('eco-center-container-label-frame-' + index, new Color3(0.91, 0.94, 0.86));
 
-      const categoryMark = MeshBuilder.CreateBox('eco-center-container-category', { width: 0.42, height: 0.08, depth: 0.08 }, this.scene);
-      categoryMark.position.set(x, 1.05, 12.72);
-      categoryMark.material = this.material('eco-center-container-category-' + index, color);
+      const labelTexture = new DynamicTexture('eco-center-container-label-texture-' + index, { width: 512, height: 256 }, this.scene, false);
+      const labelContext = labelTexture.getContext();
+      labelContext.fillStyle = '#F4F5E9';
+      labelContext.fillRect(0, 0, 512, 256);
+      labelContext.fillStyle = hex;
+      labelContext.fillRect(0, 0, 512, 24);
+      labelContext.strokeStyle = hex;
+      labelContext.fillStyle = hex;
+      labelContext.lineWidth = 11;
+      labelContext.lineCap = 'round';
+      labelContext.lineJoin = 'round';
+
+      // Pictogramas distintos permitem identificar o material sem depender só da cor.
+      if (icon === 'paper') {
+        labelContext.beginPath();
+        labelContext.moveTo(39, 55); labelContext.lineTo(82, 55); labelContext.lineTo(105, 78);
+        labelContext.lineTo(105, 188); labelContext.lineTo(39, 188); labelContext.closePath(); labelContext.stroke();
+        labelContext.beginPath();
+        labelContext.moveTo(82, 55); labelContext.lineTo(82, 80); labelContext.lineTo(105, 80);
+        labelContext.moveTo(52, 111); labelContext.lineTo(91, 111);
+        labelContext.moveTo(52, 139); labelContext.lineTo(91, 139);
+        labelContext.stroke();
+      } else if (icon === 'plastic') {
+        labelContext.beginPath();
+        labelContext.moveTo(59, 48); labelContext.lineTo(85, 48); labelContext.lineTo(85, 72);
+        labelContext.lineTo(101, 89); labelContext.lineTo(101, 177);
+        labelContext.quadraticCurveTo(101, 190, 88, 190);
+        labelContext.lineTo(47, 190); labelContext.quadraticCurveTo(34, 190, 34, 177);
+        labelContext.lineTo(34, 89); labelContext.lineTo(50, 72); labelContext.lineTo(50, 48);
+        labelContext.stroke();
+        labelContext.beginPath(); labelContext.moveTo(51, 39); labelContext.lineTo(93, 39); labelContext.stroke();
+        labelContext.beginPath(); labelContext.moveTo(38, 133); labelContext.lineTo(97, 133); labelContext.stroke();
+      } else if (icon === 'glass') {
+        labelContext.beginPath();
+        labelContext.moveTo(47, 54); labelContext.lineTo(95, 54);
+        labelContext.lineTo(95, 91); labelContext.lineTo(109, 108);
+        labelContext.lineTo(109, 178); labelContext.quadraticCurveTo(109, 190, 96, 190);
+        labelContext.lineTo(46, 190); labelContext.quadraticCurveTo(33, 190, 33, 178);
+        labelContext.lineTo(33, 108); labelContext.lineTo(47, 91); labelContext.closePath();
+        labelContext.stroke();
+        labelContext.beginPath(); labelContext.moveTo(39, 145); labelContext.lineTo(103, 145); labelContext.stroke();
+        labelContext.beginPath(); labelContext.moveTo(44, 45); labelContext.lineTo(99, 45); labelContext.stroke();
+      } else if (icon === 'metal') {
+        labelContext.beginPath();
+        labelContext.ellipse(71, 72, 32, 11, 0, 0, Math.PI * 2);
+        labelContext.moveTo(39, 72); labelContext.lineTo(39, 171);
+        labelContext.ellipse(71, 171, 32, 11, 0, 0, Math.PI);
+        labelContext.moveTo(103, 72); labelContext.lineTo(103, 171);
+        labelContext.stroke();
+        labelContext.beginPath(); labelContext.ellipse(71, 72, 17, 5, 0, 0, Math.PI * 2); labelContext.stroke();
+      } else {
+        labelContext.beginPath();
+        labelContext.moveTo(35, 169); labelContext.bezierCurveTo(37, 93, 96, 57, 111, 62);
+        labelContext.bezierCurveTo(108, 132, 76, 180, 35, 169); labelContext.stroke();
+        labelContext.beginPath(); labelContext.moveTo(38, 166); labelContext.quadraticCurveTo(74, 121, 105, 68); labelContext.stroke();
+      }
+
+      labelContext.fillStyle = '#17251C';
+      labelContext.textAlign = 'left';
+      labelContext.font = 'bold 43px Arial';
+      labelContext.fillText(label, 132, 111, 360);
+      labelContext.font = 'bold 17px Arial';
+      labelContext.fillText(examples, 132, 151, 360);
+      labelContext.fillStyle = '#5D6E60';
+      labelContext.font = 'bold 15px Arial';
+      labelContext.fillText('COLETA SELETIVA', 132, 196);
+      labelTexture.update();
+
+      const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.42, height: 0.66 }, this.scene);
+      labelFace.position.set(x, 1.12, 12.71);
+      const labelMaterial = this.material('eco-center-container-label-material-' + index, new Color3(1, 1, 1));
+      labelMaterial.diffuseTexture = labelTexture;
+      labelMaterial.emissiveColor = new Color3(0.10, 0.10, 0.08);
+      labelFace.material = labelMaterial;
     });
 
     const instructionPost = MeshBuilder.CreateCylinder('eco-center-instruction-post', { height: 2.6, diameter: 0.16, tessellation: 10 }, this.scene);
     instructionPost.position.set(-32.2, 1.3, 8.6);
     instructionPost.material = this.material('eco-center-post-material', new Color3(0.18, 0.22, 0.18));
-    const instructionBoard = MeshBuilder.CreateBox('eco-center-instruction-board', { width: 1.6, height: 1.1, depth: 0.12 }, this.scene);
+    const instructionBoard = MeshBuilder.CreateBox('eco-center-instruction-board', { width: 2.65, height: 1.32, depth: 0.12 }, this.scene);
     instructionBoard.position.set(-32.2, 2.6, 8.6);
     instructionBoard.material = this.material('eco-center-instruction-board-material', new Color3(0.12, 0.39, 0.23));
+    const instructionTexture = new DynamicTexture('eco-center-instruction-texture', { width: 640, height: 320 }, this.scene, false);
+    const instructionContext = instructionTexture.getContext();
+    instructionContext.fillStyle = '#123F2B';
+    instructionContext.fillRect(0, 0, 640, 320);
+    instructionContext.fillStyle = '#B9EE91';
+    instructionContext.font = 'bold 42px Arial';
+    instructionContext.fillText('SEPARE CORRETAMENTE', 30, 75);
+    instructionContext.fillStyle = '#F0F5E8';
+    instructionContext.font = 'bold 32px Arial';
+    instructionContext.fillText('PAPEL  ·  PLÁSTICO  ·  VIDRO', 30, 145);
+    instructionContext.fillText('METAL  ·  ORGÂNICO', 30, 205);
+    instructionContext.fillStyle = '#C7DCCB';
+    instructionContext.font = '24px Arial';
+    instructionContext.fillText('Cada material tem seu destino.', 30, 270);
+    instructionTexture.update();
+    const instructionFace = MeshBuilder.CreatePlane('eco-center-instruction-face', { width: 2.5, height: 1.22 }, this.scene);
+    instructionFace.position.set(-32.2, 2.6, 8.68);
+    const instructionMaterial = this.material('eco-center-instruction-face-material', new Color3(1, 1, 1));
+    instructionMaterial.diffuseTexture = instructionTexture;
+    instructionMaterial.emissiveColor = new Color3(0.12, 0.18, 0.13);
+    instructionFace.material = instructionMaterial;
   }
 
   private buildRiver(): void {
@@ -342,21 +488,49 @@ export class GreenCityGame {
     root.visibility = 0;
     root.isPickable = false;
 
-    const jacket = this.material('agent-jacket', new Color3(0.09, 0.40, 0.28));
-    const pants = this.material('agent-trousers', new Color3(0.15, 0.22, 0.19));
+    const jacket = this.material('agent-jacket', new Color3(0.07, 0.34, 0.24));
+    const vestMaterial = this.material('agent-safety-vest', new Color3(0.16, 0.48, 0.30));
+    const pants = this.material('agent-trousers', new Color3(0.13, 0.19, 0.17));
     const skin = this.material('agent-skin', new Color3(0.70, 0.49, 0.34));
-    const helmet = this.material('agent-helmet', new Color3(0.83, 0.68, 0.24));
-    const boots = this.material('agent-boots', new Color3(0.09, 0.12, 0.11));
-    const reflective = this.material('agent-reflective-strip', new Color3(0.89, 0.78, 0.40));
+    const helmet = this.material('agent-helmet', new Color3(0.91, 0.70, 0.20));
+    const boots = this.material('agent-boots', new Color3(0.07, 0.09, 0.09));
+    const gloves = this.material('agent-gloves', new Color3(0.12, 0.19, 0.16));
+    const reflective = this.material('agent-reflective-strip', new Color3(0.94, 0.83, 0.36));
+    const badgeMaterial = this.material('agent-identification-badge', new Color3(0.90, 0.94, 0.83));
 
     const torso = MeshBuilder.CreateCapsule('agent-torso', { height: 0.86, radius: 0.29, tessellation: 10 }, this.scene);
     torso.parent = root;
     torso.position.set(0, 0.10, 0);
     torso.material = jacket;
+    const neck = MeshBuilder.CreateCylinder('agent-neck', { height: 0.18, diameter: 0.22, tessellation: 8 }, this.scene);
+    neck.parent = root;
+    neck.position.set(0, 0.56, 0);
+    neck.material = skin;
+    const vest = MeshBuilder.CreateBox('agent-utility-vest', { width: 0.59, height: 0.65, depth: 0.34 }, this.scene);
+    vest.parent = root;
+    vest.position.set(0, 0.10, 0.22);
+    vest.material = vestMaterial;
+    for (const side of [-1, 1]) {
+      const vestPocket = MeshBuilder.CreateBox('agent-vest-pocket', { width: 0.18, height: 0.19, depth: 0.05 }, this.scene);
+      vestPocket.parent = root;
+      vestPocket.position.set(side * 0.17, -0.12, 0.405);
+      vestPocket.material = jacket;
+    }
     const head = MeshBuilder.CreateSphere('agent-head', { diameter: 0.42, segments: 10 }, this.scene);
     head.parent = root;
     head.position.set(0, 0.78, 0.02);
     head.material = skin;
+    const eyeMaterial = this.material('agent-eyes', new Color3(0.08, 0.10, 0.09));
+    for (const side of [-1, 1]) {
+      const eye = MeshBuilder.CreateSphere('agent-eye', { diameter: 0.045, segments: 6 }, this.scene);
+      eye.parent = root;
+      eye.position.set(side * 0.075, 0.80, 0.205);
+      eye.material = eyeMaterial;
+    }
+    const nose = MeshBuilder.CreateSphere('agent-nose', { diameter: 0.07, segments: 6 }, this.scene);
+    nose.parent = root;
+    nose.position.set(0, 0.72, 0.215);
+    nose.material = skin;
     const hat = MeshBuilder.CreateCylinder('agent-safety-helmet', { height: 0.18, diameterTop: 0.38, diameterBottom: 0.50, tessellation: 10 }, this.scene);
     hat.parent = root;
     hat.position.set(0, 1.0, 0);
@@ -365,6 +539,10 @@ export class GreenCityGame {
     brim.parent = root;
     brim.position.set(0, 0.94, 0);
     brim.material = helmet;
+    const helmetBadge = MeshBuilder.CreateBox('agent-helmet-badge', { width: 0.17, height: 0.09, depth: 0.035 }, this.scene);
+    helmetBadge.parent = root;
+    helmetBadge.position.set(0, 1.0, 0.245);
+    helmetBadge.material = vestMaterial;
 
     for (const side of [-1, 1]) {
       const arm = MeshBuilder.CreateCapsule('agent-arm', { height: 0.72, radius: 0.13, tessellation: 8 }, this.scene);
@@ -375,25 +553,57 @@ export class GreenCityGame {
       const hand = MeshBuilder.CreateSphere('agent-hand', { diameter: 0.18, segments: 8 }, this.scene);
       hand.parent = root;
       hand.position.set(side * 0.38, -0.25, 0.02);
-      hand.material = skin;
+      hand.material = gloves;
+      const armBand = MeshBuilder.CreateCylinder('agent-sleeve-reflector', { height: 0.10, diameter: 0.29, tessellation: 8 }, this.scene);
+      armBand.parent = root;
+      armBand.position.set(side * 0.36, 0.02, 0);
+      armBand.rotation.z = side * -0.12;
+      armBand.material = reflective;
       const leg = MeshBuilder.CreateCapsule('agent-leg', { height: 0.68, radius: 0.14, tessellation: 8 }, this.scene);
       leg.parent = root;
       leg.position.set(side * 0.15, -0.53, 0);
       leg.material = pants;
+      const kneePad = MeshBuilder.CreateBox('agent-knee-pad', { width: 0.24, height: 0.14, depth: 0.08 }, this.scene);
+      kneePad.parent = root;
+      kneePad.position.set(side * 0.15, -0.55, 0.145);
+      kneePad.material = jacket;
       const boot = MeshBuilder.CreateBox('agent-boot', { width: 0.28, height: 0.18, depth: 0.40 }, this.scene);
       boot.parent = root;
       boot.position.set(side * 0.15, -0.88, 0.06);
       boot.material = boots;
+      const sole = MeshBuilder.CreateBox('agent-boot-sole', { width: 0.30, height: 0.07, depth: 0.43 }, this.scene);
+      sole.parent = root;
+      sole.position.set(side * 0.15, -0.98, 0.07);
+      sole.material = gloves;
     }
 
     const chestStrip = MeshBuilder.CreateBox('agent-reflective-strip', { width: 0.48, height: 0.10, depth: 0.34 }, this.scene);
     chestStrip.parent = root;
     chestStrip.position.set(0, 0.17, 0.25);
     chestStrip.material = reflective;
+    const idBadge = MeshBuilder.CreateBox('agent-identification-badge', { width: 0.22, height: 0.18, depth: 0.045 }, this.scene);
+    idBadge.parent = root;
+    idBadge.position.set(0, 0.31, 0.43);
+    idBadge.material = badgeMaterial;
+    const badgeMark = MeshBuilder.CreateBox('agent-identification-mark', { width: 0.10, height: 0.055, depth: 0.015 }, this.scene);
+    badgeMark.parent = root;
+    badgeMark.position.set(0, 0.31, 0.46);
+    badgeMark.material = vestMaterial;
     const backpack = MeshBuilder.CreateBox('agent-field-backpack', { width: 0.40, height: 0.48, depth: 0.19 }, this.scene);
     backpack.parent = root;
     backpack.position.set(0, 0.12, -0.27);
-    backpack.material = this.material('agent-backpack', new Color3(0.22, 0.30, 0.24));
+    backpack.material = this.material('agent-backpack', new Color3(0.19, 0.27, 0.22));
+    for (const side of [-1, 1]) {
+      const strap = MeshBuilder.CreateBox('agent-backpack-strap', { width: 0.08, height: 0.52, depth: 0.06 }, this.scene);
+      strap.parent = root;
+      strap.position.set(side * 0.22, 0.12, 0.18);
+      strap.rotation.z = side * 0.12;
+      strap.material = vestMaterial;
+    }
+    const backpackPocket = MeshBuilder.CreateBox('agent-backpack-pocket', { width: 0.29, height: 0.20, depth: 0.08 }, this.scene);
+    backpackPocket.parent = root;
+    backpackPocket.position.set(0, 0.02, -0.39);
+    backpackPocket.material = jacket;
     return root;
   }
 

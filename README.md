@@ -55,6 +55,10 @@ Verificações: **npm run typecheck** e **npm run build**.
 - M: abrir ou fechar o mapa.
 - ESC: fechar o mapa ou pausar.
 
+## Evolução visual e próxima fase
+
+A versão 0.3.2 refina o agente ambiental, as árvores, fachadas e a sinalização educativa dos cinco recipientes do EcoCentro. O desenho da Fase 02 — Porto está documentado em `docs/PHASE_02_PORTO.md`; o Porto ainda não possui cenário 3D jogável.
+
 ## Limitações conhecidas
 
 As quatro regiões posteriores ainda não têm cenário 3D jogável. NPCs, tráfego complexo, inventário e processamento completo por material, salvamento persistente, contas, multiplayer, Scanner e verificação de impacto ambiental real permanecem no plano futuro. A silhueta do agente e os detalhes arquitetônicos atuais são geometria procedural, não modelos artísticos finais.

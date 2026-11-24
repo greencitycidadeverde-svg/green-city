@@ -28,6 +28,15 @@
 - [ ] W acelera, S freia/reverte, A/D esterçam
 - [ ] ESC pausa/retoma e M abre/fecha o mapa
 
+## Qualidade visual — versão 0.3.2
+- [ ] O agente apresenta colete, faixas refletivas, crachá, luvas, capacete e mochila sem peças desalinhadas.
+- [ ] Árvores mostram tronco, galhos e copas em camadas sem atravessar prédios ou bloquear caminhos.
+- [ ] Letreiros das fachadas estão legíveis e orientados para a rua.
+- [ ] EcoCentro mostra PAPEL (azul), PLÁSTICO (vermelho), VIDRO (verde), METAL (amarelo) e ORGÂNICO (marrom).
+- [ ] Cada recipiente tem pictograma distinto, nome e exemplos; verificar especialmente PLÁSTICO versus VIDRO.
+- [ ] Placa educativa está voltada para o caminho de chegada e pode ser lida sem se aproximar demais.
+- [ ] Verificar se texturas e fontes aparecem corretamente em diferentes resoluções.
+
 ## Interface e desempenho
 - [ ] Plano Urbano abre e fecha corretamente
 - [ ] Mapa geral abre e fecha corretamente

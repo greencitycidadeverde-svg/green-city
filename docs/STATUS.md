@@ -1,5 +1,16 @@
 # Estado do projeto — 24/11/2026
 
+## Versão 0.3.2 — refinamento visual do Centro Industrial e concepção do Porto
+- Personagem, árvores e fachadas receberam mais detalhes procedurais, mantendo Babylon.js e sem novas dependências.
+- EcoCentro agora identifica as cinco categorias com símbolos próprios, cores, nomes e exemplos de resíduos; a placa principal explica a separação.
+- O desenho da Fase 02 — Porto foi documentado com áreas, objetivos, sistemas de água e logística, consequências ambientais e etapas de produção.
+- A Fase 02 ainda é documentação de design: não existe cenário 3D jogável do Porto nesta versão.
+
+## Verificação da versão 0.3.2
+- Alterações preparadas para compilação e publicação; resultado do build/deploy será registrado após a execução.
+- Inspeção visual e teste manual no navegador ainda necessários para validar escala, orientação dos letreiros, legibilidade e desempenho.
+
+
 ## Direção do produto
 GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. Uma cidade grande é dividida em cinco regiões, cada uma funcionando como uma fase de recuperação.
 

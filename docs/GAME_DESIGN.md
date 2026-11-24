@@ -49,6 +49,14 @@ Objetivo: provar o ciclo de gestão e mostrar que as soluções dependem umas da
 
 Custos e indicadores são valores de balanceamento provisórios, não estudos técnicos de custos ou benefícios ambientais.
 
+## Fase 02 — Porto (documento de concepção)
+
+O Porto será a segunda região jogável após a recuperação do Centro Industrial. Seu tema não será apenas recolher lixo da água: o jogador deverá localizar as fontes de poluição, interromper a entrada de contaminantes, organizar a logística de resíduos e recuperar gradualmente a margem do rio.
+
+O fluxo planejado é: **investigar a água → identificar fontes → conter a poluição na origem → retirar resíduos flutuantes → estruturar triagem e pré-tratamento → restaurar a margem → acompanhar a recuperação**. A qualidade da água não melhora instantaneamente; intervenções na origem precisam ocorrer antes da restauração ecológica, e a biodiversidade responde com atraso.
+
+O escopo, mapa por zonas, missões, indicadores, dependências e critérios de conclusão estão em [`docs/PHASE_02_PORTO.md`](./PHASE_02_PORTO.md). É um plano de produção, não uma área 3D já implementada.
+
 ## Direção de experiência
 
 O aprendizado deve acontecer pela exploração, pelas escolhas e pelas consequências, sem transformar o jogo em questionário. Cada tecnologia deve ter requisitos, custos e trade-offs. Evitar a simplificação de que uma tecnologia é sempre limpa independentemente da cadeia de produção, matriz energética e infraestrutura.
