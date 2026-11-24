@@ -116,3 +116,18 @@ Os números finais de metas, custos, tempo de recuperação e recompensas só de
 - Não fazer uma limpeza visual sem corrigir as fontes que geram o problema.
 
 **Estado:** concepção inicial documentada. Não há cenário 3D ou missão jogável do Porto implementados nesta versão.
+
+
+---
+
+## Estado do protótipo (GREEN CITY 0.4.0)
+
+O Porto agora possui um primeiro protótipo 3D navegável no código do jogo, acessado após a conclusão do Centro Industrial. O fluxo implementado contempla:
+- inspeção de três pontos de lançamento de efluentes;
+- construção contextual de uma estação de tratamento de efluentes (ETE), com alteração visual da água e dos canais de descarga;
+- instalação de duas fossas sépticas em instalações sanitárias isoladas;
+- condução de um caminhão de coleta e atendimento de três pontos de resíduos empresariais.
+
+Os indicadores de água são simulações didáticas do jogo, não medições reais. O tratamento industrial é feito pela ETE; as fossas são reservadas aos pontos sanitários isolados.
+
+**Validação:** o código foi enviado para a branch principal e a compilação/publicação automatizada será verificada. A navegação e o funcionamento de cada interação ainda precisam de teste manual no navegador.
