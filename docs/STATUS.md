@@ -1,40 +1,43 @@
 # Estado do projeto — 24/11/2026
 
 ## Direção
-GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. A cidade será um mapa geral dividido em cinco bairros/regiões, cada um funcionando como uma fase. O jogador recupera uma região e libera a seguinte.
+GREEN CITY é um jogo educacional 3D de transformação urbana sustentável. A cidade é um mapa dividido em cinco regiões; cada região funciona como uma fase de recuperação.
 
-## Código atual
-- Mapa geral com cinco regiões: Centro Industrial, Porto, Periferia Verde, Reserva Florestal e Zona Costeira.
-- Apenas o Centro Industrial possui cenário 3D jogável.
-- Coleta e entrega da carga no EcoCentro.
-- Plano Urbano com indicadores simulados de reciclagem, energia renovável, mobilidade sustentável e qualidade do ar.
-- Instalação de energia solar e ponto local de recarga.
-- Conversão do veículo municipal a diesel para elétrico, condicionada à energia solar.
-- Liberação lógica do Porto quando as metas da primeira região são atingidas.
+## Entrega 0.3.0 — implementada no código
+- Reconstruída a folha global de estilos para a tela de jogo, HUD, minimapa, missão, mapa, Plano Urbano, carregamento e mensagens de erro.
+- Inicialização do mundo 3D separada do carregamento inicial da interface React.
+- Primeiro bairro recebeu detalhes procedurais de fachadas, janelas, vitrines, toldos, faixa de pedestres, iluminação pública, bancos e lixeiras seletivas.
+- Personagem recebeu silhueta procedural de agente ambiental; cápsula de colisão permanece invisível e independente.
+- Cinco resíduos têm agora silhuetas e materiais distintos: papel, plástico, metal, vidro e orgânico. A triagem ainda não é individual no inventário.
+- Removido o efeito indevido que alterava água e árvores quando o jogador eletrificava o veículo. Recuperação de rios e vegetação deve ser uma decisão separada.
+- Criado arquivo Figma editável com conceito de HUD, mapa ilustrado, indicadores e componentes reutilizáveis.
 
-## Verificação já executada
-- O commit da nova progressão foi compilado com sucesso na Vercel: `tsc -b` e `vite build` passaram.
-- Deploy de produção do commit `7365412` foi concluído com estado READY; a URL estável retornou HTTP 200.
-- `tsc -b` e `vite build` passaram com Node 22.x e Vite 7.3.7.
-- A compilação reportou bundle JavaScript principal de aproximadamente 5,6 MB (1,26 MB gzip), acima da recomendação de 500 kB. Code splitting e otimização Babylon.js permanecem pendentes.
-- O build anterior apontou uma vulnerabilidade alta durante `npm install`; Vite foi atualizado para 7.3.7 nesta revisão para corrigir advisories conhecidos. A nova instalação precisa confirmar o resultado do audit.
-- Node foi restringido a 22.x no package.json para alinhar com a versão configurada na Vercel.
+## Sistemas anteriores preservados
+- Mapa geral com Centro Industrial, Porto, Periferia Verde, Reserva Florestal e Zona Costeira.
+- Somente o Centro Industrial possui cenário 3D jogável.
+- Coleta e entrega de cinco itens no EcoCentro.
+- Plano Urbano com indicadores didáticos de reciclagem, energia renovável, mobilidade sustentável e qualidade do ar.
+- Instalação solar e infraestrutura local de recarga.
+- Conversão do veículo municipal a diesel para elétrico, condicionada à implantação solar.
+- Desbloqueio lógico do Porto ao atingir metas do primeiro bairro.
+
+## Verificações pendentes desta revisão
+- Aguardando compilação e deploy da revisão 0.3.0.
+- Build e HTTP 200 não comprovam gameplay manual. Coleta, entrega, colisões, veículo, câmera, menus e desempenho precisam de inspeção interativa.
+- Verificar tamanho e divisão do bundle depois da separação do módulo 3D.
+- Testar em computador físico com 8 GB de RAM.
 
 ## Limitações conhecidas
-- As outras quatro regiões aparecem no mapa, mas ainda não têm cenário 3D, missões ou simulação.
-- O cenário da primeira fase é procedural e pequeno; personagem cápsula e veículo simples.
-- A cadeia de resíduos ainda não separa materiais individualmente nem simula logística/processamento empresarial completo.
-- Indicadores e custos são balanceamento didático, não medições ambientais verificadas.
-- Não há NPCs, tráfego complexo, salvamento persistente, backend, Scanner ou multiplayer.
-- Nenhum teste manual de gameplay foi concluído; build e HTTP 200 não comprovam o funcionamento das interações no navegador.
+- As outras quatro regiões aparecem no mapa de progressão, mas não têm cenários 3D ou missões jogáveis.
+- O sistema de resíduos ainda não leva cada categoria do inventário até uma empresa recicladora.
+- Custos e indicadores são balanceamento didático, não medições ambientais auditadas.
+- Ainda faltam NPCs, tráfego complexo, animações finais, salvamento persistente, contas, multiplayer, Scanner e verificação de impacto real.
+- O cenário é procedural; modelos de produção finais ainda não foram incluídos.
 
-## Serviços externos
-- GitHub: repositório `greencitycidadeverde-svg/green-city`.
-- Vercel: projeto `green-city`, conectado ao branch `main`.
-- Supabase: não criado; adiado até existir necessidade de contas ou persistência remota.
-- Nenhum serviço ou arquivo do Monta Fácil foi alterado.
-
-## Próximos testes
-- Confirmar build e audit após a atualização de Vite.
-- Testar no navegador: coleta, entrega, custos, indicadores, instalações, conversão do veículo e liberação do Porto.
-- Inspecionar console do navegador e medir FPS/memória em PC modesto.
+## Infraestrutura
+- GitHub: greencitycidadeverde-svg/green-city.
+- Vercel: projeto green-city ligado ao branch main.
+- Figma: https://www.figma.com/design/0h4zS7dK3C6uJr3qVLo6On.
+- fal e Context7 conectados. Nenhum gerador 3D pago foi executado.
+- Supabase conectado, mas backend de jogo ainda não criado.
+- Blender não é requisito; o desenvolvimento da fase inicial é feito por código e recursos web.

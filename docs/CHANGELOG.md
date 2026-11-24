@@ -1,15 +1,15 @@
 # Changelog
 
-## 2026-11-24 — Progressão por bairros e primeira cadeia de recuperação
-- Definida a cidade como mapa geral dividido em cinco regiões/fases.
-- Adicionado mapa da cidade com Centro Industrial, Porto, Periferia Verde, Reserva Florestal e Zona Costeira.
-- Centro Industrial passa a ser a primeira região jogável.
-- Coleta agora exige entrega física da carga no EcoCentro.
-- Adicionado Plano Urbano com indicadores de reciclagem, energia renovável, mobilidade sustentável e qualidade do ar (simulados).
-- Adicionada instalação visual de energia solar com ponto de recarga.
-- Veículo municipal começa a diesel e pode ser convertido para elétrico após instalação solar.
-- O Porto é liberado quando as metas da primeira região são atingidas.
-- Indicadas claramente as regiões ainda sem cenário 3D implementado.
+## 0.3.0 — Reconstrução da base visual e do primeiro bairro
+- Reconstruída a folha de estilos global que estava sem o layout principal do jogo: canvas em tela cheia, HUD, missão, minimapa, overlays e painéis.
+- Separado o carregamento do módulo 3D para que a interface inicial não importe o jogo Babylon.js de forma síncrona.
+- Adicionados estados visuais de carregamento e falha de inicialização do mundo 3D.
+- Enriquecido o primeiro bairro com fachadas, janelas, vitrines, toldos, faixas de pedestres, iluminação pública, bancos e lixeiras seletivas.
+- Criada uma silhueta procedural de agente ambiental com capacete, uniforme, mochila e membros, mantendo uma cápsula invisível para colisão.
+- Os cinco resíduos receberam formas e materiais diferentes para comunicar categorias visuais.
+- Corrigido o efeito visual indevido em que eletrificar a frota também alterava a cor do rio e o tamanho das árvores. Recuperação hídrica e vegetal precisa de intervenções próprias.
+- Criado um projeto visual editável no Figma para a linguagem do HUD e da tela de jogo.
 
-## 2026-11-24 — First Impact Web MVP
-- Protótipo 3D web, câmera em terceira pessoa, movimentação, veículo, coleta e HUD inicial.
+## 0.2.1
+- Adicionada a progressão por regiões e o ciclo de recuperação urbana.
+- Atualizado Vite para uma versão de correção de segurança e alinhado o runtime Node ao Vercel.

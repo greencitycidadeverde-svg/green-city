@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GreenCityGame } from '../game/Game';
+import type { GreenCityGame } from '../game/Game';
 import { CITY_NEIGHBORHOODS } from '../game/neighborhoods';
 import type { GameSnapshot } from '../game/types';
 
@@ -38,13 +38,31 @@ export default function App() {
   const [state, setState] = useState(initial);
   const [showHelp, setShowHelp] = useState(true);
   const [showPlan, setShowPlan] = useState(false);
+  const [gameReady, setGameReady] = useState(false);
+  const [gameError, setGameError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-    const game = new GreenCityGame(canvasRef.current, setState);
-    gameRef.current = game;
+    let cancelled = false;
+    let game: GreenCityGame | null = null;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    void import('../game/Game')
+      .then(({ GreenCityGame: Game }) => {
+        if (cancelled) return;
+        game = new Game(canvas, setState);
+        gameRef.current = game;
+        setGameReady(true);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const detail = error instanceof Error ? error.message : 'Falha desconhecida';
+        setGameError(detail);
+      });
+
     return () => {
-      game.dispose();
+      cancelled = true;
+      game?.dispose();
       gameRef.current = null;
     };
   }, []);
@@ -105,6 +123,9 @@ export default function App() {
       </div>
       {state.missionStage === 'complete' && <div className="success-line">✓ METAS AMBIENTAIS ATINGIDAS · PORTO LIBERADO</div>}
     </section>
+
+    {!gameReady && !gameError && <div className="loading-overlay"><div className="loading-box"><span className="loading-spinner" /> Preparando o mundo de GREEN CITY…</div></div>}
+    {gameError && <div className="error-overlay"><div className="welcome-panel"><div className="eyebrow">ERRO AO CARREGAR O MUNDO 3D</div><h2>Não foi possível iniciar a cidade.</h2><p>{gameError}</p><small>Atualize a página. Se o problema continuar, envie esta mensagem para a equipe técnica.</small></div></div>}
 
     <div className="status-message">{state.message}</div>
     <div className="vehicle-status">{state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
