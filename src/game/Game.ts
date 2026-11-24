@@ -1,6 +1,6 @@
 import {
   ArcRotateCamera, Color3, Color4, DirectionalLight, DynamicTexture, Engine, HemisphericLight,
-  Mesh, MeshBuilder, Scene, StandardMaterial, Vector3,
+  Mesh, MeshBuilder, Scene, StandardMaterial, TransformNode, Vector3,
 } from '@babylonjs/core';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import type { AbstractMesh } from '@babylonjs/core';
@@ -63,6 +63,8 @@ export class GreenCityGame {
   private playerModelRoot?: AbstractMesh;
   private vehicleModelRoot?: AbstractMesh;
   private portTruckModelRoot?: AbstractMesh;
+  private vehicleVisualRoot?: TransformNode;
+  private portTruckVisualRoot?: TransformNode;
   private activePhase: 1 | 2 = 1;
   private portMissionStage: PortMissionStage = 'inspect';
   private readonly portOutfallPositions: PortSite[] = [{ x: 4, z: -20 }, { x: 4, z: 0 }, { x: 4, z: 20 }];
@@ -843,32 +845,36 @@ export class GreenCityGame {
     truck.rotation.y = Math.PI / 2;
     truck.checkCollisions = true;
     truck.visibility = 0;
+    const truckVisualRoot = new TransformNode('port-truck-visual-root', this.scene);
+    truckVisualRoot.position.copyFrom(truck.position);
+    truckVisualRoot.rotation.copyFrom(truck.rotation);
+    this.portTruckVisualRoot = truckVisualRoot;
     const truckBody = this.material('port-truck-body', new Color3(0.93, 0.70, 0.13));
     const truckHull = MeshBuilder.CreateSphere('port-collection-truck-rounded-hull', { diameter: 1, segments: 26 }, this.scene);
-    truckHull.parent = truck; truckHull.position.set(0, 0.0, 0); truckHull.scaling.set(1.16, 0.42, 2.16); truckHull.material = truckBody;
+    truckHull.parent = truckVisualRoot; truckHull.position.set(0, 0.0, 0); truckHull.scaling.set(1.16, 0.42, 2.16); truckHull.material = truckBody;
     const cargo = MeshBuilder.CreateCapsule('port-truck-cargo-box', { height: 2.8, radius: 0.94, tessellation: 18 }, this.scene);
-    cargo.parent = truck; cargo.position.set(0, 0.95, -0.55); cargo.rotation.x = Math.PI / 2;
+    cargo.parent = truckVisualRoot; cargo.position.set(0, 0.95, -0.55); cargo.rotation.x = Math.PI / 2;
     cargo.scaling.set(1.12, 1.0, 0.68);
     cargo.material = this.material('port-truck-cargo-material', new Color3(0.20, 0.49, 0.34));
     const cab = MeshBuilder.CreateSphere('port-truck-cab', { diameter: 1, segments: 24 }, this.scene);
-    cab.parent = truck; cab.position.set(0, 0.8, 1.28); cab.scaling.set(0.98, 0.70, 0.75);
+    cab.parent = truckVisualRoot; cab.position.set(0, 0.8, 1.28); cab.scaling.set(0.98, 0.70, 0.75);
     cab.material = truckBody;
     const cabGlass = MeshBuilder.CreateBox('port-truck-cab-glass', { width: 1.7, height: 0.62, depth: 0.10 }, this.scene);
-    cabGlass.parent = truck; cabGlass.position.set(0, 1.0, 1.98);
+    cabGlass.parent = truckVisualRoot; cabGlass.position.set(0, 1.0, 1.98);
     cabGlass.material = this.material('port-truck-cab-glass-material', new Color3(0.12, 0.28, 0.32));
     const headlight = this.material('port-truck-headlights', new Color3(0.98, 0.84, 0.48));
     for (const side of [-1, 1]) {
       for (const z of [-1.4, 1.4]) {
         const wheel = MeshBuilder.CreateCylinder('port-truck-wheel', { height: 0.26, diameter: 0.88, tessellation: 12 }, this.scene);
-        wheel.parent = truck; wheel.position.set(side * 1.12, -0.27, z);
+        wheel.parent = truckVisualRoot; wheel.position.set(side * 1.12, -0.08, z);
         wheel.rotation.z = Math.PI / 2;
         wheel.material = this.material('port-truck-wheel-material', new Color3(0.07, 0.08, 0.08));
       }
       const lamp = MeshBuilder.CreateBox('port-truck-headlamp', { width: 0.32, height: 0.25, depth: 0.1 }, this.scene);
-      lamp.parent = truck; lamp.position.set(side * 0.78, 0.05, 2.18); lamp.material = headlight;
+      lamp.parent = truckVisualRoot; lamp.position.set(side * 0.78, 0.05, 2.18); lamp.material = headlight;
     }
     const truckMark = MeshBuilder.CreateBox('port-truck-door-mark', { width: 0.06, height: 0.42, depth: 0.82 }, this.scene);
-    truckMark.parent = truck; truckMark.position.set(1.19, 0.12, 1.12);
+    truckMark.parent = truckVisualRoot; truckMark.position.set(1.19, 0.12, 1.12);
     truckMark.material = this.material('port-truck-door-mark-material', new Color3(0.92, 0.93, 0.82));
     this.portTruck = truck;
   }
@@ -1451,7 +1457,7 @@ export class GreenCityGame {
 
     try {
       const car = await this.importCompressedModel('carro_eletrico.glb.gz');
-      this.vehicle.getChildMeshes().forEach((mesh) => mesh.setEnabled(false));
+      this.vehicleVisualRoot?.setEnabled(false);
       car.root.parent = null;
       car.root.position.set(this.vehicle.position.x, 0, this.vehicle.position.z);
       car.root.rotation.y = this.vehicle.rotation.y;
@@ -1464,7 +1470,7 @@ export class GreenCityGame {
 
     try {
       const truck = await this.importCompressedModel('caminhao_coleta.glb.gz');
-      this.portTruck.getChildMeshes().forEach((mesh) => mesh.setEnabled(false));
+      this.portTruckVisualRoot?.setEnabled(false);
       truck.root.parent = null;
       truck.root.position.set(this.portTruck.position.x, 0.04, this.portTruck.position.z);
       truck.root.rotation.y = this.portTruck.rotation.y;
@@ -1644,7 +1650,7 @@ export class GreenCityGame {
   };
   private readonly keyUp = (event: KeyboardEvent) => this.keys.delete(event.key.toLowerCase());
 
-  private syncVehicleModel(root: AbstractMesh | undefined, collider: Mesh, groundOffset: number): void {
+  private syncVehicleModel(root: TransformNode | undefined, collider: Mesh, groundOffset: number): void {
     if (!root) return;
     root.position.set(collider.position.x, collider.position.y - groundOffset, collider.position.z);
     root.rotation.y = collider.rotation.y;
@@ -1704,7 +1710,9 @@ export class GreenCityGame {
       this.playerModelRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
       this.playerModelRoot.rotation.y = this.player.rotation.y;
     }
+    this.syncVehicleModel(this.vehicleVisualRoot, this.vehicle, 0);
     this.syncVehicleModel(this.vehicleModelRoot, this.vehicle, 0.48);
+    this.syncVehicleModel(this.portTruckVisualRoot, this.portTruck, 0);
     this.syncVehicleModel(this.portTruckModelRoot, this.portTruck, 0.48);
     this.characterAnimationTime += step * (playerMoving ? 10.5 : 1.8);
     const gait = playerMoving ? 0.58 : 0.035;
@@ -1746,63 +1754,67 @@ export class GreenCityGame {
     car.rotation.y = Math.PI / 2;
     car.checkCollisions = true;
     car.visibility = 0;
+    const visualRoot = new TransformNode('municipal-vehicle-visual-root', this.scene);
+    visualRoot.position.copyFrom(car.position);
+    visualRoot.rotation.copyFrom(car.rotation);
+    this.vehicleVisualRoot = visualRoot;
     this.vehicleMaterial = this.material('vehicle-body', new Color3(0.18, 0.48, 0.36));
     const roundedHull = MeshBuilder.CreateSphere('municipal-service-vehicle-rounded-hull', { diameter: 1, segments: 28 }, this.scene);
-    roundedHull.parent = car; roundedHull.position.set(0, 0.02, 0); roundedHull.scaling.set(1.08, 0.40, 1.96);
+    roundedHull.parent = visualRoot; roundedHull.position.set(0, 0.02, 0); roundedHull.scaling.set(1.08, 0.40, 1.96);
     roundedHull.material = this.vehicleMaterial;
 
     const cabin = MeshBuilder.CreateSphere('vehicle-cabin-shell', { diameter: 1, segments: 24 }, this.scene);
-    cabin.parent = car; cabin.position.set(0, 0.68, -0.15); cabin.scaling.set(0.86, 0.60, 0.94);
+    cabin.parent = visualRoot; cabin.position.set(0, 0.68, -0.15); cabin.scaling.set(0.86, 0.60, 0.94);
     cabin.material = this.material('vehicle-cabin-frame', new Color3(0.88, 0.77, 0.47));
     const glass = this.material('vehicle-glass', new Color3(0.10, 0.24, 0.30));
     const windshield = MeshBuilder.CreatePlane('vehicle-windshield', { width: 1.42, height: 0.54 }, this.scene);
-    windshield.parent = car; windshield.position.set(0, 0.84, 0.78); windshield.material = glass;
+    windshield.parent = visualRoot; windshield.position.set(0, 0.84, 0.78); windshield.material = glass;
     const rearGlass = MeshBuilder.CreatePlane('vehicle-rear-window', { width: 1.38, height: 0.48 }, this.scene);
-    rearGlass.parent = car; rearGlass.position.set(0, 0.84, -1.08); rearGlass.rotation.y = Math.PI; rearGlass.material = glass;
+    rearGlass.parent = visualRoot; rearGlass.position.set(0, 0.84, -1.08); rearGlass.rotation.y = Math.PI; rearGlass.material = glass;
     for (const side of [-1, 1]) {
       const sideGlass = MeshBuilder.CreatePlane('vehicle-side-window', { width: 1.35, height: 0.48 }, this.scene);
-      sideGlass.parent = car; sideGlass.position.set(side * 0.87, 0.84, -0.15);
+      sideGlass.parent = visualRoot; sideGlass.position.set(side * 0.87, 0.84, -0.15);
       sideGlass.rotation.y = side * Math.PI / 2; sideGlass.material = glass;
       const mirror = MeshBuilder.CreateSphere('vehicle-side-mirror', { diameter: 0.24, segments: 18 }, this.scene);
-      mirror.parent = car; mirror.position.set(side * 1.03, 0.58, 0.52);
+      mirror.parent = visualRoot; mirror.position.set(side * 1.03, 0.58, 0.52);
       mirror.scaling.set(0.55, 0.8, 1.15);
       mirror.material = this.material('vehicle-mirror-material', new Color3(0.13, 0.17, 0.16));
     }
     const roofCap = MeshBuilder.CreateSphere('vehicle-rounded-roof', { diameter: 1.7, segments: 24 }, this.scene);
-    roofCap.parent = car; roofCap.position.set(0, 1.04, -0.15); roofCap.scaling.set(0.92, 0.24, 0.88);
+    roofCap.parent = visualRoot; roofCap.position.set(0, 1.04, -0.15); roofCap.scaling.set(0.92, 0.24, 0.88);
     roofCap.material = this.material('vehicle-roof-material', new Color3(0.23, 0.30, 0.28));
     const hood = MeshBuilder.CreateSphere('vehicle-rounded-hood', { diameter: 1.8, segments: 24 }, this.scene);
-    hood.parent = car; hood.position.set(0, 0.22, 1.12); hood.scaling.set(0.92, 0.28, 0.70); hood.material = this.vehicleMaterial;
+    hood.parent = visualRoot; hood.position.set(0, 0.22, 1.12); hood.scaling.set(0.92, 0.28, 0.70); hood.material = this.vehicleMaterial;
     const wheelMat = this.material('vehicle-tires', new Color3(0.045, 0.05, 0.05));
     const hubMat = this.material('vehicle-wheel-hubs', new Color3(0.62, 0.67, 0.63));
     const tailLightMat = this.material('vehicle-tail-light-material', new Color3(0.75, 0.14, 0.10));
     for (const side of [-1, 1]) {
       const tailLight = MeshBuilder.CreateSphere('vehicle-tail-light', { diameter: 0.26, segments: 18 }, this.scene);
-      tailLight.parent = car; tailLight.position.set(side * 0.78, 0.12, -1.90);
+      tailLight.parent = visualRoot; tailLight.position.set(side * 0.78, 0.12, -1.90);
       tailLight.scaling.set(0.55, 0.75, 0.35); tailLight.material = tailLightMat;
     }
     const grille = MeshBuilder.CreateBox('vehicle-front-grille', { width: 0.9, height: 0.25, depth: 0.06 }, this.scene);
-    grille.parent = car;
+    grille.parent = visualRoot;
     grille.position.set(0, -0.08, 1.93);
     grille.material = this.material('vehicle-grille-material', new Color3(0.09, 0.13, 0.13));
     const bumper = MeshBuilder.CreateBox('vehicle-front-bumper', { width: 2.0, height: 0.16, depth: 0.16 }, this.scene);
-    bumper.parent = car;
+    bumper.parent = visualRoot;
     bumper.position.set(0, -0.31, 1.91);
     bumper.material = this.material('vehicle-bumper-material', new Color3(0.23, 0.26, 0.25));
     const headlightMaterial = this.material('vehicle-headlight-material', new Color3(0.92, 0.84, 0.56));
     for (const side of [-1, 1]) {
       const headlight = MeshBuilder.CreateBox('vehicle-headlight', { width: 0.38, height: 0.18, depth: 0.07 }, this.scene);
-      headlight.parent = car;
+      headlight.parent = visualRoot;
       headlight.position.set(side * 0.72, 0.08, 1.94);
       headlight.material = headlightMaterial;
     }
     for (const x of [-1.08, 1.08]) for (const z of [-1.25, 1.25]) {
       const wheel = MeshBuilder.CreateCylinder('vehicle-wheel', { diameter: 0.72, height: 0.22, tessellation: 20 }, this.scene);
-      wheel.parent = car;
+      wheel.parent = visualRoot;
       wheel.position.set(x, -0.12, z);
       wheel.rotation.z = Math.PI / 2; wheel.material = wheelMat;
       const hub = MeshBuilder.CreateCylinder('vehicle-wheel-hub', { diameter: 0.34, height: 0.24, tessellation: 20 }, this.scene);
-      hub.parent = car; hub.position.set(x * 1.02, -0.12, z);
+      hub.parent = visualRoot; hub.position.set(x * 1.02, -0.12, z);
       hub.rotation.z = Math.PI / 2; hub.material = hubMat;
     }
     return car;
