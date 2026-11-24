@@ -58,6 +58,8 @@ export default function App() {
   const [state, setState] = useState(initial);
   const [showHelp, setShowHelp] = useState(true);
   const [joystick, setJoystick] = useState({ x: 0, y: 0 });
+  const cameraLookPointerRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const [cameraLookActive, setCameraLookActive] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
   const [gameReady, setGameReady] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
@@ -112,6 +114,28 @@ export default function App() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     setJoystick({ x: 0, y: 0 });
     gameRef.current?.setMobileMovement(0, 0);
+  };
+
+  const startCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    cameraLookPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    setCameraLookActive(true);
+  };
+  const moveCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointer = cameraLookPointerRef.current;
+    if (!pointer || pointer.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const deltaX = event.clientX - pointer.x;
+    const deltaY = event.clientY - pointer.y;
+    cameraLookPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    gameRef.current?.rotateCameraBy(deltaX, deltaY);
+  };
+  const stopCameraLook = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (cameraLookPointerRef.current?.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    cameraLookPointerRef.current = null;
+    setCameraLookActive(false);
   };
 
   const missionProgress = state.phase === 1
@@ -203,7 +227,14 @@ export default function App() {
         onPointerUp={stopJoystick} onPointerCancel={stopJoystick}>
         <span className="mobile-stick-base" />
         <span className="mobile-stick-knob" style={{ transform: `translate(calc(-50% + ${joystick.x * 32}px), calc(-50% + ${joystick.y * 32}px))` }} />
-        <small>ARRASTE</small>
+        <small>ANDAR</small>
+      </div>
+      <div className={`mobile-camera-zone ${cameraLookActive ? 'mobile-camera-zone--active' : ''}`}
+        role="group" aria-label="Arraste para girar a câmera e mudar a direção da visão"
+        onPointerDown={startCameraLook} onPointerMove={moveCameraLook}
+        onPointerUp={stopCameraLook} onPointerCancel={stopCameraLook}>
+        <span className="camera-zone-ring" />
+        <small>ARRASTE<br/>PARA GIRAR</small>
       </div>
       <div className="mobile-action-stack">
         {state.nearbyAction && <button type="button" className="mobile-action-button" aria-label={interactionLabel} onClick={() => gameRef.current?.performNearbyAction()}>{mobileActionLabel}</button>}
@@ -238,7 +269,7 @@ export default function App() {
     <div className="bottom-left"><span className="dot" /> SINGLE PLAYER · PROTÓTIPO WEB</div>
 
     <div className="controls">
-      <span><b>WASD</b> mover/dirigir</span>
+      <span><b>WASD</b> mover · mouse arrastado gira câmera</span>
       <span><b>SHIFT</b> correr</span>
       <span><b>ESPAÇO</b> pular</span>
       <span><b>E</b> interagir/instalar</span>

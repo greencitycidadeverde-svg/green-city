@@ -127,6 +127,14 @@ export class GreenCityGame {
     this.camera.panningSensibility = 0;
     this.camera.wheelPrecision = 45;
     this.camera.attachControl(canvas, true);
+    // Mouse drag rotates the orbit camera; touch look is handled by the
+    // dedicated right-side gesture zone so the left joystick remains isolated.
+    const pointerInput = this.camera.inputs.attached.pointers as any;
+    if (pointerInput) {
+      pointerInput.buttons = [0];
+      pointerInput.angularSensibilityX = 850;
+      pointerInput.angularSensibilityY = 850;
+    }
     this.camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
     this.camera.setTarget(new Vector3(8.5, 1.2, 23.5));
 
@@ -1679,10 +1687,10 @@ export class GreenCityGame {
       }
       this.player.position.copyFrom(activeVehicle.position).addInPlace(new Vector3(0, 0.2, 0));
     } else {
-      const forward = this.camera.target.subtract(this.camera.position);
-      forward.y = 0;
-      forward.normalize();
-      const right = Vector3.Cross(Vector3.Up(), forward).normalize();
+      // Character motion is relative to camera yaw, never fixed to world axes.
+      // Pushing up always walks toward the top of the screen after camera rotation.
+      const forward = new Vector3(-Math.cos(this.camera.alpha), 0, -Math.sin(this.camera.alpha)).normalize();
+      const right = new Vector3(forward.z, 0, -forward.x).normalize();
       const forwardInput = (this.keys.has('w') ? 1 : 0) - (this.keys.has('s') ? 1 : 0) - this.mobileMoveY;
       const strafeInput = (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0) + this.mobileMoveX;
       const move = forward.scale(forwardInput).addInPlace(right.scale(strafeInput));
@@ -1691,7 +1699,12 @@ export class GreenCityGame {
         if (moveLength > 1) move.normalize();
         const speed = this.keys.has('shift') ? 8.2 : 5.0;
         this.player.moveWithCollisions(move.scale(speed * step));
-        this.player.rotation.y = Math.atan2(move.x, move.z);
+        const desiredHeading = Math.atan2(move.x, move.z);
+        const headingDelta = Math.atan2(
+          Math.sin(desiredHeading - this.player.rotation.y),
+          Math.cos(desiredHeading - this.player.rotation.y),
+        );
+        this.player.rotation.y += headingDelta * Math.min(1, step * 12);
         playerMoving = true;
       }
       if (this.keys.has(' ') && this.onGround) {
@@ -2046,6 +2059,13 @@ export class GreenCityGame {
   private isNextNeighborhoodUnlocked(): boolean {
     return this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS && this.electricVehicle
       && this.recyclingRate >= 60 && this.renewableShare >= 30 && this.sustainableMobility >= 30;
+  }
+
+  /** Gira a câmera com o gesto de arraste do lado direito da tela. */
+  rotateCameraBy(deltaX: number, deltaY: number): void {
+    if (this.paused || this.mapOpen) return;
+    this.camera.alpha -= deltaX * 0.008;
+    this.camera.beta = Math.max(0.68, Math.min(1.42, this.camera.beta + deltaY * 0.006));
   }
 
   /** Vetor analógico do direcional; mantém a intensidade do arraste do dedo. */
