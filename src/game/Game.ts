@@ -57,12 +57,25 @@ export class GreenCityGame {
   private readonly playerArms: Mesh[] = [];
   private readonly playerLegs: Mesh[] = [];
   private characterAnimationTime = 0;
+  private mobileMoveX = 0;
+  private mobileMoveY = 0;
+  private modelManifestPromise?: Promise<Record<string, string>>;
+  private playerModelRoot?: AbstractMesh;
+  private vehicleModelRoot?: AbstractMesh;
+  private portTruckModelRoot?: AbstractMesh;
   private activePhase: 1 | 2 = 1;
   private portMissionStage: PortMissionStage = 'inspect';
   private readonly portOutfallPositions: PortSite[] = [{ x: 4, z: -20 }, { x: 4, z: 0 }, { x: 4, z: 20 }];
   private readonly portSepticPositions: PortSite[] = [{ x: 8, z: -31 }, { x: 8, z: 31 }];
   private readonly portCompanyNames = ['ARMAZÉM NORTE', 'DOCAS CENTRAIS', 'LOGÍSTICA SUL'];
   private readonly portCompanyPositions: PortSite[] = [{ x: -8, z: -20 }, { x: -8, z: 0 }, { x: -8, z: 20 }];
+  private readonly portCooperativePosition = new Vector3(20, 0, 23);
+  private readonly portCooperativeBinPositions: PortSite[] = [
+    { x: 15, z: 27 }, { x: 17.5, z: 27 }, { x: 20, z: 27 }, { x: 22.5, z: 27 }, { x: 25, z: 27 },
+  ];
+  private readonly portCooperativeMaterialNames = ['PAPEL / PAPELÃO', 'PLÁSTICO', 'VIDRO', 'METAL', 'ORGÂNICO'];
+  private readonly portCooperativeBinMaterials: StandardMaterial[] = [];
+  private readonly portCooperativeSorted: boolean[] = [false, false, false, false, false];
   private readonly portOutfallMarkers: Mesh[] = [];
   private readonly portOutfallInspected = new Set<number>();
   private readonly portOutletMaterials: StandardMaterial[] = [];
@@ -513,6 +526,7 @@ export class GreenCityGame {
 
       const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.90, height: 0.96 }, this.scene);
       labelFace.position.set(x, 1.16, 12.84);
+      labelFace.billboardMode = Mesh.BILLBOARDMODE_Y;
       const labelMaterial = this.material('eco-center-container-label-material-' + index, new Color3(1, 1, 1));
       labelMaterial.diffuseTexture = labelTexture;
       labelMaterial.emissiveColor = new Color3(0.10, 0.10, 0.08);
@@ -592,6 +606,7 @@ export class GreenCityGame {
     legendTexture.update();
     const legendFace = MeshBuilder.CreatePlane('eco-center-material-legend-face', { width: 12.0, height: 1.82 }, this.scene);
     legendFace.position.set(-25, 4.25, 12.63);
+    legendFace.billboardMode = Mesh.BILLBOARDMODE_Y;
     const legendMaterial = this.material('eco-center-material-legend-face-material', new Color3(1, 1, 1));
     legendMaterial.diffuseTexture = legendTexture;
     legendMaterial.emissiveColor = new Color3(0.16, 0.20, 0.14);
@@ -620,6 +635,7 @@ export class GreenCityGame {
     instructionTexture.update();
     const instructionFace = MeshBuilder.CreatePlane('eco-center-instruction-face', { width: 2.5, height: 1.22 }, this.scene);
     instructionFace.position.set(-32.2, 2.6, 8.68);
+    instructionFace.billboardMode = Mesh.BILLBOARDMODE_Y;
     const instructionMaterial = this.material('eco-center-instruction-face-material', new Color3(1, 1, 1));
     instructionMaterial.diffuseTexture = instructionTexture;
     instructionMaterial.emissiveColor = new Color3(0.12, 0.18, 0.13);
@@ -819,6 +835,8 @@ export class GreenCityGame {
       bag.material = this.material(`port-company-waste-bag-material-${index}`, new Color3(0.21, 0.31, 0.27));
     });
 
+    this.buildPortCooperative();
+
     // A compact drivable collection truck for the three company pickup points.
     const truck = MeshBuilder.CreateBox('port-collection-truck-collider', { width: 2.35, height: 0.78, depth: 4.4 }, this.scene);
     truck.position.set(-31, 0.52, 30);
@@ -853,6 +871,104 @@ export class GreenCityGame {
     truckMark.parent = truck; truckMark.position.set(1.19, 0.12, 1.12);
     truckMark.material = this.material('port-truck-door-mark-material', new Color3(0.92, 0.93, 0.82));
     this.portTruck = truck;
+  }
+
+
+  /** Cooperativa onde o jogador descarrega e separa os cinco grupos de materiais. */
+  private buildPortCooperative(): void {
+    const { x, z } = this.portCooperativePosition;
+    const pad = MeshBuilder.CreateGround('port-cooperative-yard', { width: 18, height: 15 }, this.scene);
+    pad.position.set(x, 0.04, z);
+    pad.material = this.material('port-cooperative-yard-material', new Color3(0.49, 0.56, 0.46));
+
+    const building = MeshBuilder.CreateBox('port-cooperative-building', { width: 10, height: 4.8, depth: 7 }, this.scene);
+    building.position.set(x, 2.4, z - 6.2);
+    building.material = this.material('port-cooperative-building-material', new Color3(0.73, 0.76, 0.64));
+    building.checkCollisions = true;
+    const roof = MeshBuilder.CreateBox('port-cooperative-roof', { width: 10.5, height: 0.35, depth: 7.5 }, this.scene);
+    roof.position.set(x, 4.88, z - 6.2);
+    roof.material = this.material('port-cooperative-roof-material', new Color3(0.17, 0.32, 0.25));
+
+    const sign = MeshBuilder.CreateBox('port-cooperative-sign', { width: 9.0, height: 1.35, depth: 0.18 }, this.scene);
+    sign.position.set(x, 5.65, z - 2.55);
+    sign.material = this.material('port-cooperative-sign-material', new Color3(0.07, 0.25, 0.17));
+    const signTexture = new DynamicTexture('port-cooperative-sign-texture', { width: 1024, height: 256 }, this.scene, false);
+    const signContext = signTexture.getContext() as unknown as CanvasRenderingContext2D;
+    signContext.fillStyle = '#10432E'; signContext.fillRect(0, 0, 1024, 256);
+    signContext.fillStyle = '#E8F6D9'; signContext.font = 'bold 72px Arial'; signContext.textAlign = 'center';
+    signContext.fillText('COOPERATIVA', 512, 104);
+    signContext.fillStyle = '#B9EE91'; signContext.font = 'bold 42px Arial';
+    signContext.fillText('DESCARGA  ·  TRIAGEM  ·  RECICLAGEM', 512, 184);
+    signTexture.update();
+    const signFace = MeshBuilder.CreatePlane('port-cooperative-sign-face', { width: 8.7, height: 1.15 }, this.scene);
+    signFace.position.set(x, 5.65, z - 2.43);
+    signFace.billboardMode = Mesh.BILLBOARDMODE_Y;
+    const signFaceMaterial = this.material('port-cooperative-sign-face-material', new Color3(1, 1, 1));
+    signFaceMaterial.diffuseTexture = signTexture;
+    signFaceMaterial.emissiveColor = new Color3(0.14, 0.19, 0.12);
+    signFace.material = signFaceMaterial;
+
+    const sortingBelt = MeshBuilder.CreateBox('port-cooperative-sorting-belt', { width: 14.2, height: 0.32, depth: 1.25 }, this.scene);
+    sortingBelt.position.set(x, 0.34, z + 2.2);
+    sortingBelt.material = this.material('port-cooperative-sorting-belt-material', new Color3(0.20, 0.25, 0.22));
+
+    const palette = [
+      { color: new Color3(0.10, 0.34, 0.68), hex: '#1976D2' },
+      { color: new Color3(0.74, 0.15, 0.16), hex: '#C93232' },
+      { color: new Color3(0.12, 0.48, 0.29), hex: '#237D4B' },
+      { color: new Color3(0.86, 0.66, 0.10), hex: '#D3A51B' },
+      { color: new Color3(0.43, 0.27, 0.16), hex: '#70452C' },
+    ];
+    this.portCooperativeBinPositions.forEach((site, index) => {
+      const bodyMaterial = this.material(`port-cooperative-bin-material-${index}`, palette[index].color);
+      this.portCooperativeBinMaterials.push(bodyMaterial);
+      const bin = MeshBuilder.CreateBox(`port-cooperative-sorting-bin-${index}`, { width: 2.12, height: 1.38, depth: 1.55 }, this.scene);
+      bin.position.set(site.x, 0.69, site.z);
+      bin.material = bodyMaterial;
+      const rim = MeshBuilder.CreateBox(`port-cooperative-bin-rim-${index}`, { width: 2.2, height: 0.12, depth: 1.62 }, this.scene);
+      rim.position.set(site.x, 1.42, site.z);
+      rim.material = this.material(`port-cooperative-bin-rim-material-${index}`, new Color3(0.13, 0.17, 0.14));
+
+      const labelTexture = new DynamicTexture(`port-cooperative-bin-label-${index}`, { width: 512, height: 150 }, this.scene, false);
+      const labelContext = labelTexture.getContext() as unknown as CanvasRenderingContext2D;
+      labelContext.fillStyle = '#F4F5E9'; labelContext.fillRect(0, 0, 512, 150);
+      labelContext.fillStyle = palette[index].hex; labelContext.fillRect(0, 0, 512, 22);
+      labelContext.fillStyle = '#17251C'; labelContext.font = 'bold 34px Arial'; labelContext.textAlign = 'center';
+      labelContext.fillText(this.portCooperativeMaterialNames[index], 256, 83, 490);
+      labelContext.fillStyle = '#53695B'; labelContext.font = 'bold 22px Arial';
+      labelContext.fillText('MATERIAL SEPARADO', 256, 123);
+      labelTexture.update();
+      const label = MeshBuilder.CreatePlane(`port-cooperative-bin-label-face-${index}`, { width: 2.02, height: 0.62 }, this.scene);
+      label.position.set(site.x, 1.0, site.z + 0.79);
+      label.billboardMode = Mesh.BILLBOARDMODE_Y;
+      const labelMaterial = this.material(`port-cooperative-bin-label-material-${index}`, new Color3(1, 1, 1));
+      labelMaterial.diffuseTexture = labelTexture;
+      labelMaterial.emissiveColor = new Color3(0.10, 0.10, 0.08);
+      label.material = labelMaterial;
+    });
+
+    const guide = MeshBuilder.CreateBox('port-cooperative-guide-board', { width: 0.16, height: 2.6, depth: 6.2 }, this.scene);
+    guide.position.set(29.2, 1.3, z + 1.5);
+    guide.material = this.material('port-cooperative-guide-material', new Color3(0.08, 0.26, 0.18));
+    const guideTexture = new DynamicTexture('port-cooperative-guide-texture', { width: 512, height: 512 }, this.scene, false);
+    const guideContext = guideTexture.getContext() as unknown as CanvasRenderingContext2D;
+    guideContext.fillStyle = '#10432E'; guideContext.fillRect(0, 0, 512, 512);
+    guideContext.fillStyle = '#EAF5E2'; guideContext.font = 'bold 34px Arial'; guideContext.textAlign = 'center';
+    guideContext.fillText('SEPARE EM 5 GRUPOS', 256, 72);
+    this.portCooperativeMaterialNames.forEach((name, index) => {
+      guideContext.fillStyle = palette[index].hex;
+      guideContext.fillRect(26, 108 + index * 76, 460, 62);
+      guideContext.fillStyle = '#FFFFFF'; guideContext.font = 'bold 29px Arial';
+      guideContext.fillText(name, 256, 150 + index * 76, 430);
+    });
+    guideTexture.update();
+    const guideFace = MeshBuilder.CreatePlane('port-cooperative-guide-face', { width: 2.5, height: 2.5 }, this.scene);
+    guideFace.position.set(29.08, 1.65, z + 1.5);
+    guideFace.rotation.y = -Math.PI / 2;
+    const guideMaterial = this.material('port-cooperative-guide-face-material', new Color3(1, 1, 1));
+    guideMaterial.diffuseTexture = guideTexture;
+    guideMaterial.emissiveColor = new Color3(0.10, 0.15, 0.10);
+    guideFace.material = guideMaterial;
   }
 
   enterPortPhase(): void {
@@ -912,6 +1028,17 @@ export class GreenCityGame {
     return best;
   }
 
+  private findNearestCooperativeBin(): number {
+    let best = -1;
+    let bestDistance = 4.2;
+    this.portCooperativeBinPositions.forEach((site, index) => {
+      if (this.portCooperativeSorted[index]) return;
+      const distance = Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z);
+      if (distance < bestDistance) { best = index; bestDistance = distance; }
+    });
+    return best;
+  }
+
   private getNearbyPortInteraction(): { action: NearbyAction; label: string } | null {
     if (this.inVehicle) {
       const moving = Math.abs(this.vehicleSpeed) > 0.45;
@@ -920,9 +1047,22 @@ export class GreenCityGame {
         if (company >= 0) {
           return {
             action: 'collect-company-waste',
-            label: moving ? 'PARE O CAMINHÃO PARA COLETAR' : `E · COLETAR RESÍDUOS · ${this.portCompanyNames[company]}`,
+            label: moving ? 'PARE O CAMINHÃO PARA COLETAR' : `E · CARREGAR RESÍDUOS · ${this.portCompanyNames[company]}`,
           };
         }
+      }
+      if (this.portMissionStage === 'deliver') {
+        const cooperativeDistance = Math.hypot(
+          this.portTruck.position.x - this.portCooperativePosition.x,
+          this.portTruck.position.z - this.portCooperativePosition.z,
+        );
+        if (cooperativeDistance <= 9.5) {
+          return {
+            action: 'deliver-cooperative',
+            label: moving ? 'PARE O CAMINHÃO PARA DESCARREGAR' : 'E · DESCARREGAR NA COOPERATIVA',
+          };
+        }
+        return null;
       }
       return { action: 'exit-vehicle', label: moving ? 'F · PARE PARA DESCER DO CAMINHÃO' : 'F · DESCER DO CAMINHÃO' };
     }
@@ -939,9 +1079,16 @@ export class GreenCityGame {
       const index = this.findNearestSepticSite();
       if (index >= 0) return { action: 'install-septic', label: `E · INSTALAR FOSSA SÉPTICA ${index + 1}/2` };
     }
-    if (this.portMissionStage === 'collect') {
+    if (this.portMissionStage === 'sorting') {
+      const index = this.findNearestCooperativeBin();
+      if (index >= 0) return {
+        action: 'sort-cooperative-materials',
+        label: `E · SEPARAR ${this.portCooperativeMaterialNames[index]}`,
+      };
+    }
+    if (this.portMissionStage === 'collect' || this.portMissionStage === 'deliver') {
       const truckDistance = Math.hypot(this.player.position.x - this.portTruck.position.x, this.player.position.z - this.portTruck.position.z);
-      if (truckDistance <= 6.5) return { action: 'enter-vehicle', label: 'F · ENTRAR NO CAMINHÃO DE COLETA' };
+      if (truckDistance <= 8.5) return { action: 'enter-vehicle', label: 'F · ENTRAR NO CAMINHÃO DE COLETA' };
     }
     return null;
   }
@@ -1009,17 +1156,46 @@ export class GreenCityGame {
     this.portWastePiles[index].setEnabled(false);
     this.portWasteCollected += 1;
     if (this.portWasteCollected >= this.portCompanyPositions.length) {
-      this.portMissionStage = 'complete';
-      this.portWaterQuality = Math.min(100, this.portWaterQuality + 8);
-      this.message = 'Porto recuperado! Os efluentes estão sob tratamento, as fossas sanitárias foram instaladas e as três empresas tiveram seus resíduos coletados. Região 03 liberada no mapa.';
+      this.portMissionStage = 'deliver';
+      this.message = 'As três empresas já foram atendidas. Agora dirija o caminhão até a COOPERATIVA, estacione na área de descarga e toque em DESCARREGAR.';
     } else {
       this.message = `Carga de ${this.portCompanyNames[index]} recolhida (${this.portWasteCollected}/3). Siga até a próxima empresa.`;
     }
     this.emit();
   }
 
+  private deliverPortWaste(): void {
+    if (!this.inVehicle) { this.message = 'Entre no caminhão para descarregar a carga na cooperativa.'; this.emit(); return; }
+    if (Math.abs(this.vehicleSpeed) > 0.45) { this.message = 'Pare completamente na área de descarga antes de descarregar os materiais.'; this.emit(); return; }
+    const distance = Math.hypot(this.portTruck.position.x - this.portCooperativePosition.x, this.portTruck.position.z - this.portCooperativePosition.z);
+    if (distance > 9.5) { this.message = 'Siga as placas até a cooperativa de materiais e aproxime o caminhão da área de descarga.'; this.emit(); return; }
+    this.portMissionStage = 'sorting';
+    this.message = 'Carga descarregada! Desça do caminhão e separe os cinco grupos nas baias identificadas: papel/papelão, plástico, vidro, metal e orgânico.';
+    this.emit();
+  }
+
+  private sortPortMaterial(): void {
+    if (this.inVehicle) { this.message = 'Desça do caminhão para acessar as baias de separação.'; this.emit(); return; }
+    const index = this.findNearestCooperativeBin();
+    if (index < 0) { this.message = 'Aproxime-se de uma baia ainda não utilizada na cooperativa.'; this.emit(); return; }
+    this.portCooperativeSorted[index] = true;
+    const binMaterial = this.portCooperativeBinMaterials[index];
+    if (binMaterial) binMaterial.emissiveColor = new Color3(0.10, 0.22, 0.10);
+    const sortedCount = this.portCooperativeSorted.filter(Boolean).length;
+    if (sortedCount === this.portCooperativeMaterialNames.length) {
+      this.portMissionStage = 'complete';
+      this.portWaterQuality = Math.min(100, this.portWaterQuality + 8);
+      this.message = 'Triagem concluída! Papel/papelão, plástico, vidro, metal e orgânico foram separados e encaminhados corretamente. Porto recuperado; Região 03 liberada no mapa.';
+    } else {
+      this.message = `${this.portCooperativeMaterialNames[index]} separado corretamente (${sortedCount}/5). Continue nas baias restantes da cooperativa.`;
+    }
+    this.emit();
+  }
+
   private performPortAction(action: NearbyAction): void {
     if (action === 'enter-vehicle' || action === 'exit-vehicle') { this.toggleVehicle(); return; }
+    if (action === 'deliver-cooperative') { this.deliverPortWaste(); return; }
+    if (action === 'sort-cooperative-materials') { this.sortPortMaterial(); return; }
     if (action === 'inspect-outfall') {
       const index = this.findNearestOutfall();
       if (index < 0) { this.message = 'Aproxime-se de um dos três pontos de despejo para analisar a água.'; this.emit(); return; }
@@ -1145,24 +1321,40 @@ export class GreenCityGame {
   }
 
 
+  /** Lê os GLBs gzipados de um manifesto de texto para manter o download leve. */
+  private async loadCompressedAsset(assetName: string): Promise<ArrayBuffer> {
+    if (!this.modelManifestPromise) {
+      this.modelManifestPromise = fetch('/models/manifest.json', { cache: 'force-cache' })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o manifesto 3D.`);
+          return await response.json() as Record<string, string>;
+        })
+        .catch((error: unknown) => {
+          this.modelManifestPromise = undefined;
+          throw error;
+        });
+    }
+    const manifest = await this.modelManifestPromise;
+    const encoded = manifest[assetName];
+    if (!encoded) throw new Error(`O modelo ${assetName} não está no manifesto 3D.`);
+    if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador não oferece suporte à descompactação dos modelos 3D.');
+    const binary = atob(encoded);
+    const compressed = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) compressed[index] = binary.charCodeAt(index);
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return await new Response(stream).arrayBuffer();
+  }
+
   /**
    * Loads the optimized GREEN CITY GLB asynchronously.
    * The invisible player capsule remains responsible for movement/collisions;
-   * the original procedural character is kept as a safe fallback until import succeeds.
+   * the imported visual is a separate scene root so it cannot inherit the collider visibility.
    */
   private async loadPlayerModel(): Promise<void> {
     let objectUrl: string | undefined;
     try {
       await import('@babylonjs/loaders/glTF/2.0');
-      const response = await fetch('/models/personagem.glb.gz', { cache: 'force-cache' });
-      if (!response.ok) throw new Error(`HTTP ${response.status} while loading character model`);
-      if (typeof DecompressionStream === 'undefined') {
-        throw new Error('Este navegador não oferece suporte à descompactação do modelo 3D.');
-      }
-
-      const compressed = await response.arrayBuffer();
-      const decompressedStream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
-      const glbBytes = await new Response(decompressedStream).arrayBuffer();
+      const glbBytes = await this.loadCompressedAsset('personagem.glb.gz');
       const fallbackParts = this.player.getChildMeshes();
       objectUrl = URL.createObjectURL(new Blob([glbBytes], { type: 'model/gltf-binary' }));
 
@@ -1170,10 +1362,12 @@ export class GreenCityGame {
       const modelRoot = imported.meshes.find((mesh) => mesh.name === '__root__') ?? imported.meshes[0];
       if (!modelRoot) throw new Error('O arquivo GLB não retornou uma malha principal.');
 
-      modelRoot.parent = this.player;
-      modelRoot.position.set(0, -1, 0);
+      modelRoot.parent = null;
+      modelRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
+      modelRoot.rotation.y = this.player.rotation.y;
       modelRoot.scaling.scaleInPlace(0.82);
       modelRoot.isPickable = false;
+      this.playerModelRoot = modelRoot;
 
       this.playerArms.length = 0;
       this.playerLegs.length = 0;
@@ -1209,14 +1403,9 @@ export class GreenCityGame {
 
 
   /** Importa um GLB compactado em gzip e preserva os materiais PBR embutidos. */
-  private async importCompressedModel(path: string): Promise<{ root: AbstractMesh; meshes: AbstractMesh[] }> {
+  private async importCompressedModel(assetName: string): Promise<{ root: AbstractMesh; meshes: AbstractMesh[] }> {
     await import('@babylonjs/loaders/glTF/2.0');
-    const response = await fetch(path, { cache: 'force-cache' });
-    if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar ${path}`);
-    if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador não oferece suporte à descompactação dos modelos 3D.');
-    const compressed = await response.arrayBuffer();
-    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const bytes = await new Response(stream).arrayBuffer();
+    const bytes = await this.loadCompressedAsset(assetName);
     const url = URL.createObjectURL(new Blob([bytes], { type: 'model/gltf-binary' }));
     try {
       const imported = await ImportMeshAsync(url, this.scene, { pluginExtension: '.glb' });
@@ -1235,7 +1424,7 @@ export class GreenCityGame {
   /** Modelos estáticos e veículos GLB, mantendo os colisores de movimento existentes. */
   private async loadWorldModels(): Promise<void> {
     try {
-      const tree = await this.importCompressedModel('/models/arvore.glb.gz');
+      const tree = await this.importCompressedModel('arvore.glb.gz');
       tree.root.position.set(-38, 0, 8);
       tree.root.scaling.setAll(0.72);
       this.phaseOneModelRoots.push(tree.root);
@@ -1252,7 +1441,7 @@ export class GreenCityGame {
     }
 
     try {
-      const building = await this.importCompressedModel('/models/edificio.glb.gz');
+      const building = await this.importCompressedModel('edificio.glb.gz');
       building.root.position.set(-34, 0, -31);
       building.root.scaling.setAll(0.58);
       this.phaseOneModelRoots.push(building.root);
@@ -1261,22 +1450,26 @@ export class GreenCityGame {
     }
 
     try {
-      const car = await this.importCompressedModel('/models/carro_eletrico.glb.gz');
+      const car = await this.importCompressedModel('carro_eletrico.glb.gz');
       this.vehicle.getChildMeshes().forEach((mesh) => mesh.setEnabled(false));
-      car.root.parent = this.vehicle;
-      car.root.position.set(0, -0.53, 0);
+      car.root.parent = null;
+      car.root.position.set(this.vehicle.position.x, 0, this.vehicle.position.z);
+      car.root.rotation.y = this.vehicle.rotation.y;
       car.root.scaling.setAll(0.90);
+      this.vehicleModelRoot = car.root;
       this.phaseOneModelRoots.push(car.root);
     } catch (error) {
       console.warn('[GREEN CITY] Modelo de carro não carregado; mantendo o veículo reserva.', error);
     }
 
     try {
-      const truck = await this.importCompressedModel('/models/caminhao_coleta.glb.gz');
+      const truck = await this.importCompressedModel('caminhao_coleta.glb.gz');
       this.portTruck.getChildMeshes().forEach((mesh) => mesh.setEnabled(false));
-      truck.root.parent = this.portTruck;
-      truck.root.position.set(0, -0.60, 0);
+      truck.root.parent = null;
+      truck.root.position.set(this.portTruck.position.x, 0.04, this.portTruck.position.z);
+      truck.root.rotation.y = this.portTruck.rotation.y;
       truck.root.scaling.setAll(0.56);
+      this.portTruckModelRoot = truck.root;
       this.portModelRoots.push(truck.root);
     } catch (error) {
       console.warn('[GREEN CITY] Modelo do caminhão não carregado; mantendo o caminhão reserva.', error);
@@ -1451,19 +1644,28 @@ export class GreenCityGame {
   };
   private readonly keyUp = (event: KeyboardEvent) => this.keys.delete(event.key.toLowerCase());
 
+  private syncVehicleModel(root: AbstractMesh | undefined, collider: Mesh, groundOffset: number): void {
+    if (!root) return;
+    root.position.set(collider.position.x, collider.position.y - groundOffset, collider.position.z);
+    root.rotation.y = collider.rotation.y;
+  }
+
   private update(dt: number): void {
     const step = Math.min(dt, 0.05);
+    let playerMoving = false;
     if (this.inVehicle) {
       const activeVehicle = this.activeVehicle;
-      const accelerating = this.keys.has('w');
-      const braking = this.keys.has('s');
+      const accelerateInput = Math.max(this.keys.has('w') ? 1 : 0, Math.max(0, -this.mobileMoveY));
+      const brakeInput = Math.max(this.keys.has('s') ? 1 : 0, Math.max(0, this.mobileMoveY));
       const maximumSpeed = this.activePhase === 2 ? 10 : 15;
-      if (accelerating) this.vehicleSpeed = Math.min(maximumSpeed, this.vehicleSpeed + 8.5 * step);
-      else if (braking) this.vehicleSpeed = this.vehicleSpeed > 0
-        ? Math.max(0, this.vehicleSpeed - 18 * step)
-        : Math.min(0, this.vehicleSpeed + 18 * step);
+      if (accelerateInput > 0.08) this.vehicleSpeed = Math.min(maximumSpeed, this.vehicleSpeed + 8.5 * accelerateInput * step);
+      else if (brakeInput > 0.08) this.vehicleSpeed = this.vehicleSpeed > 0
+        ? Math.max(0, this.vehicleSpeed - 18 * brakeInput * step)
+        : Math.min(0, this.vehicleSpeed + 18 * brakeInput * step);
       else this.vehicleSpeed *= Math.max(0, 1 - 2.2 * step);
-      const steering = (this.keys.has('a') ? -1 : 0) + (this.keys.has('d') ? 1 : 0);
+      const steering = Math.max(-1, Math.min(1,
+        (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0) + this.mobileMoveX,
+      ));
       if (Math.abs(this.vehicleSpeed) > 0.25) {
         activeVehicle.rotation.y += steering * 1.45 * step * Math.sign(this.vehicleSpeed);
         const direction = new Vector3(Math.sin(activeVehicle.rotation.y), 0, Math.cos(activeVehicle.rotation.y));
@@ -1475,16 +1677,16 @@ export class GreenCityGame {
       forward.y = 0;
       forward.normalize();
       const right = Vector3.Cross(Vector3.Up(), forward).normalize();
-      const move = Vector3.Zero();
-      if (this.keys.has('w')) move.addInPlace(forward);
-      if (this.keys.has('s')) move.subtractInPlace(forward);
-      if (this.keys.has('d')) move.addInPlace(right);
-      if (this.keys.has('a')) move.subtractInPlace(right);
-      if (move.lengthSquared() > 0.001) {
-        move.normalize();
+      const forwardInput = (this.keys.has('w') ? 1 : 0) - (this.keys.has('s') ? 1 : 0) - this.mobileMoveY;
+      const strafeInput = (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0) + this.mobileMoveX;
+      const move = forward.scale(forwardInput).addInPlace(right.scale(strafeInput));
+      const moveLength = move.length();
+      if (moveLength > 0.08) {
+        if (moveLength > 1) move.normalize();
         const speed = this.keys.has('shift') ? 8.2 : 5.0;
         this.player.moveWithCollisions(move.scale(speed * step));
         this.player.rotation.y = Math.atan2(move.x, move.z);
+        playerMoving = true;
       }
       if (this.keys.has(' ') && this.onGround) {
         this.velocityY = 7.2;
@@ -1498,7 +1700,12 @@ export class GreenCityGame {
         this.onGround = true;
       }
     }
-    const playerMoving = !this.inVehicle && ['w', 'a', 's', 'd'].some((key) => this.keys.has(key));
+    if (this.playerModelRoot) {
+      this.playerModelRoot.position.set(this.player.position.x, this.player.position.y - 1, this.player.position.z);
+      this.playerModelRoot.rotation.y = this.player.rotation.y;
+    }
+    this.syncVehicleModel(this.vehicleModelRoot, this.vehicle, 0.48);
+    this.syncVehicleModel(this.portTruckModelRoot, this.portTruck, 0.48);
     this.characterAnimationTime += step * (playerMoving ? 10.5 : 1.8);
     const gait = playerMoving ? 0.58 : 0.035;
     this.playerArms.forEach((arm, index) => {
@@ -1640,7 +1847,7 @@ export class GreenCityGame {
   }
 
   private readonly focusCanvas = () => this.scene.getEngine().getRenderingCanvas()?.focus();
-  private readonly clearKeys = () => this.keys.clear();
+  private readonly clearKeys = () => { this.keys.clear(); this.mobileMoveX = 0; this.mobileMoveY = 0; };
 
 
   private findNearbySolarBuilding(): SolarBuildingRecord | null {
@@ -1825,15 +2032,10 @@ export class GreenCityGame {
       && this.recyclingRate >= 60 && this.renewableShare >= 30 && this.sustainableMobility >= 30;
   }
 
-  /** Recebe o vetor do joystick virtual e o converte para os mesmos comandos WASD. */
+  /** Vetor analógico do direcional; mantém a intensidade do arraste do dedo. */
   setMobileMovement(horizontal: number, vertical: number): void {
-    for (const key of ['w', 'a', 's', 'd']) this.keys.delete(key);
-    const x = Math.max(-1, Math.min(1, horizontal));
-    const y = Math.max(-1, Math.min(1, vertical));
-    if (y < -0.16) this.keys.add('w');
-    if (y > 0.16) this.keys.add('s');
-    if (x < -0.16) this.keys.add('a');
-    if (x > 0.16) this.keys.add('d');
+    this.mobileMoveX = Math.max(-1, Math.min(1, horizontal));
+    this.mobileMoveY = Math.max(-1, Math.min(1, vertical));
   }
 
   setMobileJump(pressed: boolean): void {
@@ -1844,7 +2046,7 @@ export class GreenCityGame {
   setPaused(value: boolean): void {
     this.paused = value;
     if (value) this.mapOpen = false;
-    this.keys.clear();
+    this.keys.clear(); this.mobileMoveX = 0; this.mobileMoveY = 0;
     this.message = value ? 'Jogo pausado.' : 'De volta à cidade. Continue o plano de recuperação!';
     this.emit();
   }
@@ -1852,7 +2054,7 @@ export class GreenCityGame {
   setMapOpen(value: boolean): void {
     if (this.paused) return;
     this.mapOpen = value;
-    this.keys.clear();
+    this.keys.clear(); this.mobileMoveX = 0; this.mobileMoveY = 0;
     this.message = value ? 'Mapa geral da cidade aberto.' : 'Mapa fechado. Continue a transformação do bairro.';
     this.emit();
   }
@@ -1935,6 +2137,8 @@ export class GreenCityGame {
       septicTotal: this.portSepticPositions.length,
       companyWasteCollected: this.portWasteCollected,
       companyWasteTotal: this.portCompanyPositions.length,
+      cooperativeSorted: this.portCooperativeSorted.filter(Boolean).length,
+      cooperativeTotal: this.portCooperativeMaterialNames.length,
       waterQuality: this.portWaterQuality,
       missionStage: this.missionStage,
       nextNeighborhoodUnlocked: this.isNextNeighborhoodUnlocked(),
