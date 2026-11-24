@@ -1,3 +1,12 @@
+## [0.3.5] - 2026-11-24
+- Removidos botões de instalar energia solar e converter veículo do painel; ambas as ações agora são missões físicas no mundo 3D.
+- Cada um dos oito prédios recebe painéis solares individualmente ao se aproximar da fachada e pressionar E (10 CIT por edifício).
+- Após três prédios solarizados, a base de eletrificação ativa automaticamente.
+- Criada via de serviço para dirigir do eixo principal à base; a conversão requer estacionar, parar completamente, descer e interagir ao lado do carro (20 CIT).
+- Oito telhados mais a conversão consomem os 100 CIT recebidos pela entrega dos resíduos.
+- Removidos recipientes decorativos sem nomes; explicitado PAPEL / PAPELÃO no recipiente azul.
+- Refinados materiais de fachadas, detalhes de telhado, vegetação e silhueta do veículo com geometria procedural.
+
 ## [0.3.4] - 2026-11-24
 - Adicionado marcador dedicado da vaga municipal/estação solar no minimapa.
 - Mensagens após instalar painéis e converter o veículo orientam o jogador até o local físico da intervenção.

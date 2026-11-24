@@ -8,7 +8,8 @@ const initial: GameSnapshot = {
   collected: 0,
   total: 5,
   delivered: false,
-  solarInstalled: false,
+  solarBuildingsInstalled: 0,
+  solarBuildingsTotal: 8,
   electricVehicle: false,
   recyclingRate: 18,
   renewableShare: 5,
@@ -23,7 +24,7 @@ const initial: GameSnapshot = {
   nearbyAction: null,
   nearbyLabel: '',
   playerX: 0,
-  playerZ: 25,
+  playerZ: 23.5,
   message: 'Investigue o bairro e recolha os resíduos espalhados.',
 };
 
@@ -72,35 +73,41 @@ export default function App() {
 
   const missionProgress = state.missionStage === 'complete'
     ? 100
-    : state.missionStage === 'improve'
-      ? 50 + (state.solarInstalled ? 25 : 0) + (state.electricVehicle ? 25 : 0)
+    : state.missionStage === 'collect'
+      ? Math.round((state.collected / state.total) * 30)
       : state.missionStage === 'deliver'
-        ? 40
-        : (state.collected / state.total) * 40;
+        ? 35
+        : Math.min(99, 35 + Math.round((state.solarBuildingsInstalled / state.solarBuildingsTotal) * 50) + (state.electricVehicle ? 15 : 0));
 
   const mission = {
     collect: {
       eyebrow: 'FASE 01 · DIAGNÓSTICO E COLETA',
       title: 'Comece a recuperar o bairro',
-      description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para triagem e reciclagem.',
+      description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para encaminhamento correto.',
       progress: `${state.collected}/${state.total} resíduos`,
     },
     deliver: {
       eyebrow: 'FASE 01 · GESTÃO DE RESÍDUOS',
       title: 'Leve a carga ao EcoCentro',
-      description: 'Os resíduos não desaparecem: transporte-os até o EcoCentro da praça para encaminhamento à triagem.',
+      description: 'Vá até a praça, identifique as cinco categorias pelas cores e símbolos e entregue os resíduos no ponto de triagem.',
       progress: 'Coleta concluída · entrega pendente',
     },
-    improve: {
-      eyebrow: 'FASE 01 · PLANEJAMENTO URBANO',
-      title: 'Invista em soluções sustentáveis',
-      description: 'Use o Plano Urbano para instalar energia solar e converter o veículo municipal. As melhorias alteram os indicadores.',
-      progress: `${Math.round(missionProgress)}% do plano`,
+    solar: {
+      eyebrow: 'FASE 01 · MISSÃO DE ENERGIA SOLAR',
+      title: 'Solarize os prédios',
+      description: `Aproxime-se da fachada de cada prédio ainda sem painéis e pressione E para instalar. ${state.solarBuildingsInstalled}/${state.solarBuildingsTotal} edifícios modernizados.`,
+      progress: `${state.solarBuildingsInstalled}/${state.solarBuildingsTotal} prédios`,
+    },
+    vehicle: {
+      eyebrow: 'FASE 01 · MISSÃO DE MOBILIDADE',
+      title: 'Dirija até a base de eletrificação',
+      description: 'Entre no carro com F, siga pela via de serviço até a base marcada no minimapa, pare completamente na vaga, desça com F e pressione E ao lado do veículo.',
+      progress: 'Base ativa · conversão pendente',
     },
     complete: {
       eyebrow: 'FASE 01 · BAIRRO RECUPERADO',
       title: 'Centro Industrial transformado',
-      description: 'As metas desta região foram atingidas. O Porto está liberado no mapa como próximo destino da expansão.',
+      description: 'Os oito prédios receberam energia solar e o veículo municipal foi convertido na base. O Porto está liberado no mapa.',
       progress: 'Fase concluída',
     },
   }[state.missionStage];
@@ -155,7 +162,7 @@ export default function App() {
       <span><b>WASD</b> mover/dirigir</span>
       <span><b>SHIFT</b> correr</span>
       <span><b>ESPAÇO</b> pular</span>
-      <span><b>E</b> recolher/entregar</span>
+      <span><b>E</b> interagir/instalar</span>
       <span><b>F</b> entrar/sair</span>
       <span><b>M</b> mapa</span>
       <span><b>MOUSE</b> câmera</span>
@@ -233,8 +240,8 @@ export default function App() {
       <section className="world-map-panel plan-panel">
         <button className="world-map-close" onClick={() => setShowPlan(false)}>FECHAR</button>
         <div className="eyebrow">CENTRO INDUSTRIAL · GESTÃO DA CIDADE</div>
-        <h2>Plano de recuperação do bairro</h2>
-        <p>As decisões consomem o orçamento local e alteram os indicadores. Nenhuma tecnologia é tratada como solução isolada.</p>
+        <h2>Missões de recuperação do bairro</h2>
+        <p>Este painel acompanha os indicadores e objetivos. As instalações e conversões agora acontecem no cenário, por aproximação e interação do personagem.</p>
         <div className="metrics-grid">
           <Metric label="Reciclagem e destinação adequada" value={state.recyclingRate} />
           <Metric label="Participação de energia renovável" value={state.renewableShare} />
@@ -243,26 +250,23 @@ export default function App() {
         </div>
         <div className="upgrade-grid">
           <article className="upgrade-card">
-            <div className="eyebrow">ENERGIA LIMPA</div>
-            <h3>{state.solarInstalled ? 'Energia solar instalada' : 'Instalar energia solar'}</h3>
-            <p>Instala painéis no telhado do EcoCentro e uma cobertura solar sobre a vaga municipal. O carregador aparece ao lado do carro, conectado à geração local.</p>
-            <button disabled={state.solarInstalled || !state.delivered || state.cit < 35} onClick={() => gameRef.current?.installSolarEnergy()}>
-              {state.solarInstalled ? 'INSTALADO' : 'INSTALAR · 35 CIT'}
-            </button>
+            <div className="eyebrow">ENERGIA SOLAR NOS EDIFÍCIOS</div>
+            <h3>{state.solarBuildingsInstalled}/{state.solarBuildingsTotal} prédios solarizados</h3>
+            <p>Aproxime-se de cada fachada sem painéis e pressione E. Cada instalação custa 10 CIT, coloca painéis no telhado e atualiza os indicadores de energia renovável.</p>
           </article>
           <article className="upgrade-card">
-            <div className="eyebrow">MOBILIDADE SUSTENTÁVEL</div>
-            <h3>{state.electricVehicle ? 'Veículo municipal elétrico' : 'Eletrificar veículo municipal'}</h3>
-            <p>Converte o veículo que você vê estacionado na vaga municipal. A carroceria ganha identificação 100% EV e detalhes visuais elétricos; a conversão só é liberada após energia solar e carregador.</p>
-            <button disabled={state.electricVehicle || !state.solarInstalled || state.cit < 45} onClick={() => gameRef.current?.electrifyMunicipalVehicle()}>
-              {state.electricVehicle ? 'CONCLUÍDO' : 'CONVERTER · 45 CIT'}
-            </button>
+            <div className="eyebrow">CONVERSÃO DO VEÍCULO</div>
+            <h3>{state.electricVehicle ? 'Veículo 100% elétrico' : state.solarBuildingsInstalled >= 3 ? 'Base de eletrificação ativa' : 'Aguardando três prédios solares'}</h3>
+            <p>{state.electricVehicle
+              ? 'O carro foi convertido dentro do jogo, estacionado na vaga e com o personagem fora do veículo.'
+              : 'Depois de solarizar três prédios, dirija até a base, estacione, desça e pressione E ao lado do carro. A conversão custa 20 CIT.'}</p>
           </article>
         </div>
-        {!state.delivered && <div className="plan-hint">Primeiro: recolha os cinco resíduos e entregue a carga no EcoCentro, na praça.</div>}
-        {state.delivered && !state.solarInstalled && <div className="plan-hint">Orçamento disponível: {state.cit} CIT. A energia solar é a primeira etapa para apoiar a recarga elétrica.</div>}
-        {state.solarInstalled && !state.electricVehicle && <div className="plan-hint">Energia solar instalada no telhado do EcoCentro e na cobertura da vaga municipal. O carregador está ao lado do veículo; agora você pode fazer a conversão elétrica.</div>}
-        {state.nextNeighborhoodUnlocked && <div className="success-line">✓ METAS DO BAIRRO ATINGIDAS · PRÓXIMA REGIÃO LIBERADA</div>}
+        {!state.delivered && <div className="plan-hint">Primeiro: recolha os cinco resíduos e entregue a carga no EcoCentro.</div>}
+        {state.delivered && state.solarBuildingsInstalled < 3 && <div className="plan-hint">Missão atual: instale energia solar em três prédios. A base do veículo será ativada automaticamente depois da terceira instalação.</div>}
+        {state.delivered && state.solarBuildingsInstalled >= 3 && !state.electricVehicle && <div className="plan-hint">A base está ativa. Siga o marcador amarelo no minimapa, estacione completamente, desça e converta o veículo ao lado da vaga.</div>}
+        {state.electricVehicle && state.solarBuildingsInstalled < state.solarBuildingsTotal && <div className="plan-hint">O veículo já é elétrico. Continue solarizando os prédios restantes para concluir a fase.</div>}
+                {state.nextNeighborhoodUnlocked && <div className="success-line">✓ METAS DO BAIRRO ATINGIDAS · PRÓXIMA REGIÃO LIBERADA</div>}
         <small className="economy-note">CIT é uma pontuação fictícia do protótipo, sem valor monetário ou possibilidade de saque.</small>
       </section>
     </div>}

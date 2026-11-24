@@ -1,12 +1,13 @@
-export type MissionStage = 'collect' | 'deliver' | 'improve' | 'complete';
-export type NearbyAction = 'collect-waste' | 'deliver-waste' | 'enter-vehicle' | 'exit-vehicle';
+export type MissionStage = 'collect' | 'deliver' | 'solar' | 'vehicle' | 'complete';
+export type NearbyAction = 'collect-waste' | 'deliver-waste' | 'enter-vehicle' | 'exit-vehicle' | 'install-building-solar' | 'convert-vehicle';
 
 export interface GameSnapshot {
   cit: number;
   collected: number;
   total: number;
   delivered: boolean;
-  solarInstalled: boolean;
+  solarBuildingsInstalled: number;
+  solarBuildingsTotal: number;
   electricVehicle: boolean;
   recyclingRate: number;
   renewableShare: number;
@@ -24,5 +25,4 @@ export interface GameSnapshot {
   playerZ: number;
   message: string;
 }
-
 export type SnapshotListener = (snapshot: GameSnapshot) => void;

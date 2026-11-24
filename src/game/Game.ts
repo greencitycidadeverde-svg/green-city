@@ -5,8 +5,14 @@ import {
 import type { GameSnapshot, MissionStage, NearbyAction, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
-const SOLAR_COST = 35;
-const ELECTRIC_VEHICLE_COST = 45;
+const TOTAL_SOLAR_BUILDINGS = 8;
+const SOLAR_BUILDINGS_REQUIRED_FOR_EV = 3;
+const SOLAR_BUILDING_COST = 10;
+const ELECTRIC_VEHICLE_COST = 20;
+
+interface SolarBuildingRecord {
+  x: number; z: number; width: number; height: number; label: string; solarInstalled: boolean;
+}
 
 export class GreenCityGame {
   private readonly engine: Engine;
@@ -16,6 +22,12 @@ export class GreenCityGame {
   private readonly vehicle: Mesh;
   private vehicleMaterial!: StandardMaterial;
   private readonly ecoCenterPosition = new Vector3(-25, 0, 8);
+  private readonly vehicleBasePosition = new Vector3(31, 0, 23.5);
+  private readonly buildings: SolarBuildingRecord[] = [];
+  private solarBuildingsInstalled = 0;
+  private vehicleStationActive = false;
+  private vehicleStationSignTexture?: DynamicTexture;
+  private vehicleStationChargerMaterial?: StandardMaterial;
   private inVehicle = false;
   private vehicleSpeed = 0;
   private readonly trash: Mesh[] = [];
@@ -26,7 +38,6 @@ export class GreenCityGame {
   private cit = 0;
   private collected = 0;
   private delivered = false;
-  private solarInstalled = false;
   private electricVehicle = false;
   private recyclingRate = 18;
   private renewableShare = 5;
@@ -60,6 +71,7 @@ export class GreenCityGame {
 
     this.buildDistrict();
     this.buildEcoCenter();
+    this.buildVehicleConversionStation();
     this.player = this.createPlayer();
     this.vehicle = this.createVehicle();
     this.camera = new ArcRotateCamera('third-person-camera', -Math.PI / 2, 1.15, 8, new Vector3(0, 1.3, 0), this.scene);
@@ -71,7 +83,7 @@ export class GreenCityGame {
     this.camera.wheelPrecision = 45;
     this.camera.attachControl(canvas, true);
     this.camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
-    this.camera.setTarget(new Vector3(8.5, 1.2, 25));
+    this.camera.setTarget(new Vector3(8.5, 1.2, 23.5));
 
     this.riverMaterial = new StandardMaterial('river-material', this.scene);
     this.riverMaterial.diffuseColor = new Color3(0.30, 0.34, 0.28);
@@ -111,10 +123,10 @@ export class GreenCityGame {
     road.material = roadMat;
     road.checkCollisions = true;
     for (const x of [-9.3, 9.3]) {
-      const walk = MeshBuilder.CreateBox('sidewalk', { width: 2.6, depth: 82, height: 0.22 }, this.scene);
-      walk.position.set(x, 0.09, 0);
-      walk.material = sidewalkMat;
-      walk.checkCollisions = true;
+      for (const [centerZ, depth] of [[-10.5, 61], [34.5, 13]]) {
+        const walk = MeshBuilder.CreateBox('sidewalk', { width: 2.6, depth, height: 0.22 }, this.scene);
+        walk.position.set(x, 0.09, centerZ); walk.material = sidewalkMat; walk.checkCollisions = true;
+      }
     }
     for (let z = -36; z <= 36; z += 9) {
       const stripe = MeshBuilder.CreateBox('road-dash', { width: 0.18, depth: 3.5, height: 0.02 }, this.scene);
@@ -130,11 +142,30 @@ export class GreenCityGame {
     }
     const curbMat = this.material('curb', new Color3(0.72, 0.70, 0.61));
     for (const x of [-10.72, 10.72]) {
-      const curb = MeshBuilder.CreateBox('street-curb', { width: 0.18, height: 0.28, depth: 82 }, this.scene);
-      curb.position.set(x, 0.15, 0);
-      curb.material = curbMat;
+      for (const [centerZ, depth] of [[-10.5, 61], [34.5, 13]]) {
+        const curb = MeshBuilder.CreateBox('street-curb', { width: 0.18, height: 0.28, depth }, this.scene);
+        curb.position.set(x, 0.15, centerZ); curb.material = curbMat;
+      }
+    }
+    const serviceRoad = MeshBuilder.CreateGround('ev-service-road', { width: 44, height: 7 }, this.scene);
+    serviceRoad.position.set(22, 0.025, 23.5); serviceRoad.material = roadMat;
+    const serviceMarkings = this.material('ev-service-road-markings', new Color3(0.92, 0.87, 0.62));
+    for (let x = 5; x <= 41; x += 6) {
+      const dash = MeshBuilder.CreateBox('ev-service-road-dash', { width: 2.8, height: 0.025, depth: 0.12 }, this.scene);
+      dash.position.set(x, 0.055, 23.5); dash.material = serviceMarkings;
     }
 
+    const facadeTexture = new DynamicTexture('district-facade-finish-texture', { width: 512, height: 512 }, this.scene, false);
+    const facadeContext = facadeTexture.getContext() as unknown as CanvasRenderingContext2D;
+    const facadeGradient = facadeContext.createLinearGradient(0, 0, 512, 512);
+    facadeGradient.addColorStop(0, '#F6F1E6'); facadeGradient.addColorStop(0.55, '#E6E2D7'); facadeGradient.addColorStop(1, '#D7D4CA');
+    facadeContext.fillStyle = facadeGradient; facadeContext.fillRect(0, 0, 512, 512);
+    for (let y = 32; y < 512; y += 48) {
+      facadeContext.fillStyle = 'rgba(95,105,92,.10)'; facadeContext.fillRect(0, y, 512, 2);
+      facadeContext.fillStyle = 'rgba(255,255,255,.28)'; facadeContext.fillRect(0, y + 3, 512, 2);
+    }
+    for (let x = 24; x < 512; x += 64) { facadeContext.fillStyle = 'rgba(110,112,96,.05)'; facadeContext.fillRect(x, 0, 1, 512); }
+    facadeTexture.update();
     const buildingColors = [new Color3(0.66, 0.48, 0.34), new Color3(0.38, 0.58, 0.62), new Color3(0.72, 0.65, 0.48)];
     const positions = [
       [-19, -27, 10, 15], [-28, -8, 12, 18], [-19, 18, 10, 13], [-31, 34, 12, 11],
@@ -143,11 +174,26 @@ export class GreenCityGame {
     positions.forEach(([x, z, w, h], i) => {
       const building = MeshBuilder.CreateBox(`building-${i}`, { width: w, depth: 10, height: h }, this.scene);
       building.position.set(x, h / 2, z);
-      building.material = this.material(`building-mat-${i}`, buildingColors[i % buildingColors.length]);
+      const facadeMaterial = this.material(`building-mat-${i}`, buildingColors[i % buildingColors.length]);
+      facadeMaterial.diffuseTexture = facadeTexture;
+      building.material = facadeMaterial;
       building.checkCollisions = true;
       const roof = MeshBuilder.CreateBox(`roof-${i}`, { width: w + 0.5, depth: 10.5, height: 0.35 }, this.scene);
       roof.position.set(x, h + 0.17, z);
-      roof.material = this.material(`roof-mat-${i}`, new Color3(0.22, 0.28, 0.25));
+      roof.material = this.material(`roof-mat-${i}`, new Color3(0.31, 0.35, 0.32));
+      const roofTrim = this.material(`roof-trim-${i}`, new Color3(0.82, 0.79, 0.68));
+      for (const side of [-1, 1]) {
+        const parapet = MeshBuilder.CreateBox(`roof-parapet-${i}`, { width: w + 0.42, height: 0.28, depth: 0.18 }, this.scene);
+        parapet.position.set(x, h + 0.44, z + side * 5.05); parapet.material = roofTrim;
+        const sideParapet = MeshBuilder.CreateBox(`roof-side-parapet-${i}`, { width: 0.18, height: 0.28, depth: 10.1 }, this.scene);
+        sideParapet.position.set(x + side * (w / 2 + 0.12), h + 0.44, z); sideParapet.material = roofTrim;
+      }
+      const rooftopUnit = MeshBuilder.CreateBox(`rooftop-service-unit-${i}`, { width: 1.6, height: 0.75, depth: 1.45 }, this.scene);
+      rooftopUnit.position.set(x - w * 0.24, h + 0.72, z - 2.8);
+      rooftopUnit.material = this.material(`rooftop-service-unit-mat-${i}`, new Color3(0.55, 0.60, 0.57));
+      const rooftopVent = MeshBuilder.CreateCylinder(`rooftop-vent-${i}`, { height: 0.8, diameterTop: 0.36, diameterBottom: 0.48, tessellation: 10 }, this.scene);
+      rooftopVent.position.set(x + w * 0.25, h + 0.75, z + 2.7);
+      rooftopVent.material = this.material(`rooftop-vent-mat-${i}`, new Color3(0.40, 0.44, 0.42));
 
       // Low-poly facade kit: recessed storefront, framed glazing and readable entrances.
       const facadeSide = x < 0 ? 1 : -1;
@@ -155,6 +201,7 @@ export class GreenCityGame {
       const glassMat = this.material(`window-glass-${i}`, new Color3(0.12, 0.27, 0.31));
       const frameMat = this.material(`window-frame-${i}`, new Color3(0.77, 0.74, 0.63));
       const storefrontLabels = ['OFICINAS', 'ARMAZÉM', 'MERCADO', 'SERVIÇOS', 'LOGÍSTICA', 'ENERGIA', 'RECICLAGEM', 'COMÉRCIO'];
+      this.buildings.push({ x, z, width: w, height: h, label: storefrontLabels[i], solarInstalled: false });
       const facadeBase = MeshBuilder.CreateBox(`facade-base-${i}`, { width: 0.34, height: 0.48, depth: 10.15 }, this.scene);
       facadeBase.position.set(facadeX + facadeSide * 0.13, 0.26, z);
       facadeBase.material = frameMat;
@@ -224,21 +271,16 @@ export class GreenCityGame {
         branch.material = branchMat;
       }
 
-      const crown = MeshBuilder.CreateSphere('tree-crown', { diameter: 2.55, segments: 8 }, this.scene);
-      crown.position.set(x, 3.2, z);
-      crown.scaling.set(1.02, 1.12, 0.98);
-      crown.material = treeMaterials[treeIndex % treeMaterials.length];
-      this.parkTrees.push(crown);
-
+      const crown = MeshBuilder.CreateIcoSphere('tree-crown', { radius: 1.28, subdivisions: 2 }, this.scene);
+      crown.position.set(x, 3.18, z); crown.scaling.set(1.02, 1.08, 0.98);
+      crown.material = treeMaterials[treeIndex % treeMaterials.length]; this.parkTrees.push(crown);
       const foliageClusters = [
-        [-0.68, 3.05, 0.05, 1.42],
-        [0.66, 3.14, -0.10, 1.38],
-        [-0.12, 3.68, 0.12, 1.48],
+        [-0.72, 3.04, 0.05, 1.15], [0.68, 3.13, -0.10, 1.12],
+        [-0.12, 3.70, 0.12, 1.20], [0.18, 2.82, 0.60, 0.96], [-0.45, 3.45, -0.55, 0.92],
       ];
       foliageClusters.forEach(([dx, y, dz, diameter], clusterIndex) => {
-        const foliage = MeshBuilder.CreateSphere('tree-foliage-cluster', { diameter, segments: 7 }, this.scene);
-        foliage.position.set(x + dx, y, z + dz);
-        foliage.scaling.set(1.0, 0.88, 1.0);
+        const foliage = MeshBuilder.CreateIcoSphere('tree-foliage-cluster', { radius: diameter / 2, subdivisions: 1 }, this.scene);
+        foliage.position.set(x + dx, y, z + dz); foliage.scaling.set(1.0, 0.92, 1.0);
         foliage.material = treeMaterials[(treeIndex + clusterIndex + 1) % treeMaterials.length];
       });
     }
@@ -264,15 +306,6 @@ export class GreenCityGame {
         leg.material = lampMat;
       }
     }
-    const binColors = [
-      new Color3(0.14, 0.40, 0.57), new Color3(0.20, 0.49, 0.30),
-      new Color3(0.77, 0.63, 0.18), new Color3(0.67, 0.26, 0.20),
-    ];
-    binColors.forEach((color, index) => {
-      const bin = MeshBuilder.CreateBox('selective-collection-bin', { width: 0.7, height: 1.05, depth: 0.7 }, this.scene);
-      bin.position.set(-31 + index * 1.05, 0.55, -4.8);
-      bin.material = this.material(`selective-bin-${index}`, color);
-    });
     for (const z of [-30, -8, 15, 34]) {
       for (const lx of [-10.7, 10.7]) {
         const pole = MeshBuilder.CreateCylinder('streetlamp-pole', { height: 5.1, diameter: 0.12, tessellation: 8 }, this.scene);
@@ -341,7 +374,7 @@ export class GreenCityGame {
 
     // Containers follow Brazil's selective collection color palette.
     const containers = [
-      { x: -29.5, color: new Color3(0.12, 0.34, 0.66), hex: '#1F5B9B', label: 'PAPEL', examples: 'PAPELÃO · JORNAIS', icon: 'paper' },
+      { x: -29.5, color: new Color3(0.12, 0.34, 0.66), hex: '#1976D2', label: 'PAPEL / PAPELÃO', examples: 'CAIXAS · JORNAIS', icon: 'paper' },
       { x: -27.2, color: new Color3(0.72, 0.18, 0.18), hex: '#B83232', label: 'PLÁSTICO', examples: 'GARRAFAS · EMBALAGENS', icon: 'plastic' },
       { x: -24.9, color: new Color3(0.12, 0.48, 0.29), hex: '#237D4B', label: 'VIDRO', examples: 'POTES · GARRAFAS', icon: 'glass' },
       { x: -22.6, color: new Color3(0.82, 0.64, 0.10), hex: '#A98013', label: 'METAL', examples: 'LATAS · ALUMÍNIO', icon: 'metal' },
@@ -356,8 +389,8 @@ export class GreenCityGame {
       lid.position.set(x, 1.72, 12.0);
       lid.material = this.material('eco-center-container-lid-' + index, new Color3(0.09, 0.13, 0.11));
 
-      const labelFrame = MeshBuilder.CreateBox('eco-center-container-label-frame', { width: 1.74, height: 0.92, depth: 0.08 }, this.scene);
-      labelFrame.position.set(x, 1.16, 12.74);
+      const labelFrame = MeshBuilder.CreateBox('eco-center-container-label-frame', { width: 1.96, height: 1.02, depth: 0.08 }, this.scene);
+      labelFrame.position.set(x, 1.16, 12.78);
       labelFrame.material = this.material('eco-center-container-label-frame-' + index, new Color3(0.91, 0.94, 0.86));
 
       const labelTexture = new DynamicTexture('eco-center-container-label-texture-' + index, { width: 512, height: 256 }, this.scene, false);
@@ -428,8 +461,8 @@ export class GreenCityGame {
       labelContext.fillText('COLETA SELETIVA', 132, 196);
       labelTexture.update();
 
-      const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.68, height: 0.86 }, this.scene);
-      labelFace.position.set(x, 1.16, 12.80);
+      const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.90, height: 0.96 }, this.scene);
+      labelFace.position.set(x, 1.16, 12.84);
       const labelMaterial = this.material('eco-center-container-label-material-' + index, new Color3(1, 1, 1));
       labelMaterial.diffuseTexture = labelTexture;
       labelMaterial.emissiveColor = new Color3(0.10, 0.10, 0.08);
@@ -556,10 +589,99 @@ export class GreenCityGame {
     }
   }
 
+
+  private buildVehicleConversionStation(): void {
+    const pad = MeshBuilder.CreateGround('ev-conversion-parking-pad', { width: 9.2, height: 8.2 }, this.scene);
+    pad.position.set(this.vehicleBasePosition.x, 0.04, this.vehicleBasePosition.z);
+    pad.material = this.material('ev-conversion-pad-material', new Color3(0.23, 0.36, 0.28));
+    const parkingLines = this.material('ev-conversion-parking-lines', new Color3(0.92, 0.88, 0.66));
+    for (const x of [26.6, 35.4]) {
+      const line = MeshBuilder.CreateBox('ev-conversion-parking-line', { width: 0.13, height: 0.04, depth: 7.4 }, this.scene);
+      line.position.set(x, 0.075, this.vehicleBasePosition.z); line.material = parkingLines;
+    }
+    const frontLine = MeshBuilder.CreateBox('ev-conversion-parking-front-line', { width: 8.8, height: 0.04, depth: 0.13 }, this.scene);
+    frontLine.position.set(this.vehicleBasePosition.x, 0.075, 19.5); frontLine.material = parkingLines;
+    const support = this.material('ev-base-support-material', new Color3(0.23, 0.31, 0.28));
+    for (const x of [27.2, 34.8]) for (const z of [19.7, 27.3]) {
+      const post = MeshBuilder.CreateCylinder('ev-base-canopy-post', { height: 4.0, diameter: 0.18, tessellation: 8 }, this.scene);
+      post.position.set(x, 2.0, z); post.material = support;
+    }
+    const canopy = MeshBuilder.CreateBox('ev-base-canopy', { width: 8.2, height: 0.22, depth: 8.0 }, this.scene);
+    canopy.position.set(this.vehicleBasePosition.x, 4.05, this.vehicleBasePosition.z);
+    canopy.material = this.material('ev-base-canopy-material', new Color3(0.17, 0.25, 0.23));
+    const signFrame = MeshBuilder.CreateBox('ev-base-sign-frame', { width: 0.16, height: 0.92, depth: 5.0 }, this.scene);
+    signFrame.position.set(26.75, 4.62, this.vehicleBasePosition.z);
+    signFrame.material = this.material('ev-base-sign-frame-material', new Color3(0.07, 0.25, 0.18));
+    this.vehicleStationSignTexture = new DynamicTexture('ev-base-sign-texture', { width: 1000, height: 180 }, this.scene, false);
+    const signContext = this.vehicleStationSignTexture.getContext() as unknown as CanvasRenderingContext2D;
+    signContext.fillStyle = '#123F2B'; signContext.fillRect(0, 0, 1000, 180);
+    signContext.fillStyle = '#F0F5E8'; signContext.textAlign = 'center'; signContext.font = 'bold 50px Arial';
+    signContext.fillText('BASE DE ELETRIFICAÇÃO', 500, 75);
+    signContext.fillStyle = '#F6D16A'; signContext.font = 'bold 30px Arial';
+    signContext.fillText('AGUARDE 3 PRÉDIOS COM ENERGIA SOLAR', 500, 130);
+    this.vehicleStationSignTexture.update();
+    const signFace = MeshBuilder.CreatePlane('ev-base-sign-face', { width: 4.8, height: 0.78 }, this.scene);
+    signFace.position.set(26.65, 4.62, this.vehicleBasePosition.z); signFace.rotation.y = -Math.PI / 2;
+    const signMaterial = this.material('ev-base-sign-face-material', new Color3(1, 1, 1));
+    signMaterial.diffuseTexture = this.vehicleStationSignTexture; signMaterial.emissiveColor = new Color3(0.14, 0.19, 0.14);
+    signFace.material = signMaterial;
+    const charger = MeshBuilder.CreateBox('ev-base-charger', { width: 0.72, height: 1.62, depth: 0.52 }, this.scene);
+    charger.position.set(35.2, 0.84, 26.0);
+    this.vehicleStationChargerMaterial = this.material('ev-base-charger-material', new Color3(0.35, 0.37, 0.32));
+    charger.material = this.vehicleStationChargerMaterial;
+    const chargerTexture = new DynamicTexture('ev-base-charger-texture', { width: 256, height: 256 }, this.scene, false);
+    const chargerContext = chargerTexture.getContext() as unknown as CanvasRenderingContext2D;
+    chargerContext.fillStyle = '#34423B'; chargerContext.fillRect(0, 0, 256, 256);
+    chargerContext.fillStyle = '#F3F5E7'; chargerContext.font = 'bold 27px Arial'; chargerContext.textAlign = 'center';
+    chargerContext.fillText('AGUARDE', 128, 105);
+    chargerContext.fillStyle = '#D9DCCB'; chargerContext.font = 'bold 50px Arial'; chargerContext.fillText('EV', 128, 170);
+    chargerTexture.update();
+    const chargerFace = MeshBuilder.CreatePlane('ev-base-charger-face', { width: 0.52, height: 0.72 }, this.scene);
+    chargerFace.position.set(35.48, 1.02, 26.0); chargerFace.rotation.y = -Math.PI / 2;
+    const chargerFaceMaterial = this.material('ev-base-charger-face-material', new Color3(1, 1, 1));
+    chargerFaceMaterial.diffuseTexture = chargerTexture; chargerFace.material = chargerFaceMaterial;
+    const marker = MeshBuilder.CreateTorus('ev-base-ground-marker', { diameter: 6.9, thickness: 0.13, tessellation: 32 }, this.scene);
+    marker.position.set(this.vehicleBasePosition.x, 0.105, this.vehicleBasePosition.z);
+    marker.material = this.material('ev-base-ground-marker-material', new Color3(0.93, 0.71, 0.21));
+  }
+
+  private activateVehicleStation(): void {
+    if (this.vehicleStationActive) return;
+    this.vehicleStationActive = true;
+    const panelMaterial = this.material('ev-base-solar-panel-material', new Color3(0.05, 0.22, 0.42));
+    const gridMaterial = this.material('ev-base-solar-grid-material', new Color3(0.42, 0.70, 0.86));
+    for (const x of [28.5, 31.0, 33.5]) for (const z of [21.6, 25.4]) {
+      const panel = MeshBuilder.CreateBox('ev-base-solar-canopy-panel', { width: 2.3, height: 0.10, depth: 3.35 }, this.scene);
+      panel.position.set(x, 4.22, z); panel.material = panelMaterial;
+      for (const offset of [-0.75, 0, 0.75]) {
+        const grid = MeshBuilder.CreateBox('ev-base-solar-canopy-grid', { width: 2.2, height: 0.012, depth: 0.025 }, this.scene);
+        grid.position.set(x, 4.28, z + offset); grid.material = gridMaterial;
+      }
+    }
+    if (this.vehicleStationChargerMaterial) {
+      this.vehicleStationChargerMaterial.diffuseColor = new Color3(0.08, 0.52, 0.48);
+      this.vehicleStationChargerMaterial.emissiveColor = new Color3(0.04, 0.18, 0.16);
+    }
+    if (this.vehicleStationSignTexture) {
+      const context = this.vehicleStationSignTexture.getContext() as unknown as CanvasRenderingContext2D;
+      context.fillStyle = '#0D583D'; context.fillRect(0, 0, 1000, 180);
+      context.fillStyle = '#E4FFCB'; context.textAlign = 'center'; context.font = 'bold 50px Arial';
+      context.fillText('ESTAÇÃO SOLAR ATIVA', 500, 75);
+      context.fillStyle = '#FFFFFF'; context.font = 'bold 30px Arial';
+      context.fillText('ESTACIONE · PARE · DESÇA · CONVERTA', 500, 130);
+      this.vehicleStationSignTexture.update();
+    }
+    const cable = MeshBuilder.CreateTube('ev-base-charger-cable', {
+      path: [new Vector3(35.05, 1.42, 25.8), new Vector3(34.5, 1.55, 25.4), new Vector3(33.7, 1.18, 24.8)],
+      radius: 0.055, tessellation: 8,
+    }, this.scene);
+    cable.material = this.material('ev-base-charger-cable-material', new Color3(0.07, 0.10, 0.09));
+  }
+
   private createPlayer(): Mesh {
     // Invisible capsule maintains collision logic; attached meshes provide the visible field-agent silhouette.
     const root = MeshBuilder.CreateCapsule('player-collider', { height: 1.8, radius: 0.38, tessellation: 10 }, this.scene);
-    root.position.set(8.5, 1.0, 25);
+    root.position.set(8.5, 1.0, 23.5);
     root.ellipsoid = new Vector3(0.40, 0.9, 0.40);
     root.ellipsoidOffset = Vector3.Zero();
     root.checkCollisions = true;
@@ -682,6 +804,14 @@ export class GreenCityGame {
     backpackPocket.parent = root;
     backpackPocket.position.set(0, 0.02, -0.39);
     backpackPocket.material = jacket;
+    const utilityBelt = MeshBuilder.CreateCylinder('agent-utility-belt', { height: 0.12, diameter: 0.62, tessellation: 12 }, this.scene);
+    utilityBelt.parent = root; utilityBelt.position.set(0, -0.22, 0); utilityBelt.scaling.y = 0.45;
+    utilityBelt.material = this.material('agent-utility-belt-material', new Color3(0.12, 0.16, 0.14));
+    const radio = MeshBuilder.CreateBox('agent-radio', { width: 0.14, height: 0.24, depth: 0.10 }, this.scene);
+    radio.parent = root; radio.position.set(-0.38, 0.25, -0.02);
+    radio.material = this.material('agent-radio-material', new Color3(0.12, 0.17, 0.19));
+    const antenna = MeshBuilder.CreateCylinder('agent-radio-antenna', { height: 0.20, diameter: 0.025, tessellation: 6 }, this.scene);
+    antenna.parent = root; antenna.position.set(-0.40, 0.46, -0.02); antenna.material = reflective;
     return root;
   }
 
@@ -736,8 +866,10 @@ export class GreenCityGame {
       const accelerating = this.keys.has('w');
       const braking = this.keys.has('s');
       if (accelerating) this.vehicleSpeed = Math.min(15, this.vehicleSpeed + 10 * step);
-      else if (braking) this.vehicleSpeed = Math.max(-5, this.vehicleSpeed - 16 * step);
-      else this.vehicleSpeed *= Math.max(0, 1 - 1.8 * step);
+      else if (braking) this.vehicleSpeed = this.vehicleSpeed > 0
+        ? Math.max(0, this.vehicleSpeed - 18 * step)
+        : Math.min(0, this.vehicleSpeed + 18 * step);
+      else this.vehicleSpeed *= Math.max(0, 1 - 2.2 * step);
       const steering = (this.keys.has('a') ? -1 : 0) + (this.keys.has('d') ? 1 : 0);
       if (Math.abs(this.vehicleSpeed) > 0.25) {
         this.vehicle.rotation.y += steering * 1.65 * step * Math.sign(this.vehicleSpeed);
@@ -785,26 +917,43 @@ export class GreenCityGame {
   }
 
   private createVehicle(): Mesh {
-    const parkingPad = MeshBuilder.CreateGround('municipal-vehicle-parking-bay', { width: 9.2, height: 8.4 }, this.scene);
-    parkingPad.position.set(13, 0.025, 25);
-    parkingPad.material = this.material('municipal-parking-asphalt', new Color3(0.25, 0.31, 0.29));
-    const parkingLineMaterial = this.material('municipal-parking-lines', new Color3(0.88, 0.88, 0.72));
-    for (const x of [9.0, 17.0]) {
-      const parkingLine = MeshBuilder.CreateBox('municipal-parking-line', { width: 0.12, height: 0.035, depth: 7.8 }, this.scene);
-      parkingLine.position.set(x, 0.055, 25);
-      parkingLine.material = parkingLineMaterial;
-    }
     const car = MeshBuilder.CreateBox('municipal-service-vehicle', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
-    car.position.set(13, 0.48, 25);
+    car.position.set(3.0, 0.48, 23.5);
+    car.rotation.y = Math.PI / 2;
     car.checkCollisions = true;
     this.vehicleMaterial = this.material('vehicle-body', new Color3(0.34, 0.37, 0.36));
     car.material = this.vehicleMaterial;
 
-    const cabin = MeshBuilder.CreateBox('vehicle-cabin', { width: 1.65, height: 0.75, depth: 1.75 }, this.scene);
-    cabin.parent = car;
-    cabin.position.set(0, 0.68, -0.15);
-    cabin.material = this.material('vehicle-glass', new Color3(0.18, 0.29, 0.30));
+    const cabin = MeshBuilder.CreateBox('vehicle-cabin-shell', { width: 1.72, height: 0.78, depth: 1.82 }, this.scene);
+    cabin.parent = car; cabin.position.set(0, 0.68, -0.15);
+    cabin.material = this.material('vehicle-cabin-frame', new Color3(0.27, 0.34, 0.31));
+    const glass = this.material('vehicle-glass', new Color3(0.10, 0.24, 0.30));
+    const windshield = MeshBuilder.CreatePlane('vehicle-windshield', { width: 1.42, height: 0.54 }, this.scene);
+    windshield.parent = car; windshield.position.set(0, 0.84, 0.78); windshield.material = glass;
+    const rearGlass = MeshBuilder.CreatePlane('vehicle-rear-window', { width: 1.38, height: 0.48 }, this.scene);
+    rearGlass.parent = car; rearGlass.position.set(0, 0.84, -1.08); rearGlass.rotation.y = Math.PI; rearGlass.material = glass;
+    for (const side of [-1, 1]) {
+      const sideGlass = MeshBuilder.CreatePlane('vehicle-side-window', { width: 1.35, height: 0.48 }, this.scene);
+      sideGlass.parent = car; sideGlass.position.set(side * 0.87, 0.84, -0.15);
+      sideGlass.rotation.y = side * Math.PI / 2; sideGlass.material = glass;
+      const mirror = MeshBuilder.CreateSphere('vehicle-side-mirror', { diameter: 0.24, segments: 8 }, this.scene);
+      mirror.parent = car; mirror.position.set(side * 1.03, 0.58, 0.52);
+      mirror.scaling.set(0.55, 0.8, 1.15);
+      mirror.material = this.material('vehicle-mirror-material', new Color3(0.13, 0.17, 0.16));
+    }
+    const roofCap = MeshBuilder.CreateSphere('vehicle-rounded-roof', { diameter: 1.7, segments: 10 }, this.scene);
+    roofCap.parent = car; roofCap.position.set(0, 1.04, -0.15); roofCap.scaling.set(0.92, 0.24, 0.88);
+    roofCap.material = this.material('vehicle-roof-material', new Color3(0.23, 0.30, 0.28));
+    const hood = MeshBuilder.CreateSphere('vehicle-rounded-hood', { diameter: 1.8, segments: 10 }, this.scene);
+    hood.parent = car; hood.position.set(0, 0.22, 1.12); hood.scaling.set(0.92, 0.28, 0.70); hood.material = this.vehicleMaterial;
     const wheelMat = this.material('vehicle-tires', new Color3(0.045, 0.05, 0.05));
+    const hubMat = this.material('vehicle-wheel-hubs', new Color3(0.62, 0.67, 0.63));
+    const tailLightMat = this.material('vehicle-tail-light-material', new Color3(0.75, 0.14, 0.10));
+    for (const side of [-1, 1]) {
+      const tailLight = MeshBuilder.CreateSphere('vehicle-tail-light', { diameter: 0.26, segments: 8 }, this.scene);
+      tailLight.parent = car; tailLight.position.set(side * 0.78, 0.12, -1.90);
+      tailLight.scaling.set(0.55, 0.75, 0.35); tailLight.material = tailLightMat;
+    }
     const grille = MeshBuilder.CreateBox('vehicle-front-grille', { width: 0.9, height: 0.25, depth: 0.06 }, this.scene);
     grille.parent = car;
     grille.position.set(0, -0.08, 1.93);
@@ -824,254 +973,216 @@ export class GreenCityGame {
       const wheel = MeshBuilder.CreateCylinder('vehicle-wheel', { diameter: 0.72, height: 0.22, tessellation: 12 }, this.scene);
       wheel.parent = car;
       wheel.position.set(x, -0.12, z);
-      wheel.rotation.z = Math.PI / 2;
-      wheel.material = wheelMat;
+      wheel.rotation.z = Math.PI / 2; wheel.material = wheelMat;
+      const hub = MeshBuilder.CreateCylinder('vehicle-wheel-hub', { diameter: 0.34, height: 0.24, tessellation: 12 }, this.scene);
+      hub.parent = car; hub.position.set(x * 1.02, -0.12, z);
+      hub.rotation.z = Math.PI / 2; hub.material = hubMat;
     }
     return car;
   }
 
   private toggleVehicle(): void {
     if (this.inVehicle) {
-      this.inVehicle = false;
-      this.vehicleSpeed = 0;
+      if (Math.abs(this.vehicleSpeed) > 0.45) {
+        this.message = 'Freie completamente dentro da vaga antes de descer do veículo.';
+        this.emit(); return;
+      }
+      const atBase = Math.hypot(this.vehicle.position.x - this.vehicleBasePosition.x, this.vehicle.position.z - this.vehicleBasePosition.z) <= 4.2;
+      this.inVehicle = false; this.vehicleSpeed = 0;
       this.player.position.copyFrom(this.vehicle.position).addInPlace(new Vector3(2.8, 0.55, 0));
       this.player.setEnabled(true);
-      this.message = 'Você saiu do veículo. Aproxime-se novamente e pressione F para entrar.';
+      this.message = atBase
+        ? 'Veículo estacionado na base. Desça e aproxime-se do carro; pressione E para iniciar a conversão elétrica.'
+        : 'Você saiu do veículo. Para converter, dirija até a BASE DE ELETRIFICAÇÃO, pare na vaga marcada e desça com F.';
     } else {
       const dx = this.player.position.x - this.vehicle.position.x;
       const dz = this.player.position.z - this.vehicle.position.z;
-      const distance = Math.hypot(dx, dz);
-      if (distance > 6.5) {
-        this.message = 'Aproxime-se do veículo municipal. Quando o aviso ENTRAR NO VEÍCULO aparecer, pressione F.';
-        this.emit();
-        return;
+      if (Math.hypot(dx, dz) > 6.5) {
+        this.message = 'Aproxime-se do veículo municipal e pressione F quando aparecer o aviso para entrar.';
+        this.emit(); return;
       }
-      this.inVehicle = true;
-      this.player.setEnabled(false);
+      this.inVehicle = true; this.player.setEnabled(false);
       this.message = this.electricVehicle
-        ? 'Veículo elétrico: use WASD para dirigir e F para sair. Veja os selos 100% EV nas laterais; a recarga é apoiada pela estação solar.'
-        : 'Veículo a diesel: use WASD para dirigir e F para sair. A frota ainda gera emissões locais.';
+        ? 'Veículo 100% elétrico. W acelera, S freia, A/D viram. Pare antes de sair.'
+        : 'Missão: dirija até a BASE DE ELETRIFICAÇÃO. Siga pela via de serviço à direita, pare na vaga e pressione F para descer.';
     }
-    this.keys.clear();
-    this.emit();
+    this.keys.clear(); this.emit();
   }
 
   private readonly focusCanvas = () => this.scene.getEngine().getRenderingCanvas()?.focus();
   private readonly clearKeys = () => this.keys.clear();
 
+
+  private findNearbySolarBuilding(): SolarBuildingRecord | null {
+    if (!this.delivered) return null;
+    let nearest: SolarBuildingRecord | null = null;
+    let nearestDistance = 5.2;
+    for (const building of this.buildings) {
+      if (building.solarInstalled) continue;
+      const side = building.x < 0 ? 1 : -1;
+      const facadeX = building.x + side * (building.width / 2 + 0.08);
+      const distance = Math.hypot(this.player.position.x - facadeX, this.player.position.z - building.z);
+      if (distance < nearestDistance) { nearest = building; nearestDistance = distance; }
+    }
+    return nearest;
+  }
+
+  private createBuildingSolarPanels(building: SolarBuildingRecord, index: number): void {
+    const panelMaterial = this.material(`building-solar-panel-material-${index}`, new Color3(0.05, 0.22, 0.43));
+    const gridMaterial = this.material(`building-solar-panel-grid-material-${index}`, new Color3(0.43, 0.70, 0.85));
+    for (const dx of [-building.width * 0.22, building.width * 0.22]) {
+      for (const dz of [-2.0, 2.0]) {
+        const panel = MeshBuilder.CreateBox('building-rooftop-solar-panel', { width: 2.35, height: 0.11, depth: 2.65 }, this.scene);
+        panel.position.set(building.x + dx, building.height + 0.43, building.z + dz); panel.material = panelMaterial;
+        for (const offset of [-0.68, 0, 0.68]) {
+          const grid = MeshBuilder.CreateBox('building-solar-panel-grid-line', { width: 2.26, height: 0.012, depth: 0.025 }, this.scene);
+          grid.position.set(building.x + dx, building.height + 0.495, building.z + dz + offset); grid.material = gridMaterial;
+        }
+      }
+    }
+    const side = building.x < 0 ? 1 : -1;
+    const facadeX = building.x + side * (building.width / 2 + 0.16);
+    const badge = MeshBuilder.CreateBox('building-solar-status-badge', { width: 0.16, height: 0.46, depth: 1.8 }, this.scene);
+    badge.position.set(facadeX, 3.0, building.z + 1.15);
+    badge.material = this.material(`building-solar-status-badge-material-${index}`, new Color3(0.12, 0.60, 0.37));
+    const texture = new DynamicTexture(`building-solar-sign-texture-${index}`, { width: 400, height: 120 }, this.scene, false);
+    const context = texture.getContext() as unknown as CanvasRenderingContext2D;
+    context.fillStyle = '#0D583D'; context.fillRect(0, 0, 400, 120);
+    context.fillStyle = '#F0FFD9'; context.font = 'bold 44px Arial'; context.textAlign = 'center';
+    context.fillText('ENERGIA SOLAR', 200, 78); texture.update();
+    const face = MeshBuilder.CreatePlane('building-solar-status-face', { width: 1.7, height: 0.4 }, this.scene);
+    face.position.set(facadeX + side * 0.1, 3.0, building.z + 1.15); face.rotation.y = side * Math.PI / 2;
+    const faceMaterial = this.material(`building-solar-status-face-material-${index}`, new Color3(1, 1, 1));
+    faceMaterial.diffuseTexture = texture; faceMaterial.emissiveColor = new Color3(0.12, 0.18, 0.13);
+    face.material = faceMaterial;
+  }
+
+  private refreshMissionStage(): void {
+    if (!this.delivered) { this.missionStage = this.collected >= TOTAL_TRASH ? 'deliver' : 'collect'; return; }
+    if (this.electricVehicle && this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS) this.missionStage = 'complete';
+    else if (!this.electricVehicle && this.solarBuildingsInstalled >= SOLAR_BUILDINGS_REQUIRED_FOR_EV) this.missionStage = 'vehicle';
+    else this.missionStage = 'solar';
+  }
+
+  private installNearbyBuildingSolar(): void {
+    const building = this.findNearbySolarBuilding();
+    if (!building) { this.message = 'Aproxime-se da fachada de um prédio que ainda não recebeu painéis solares.'; this.emit(); return; }
+    if (this.cit < SOLAR_BUILDING_COST) {
+      this.message = `CIT insuficiente. Instalar painéis neste prédio custa ${SOLAR_BUILDING_COST} CIT.`; this.emit(); return;
+    }
+    const index = this.buildings.indexOf(building);
+    this.cit -= SOLAR_BUILDING_COST; building.solarInstalled = true; this.solarBuildingsInstalled += 1;
+    this.renewableShare = Math.min(100, 5 + this.solarBuildingsInstalled * 9);
+    this.airQuality = Math.min(100, this.airQuality + 1);
+    this.createBuildingSolarPanels(building, index);
+    if (this.solarBuildingsInstalled >= SOLAR_BUILDINGS_REQUIRED_FOR_EV) this.activateVehicleStation();
+    this.refreshMissionStage();
+    this.message = this.solarBuildingsInstalled === SOLAR_BUILDINGS_REQUIRED_FOR_EV
+      ? `${building.label} recebeu energia solar! Três prédios já foram modernizados. A BASE DE ELETRIFICAÇÃO está ativa: entre no carro, dirija pela via de serviço, estacione na vaga marcada, desça e pressione E ao lado do veículo.`
+      : `${building.label} agora tem painéis solares (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS}). Continue visitando os prédios sem identificação solar. Custo por instalação: ${SOLAR_BUILDING_COST} CIT.`;
+    this.emit();
+  }
+
+  private isVehicleInsideBase(): boolean {
+    return Math.hypot(this.vehicle.position.x - this.vehicleBasePosition.x, this.vehicle.position.z - this.vehicleBasePosition.z) <= 4.0;
+  }
+
+  private isVehicleParkedAtBase(): boolean {
+    return this.isVehicleInsideBase() && Math.abs(this.vehicleSpeed) <= 0.45;
+  }
+
+  private convertVehicleAtBase(): void {
+    if (this.electricVehicle) { this.message = 'O veículo municipal já está convertido para elétrico.'; this.emit(); return; }
+    if (!this.vehicleStationActive || this.solarBuildingsInstalled < SOLAR_BUILDINGS_REQUIRED_FOR_EV) {
+      this.message = `Modernize ${SOLAR_BUILDINGS_REQUIRED_FOR_EV} prédios com energia solar para ativar a base de eletrificação.`; this.emit(); return;
+    }
+    if (this.inVehicle || !this.isVehicleParkedAtBase()) {
+      this.message = 'Para converter: estacione totalmente dentro da vaga da base e desça do veículo.'; this.emit(); return;
+    }
+    const playerDistance = Math.hypot(this.player.position.x - this.vehicle.position.x, this.player.position.z - this.vehicle.position.z);
+    if (playerDistance > 5.2) { this.message = 'Aproxime-se do carro estacionado na base para realizar a conversão.'; this.emit(); return; }
+    if (this.cit < ELECTRIC_VEHICLE_COST) {
+      this.message = `CIT insuficiente. A conversão elétrica custa ${ELECTRIC_VEHICLE_COST} CIT.`; this.emit(); return;
+    }
+
+    this.cit -= ELECTRIC_VEHICLE_COST; this.electricVehicle = true;
+    this.vehicleMaterial.diffuseColor = new Color3(0.08, 0.52, 0.34);
+    const badgeTexture = new DynamicTexture('municipal-ev-badge-texture', { width: 512, height: 192 }, this.scene, false);
+    const badgeContext = badgeTexture.getContext() as unknown as CanvasRenderingContext2D;
+    badgeContext.fillStyle = '#063F31'; badgeContext.fillRect(0, 0, 512, 192);
+    badgeContext.fillStyle = '#DFFFF0'; badgeContext.font = 'bold 92px Arial'; badgeContext.textAlign = 'center';
+    badgeContext.fillText('100% EV', 256, 122); badgeTexture.update();
+    const badgeMaterial = this.material('municipal-ev-badge-material', new Color3(1, 1, 1));
+    badgeMaterial.diffuseTexture = badgeTexture; badgeMaterial.emissiveColor = new Color3(0.08, 0.18, 0.12);
+    for (const side of [-1, 1]) {
+      const badge = MeshBuilder.CreatePlane('municipal-ev-side-badge', { width: 1.05, height: 0.42 }, this.scene);
+      badge.parent = this.vehicle; badge.position.set(side * 1.07, 0.37, 0.25);
+      badge.rotation.y = side * Math.PI / 2; badge.material = badgeMaterial;
+      const sill = MeshBuilder.CreateBox('municipal-ev-green-sill', { width: 0.07, height: 0.14, depth: 2.5 }, this.scene);
+      sill.parent = this.vehicle; sill.position.set(side * 1.06, -0.25, 0);
+      sill.material = this.material('municipal-ev-green-sill-material', new Color3(0.10, 0.68, 0.48));
+    }
+    const frontMark = MeshBuilder.CreateBox('municipal-ev-front-mark', { width: 0.48, height: 0.22, depth: 0.07 }, this.scene);
+    frontMark.parent = this.vehicle; frontMark.position.set(0, 0.20, 1.96);
+    frontMark.material = this.material('municipal-ev-front-mark-material', new Color3(0.12, 0.75, 0.55));
+    this.sustainableMobility = 43; this.airQuality = Math.min(100, this.airQuality + 15);
+    this.refreshMissionStage();
+    this.message = this.missionStage === 'complete'
+      ? 'Oito prédios solarizados e veículo convertido! Centro Industrial recuperado; Porto liberado.'
+      : `Veículo convertido para 100% elétrico! Continue instalando energia solar nos prédios restantes (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS}).`;
+    this.emit();
+  }
+
   private interact(): void {
     const now = performance.now();
     if (now - this.lastInteract < 180) return;
     this.lastInteract = now;
-
     if (this.missionStage === 'deliver') {
-      const distance = Math.hypot(
-        this.player.position.x - this.ecoCenterPosition.x,
-        this.player.position.z - this.ecoCenterPosition.z,
-      );
+      const distance = Math.hypot(this.player.position.x - this.ecoCenterPosition.x, this.player.position.z - this.ecoCenterPosition.z);
       if (distance <= 8.5) this.deliverWaste();
-      else {
-        this.message = 'Siga a sinalização verde até o ECOCENTRO. O ponto de entrega fica ao lado dos cinco contêineres coloridos.';
-        this.emit();
+      else { this.message = 'Siga a sinalização verde até o ECOCENTRO e aproxime-se do ponto de entrega.'; this.emit(); }
+      return;
+    }
+    if (this.delivered) {
+      const nearby = this.getNearbyInteraction();
+      if (nearby?.action === 'install-building-solar') { this.installNearbyBuildingSolar(); return; }
+      if (nearby?.action === 'convert-vehicle') { this.convertVehicleAtBase(); return; }
+      if (this.solarBuildingsInstalled < SOLAR_BUILDINGS_REQUIRED_FOR_EV) {
+        this.message = 'Aproxime-se da fachada de um prédio sem painéis solares e pressione E para iniciar a instalação.';
+      } else if (!this.electricVehicle) {
+        this.message = 'Entre no carro, dirija até a BASE DE ELETRIFICAÇÃO, pare dentro da vaga e desça para converter o veículo.';
+      } else {
+        this.message = `Missão final: instale painéis solares nos prédios restantes (${this.solarBuildingsInstalled}/${TOTAL_SOLAR_BUILDINGS}).`;
       }
-      return;
+      this.emit(); return;
     }
-
-    if (this.missionStage === 'improve' || this.missionStage === 'complete') {
-      this.message = 'Abra PLANO URBANO para investir nas melhorias do bairro.';
-      this.emit();
-      return;
-    }
-
     let nearest: Mesh | undefined;
     let nearestDistance = 3.3;
     for (const item of this.trash) {
       if (!item.isEnabled()) continue;
       const distance = Vector3.Distance(this.player.position, item.position);
-      if (distance < nearestDistance) {
-        nearest = item;
-        nearestDistance = distance;
-      }
+      if (distance < nearestDistance) { nearest = item; nearestDistance = distance; }
     }
-    if (!nearest) {
-      this.message = 'Aproxime-se de um resíduo para recolhê-lo.';
-      this.emit();
-      return;
-    }
-
-    nearest.setEnabled(false);
-    this.collected += 1;
+    if (!nearest) { this.message = 'Aproxime-se de um resíduo para recolhê-lo.'; this.emit(); return; }
+    nearest.setEnabled(false); this.collected += 1;
     if (this.collected === TOTAL_TRASH) {
       this.missionStage = 'deliver';
-      this.message = 'Carga completa! Procure a placa ECOCENTRO e a área verde com cinco contêineres coloridos. Aproxime-se e pressione E para descarregar.';
-    } else {
-      this.message = `Resíduo recolhido (${this.collected}/${TOTAL_TRASH}). Continue a coleta.`;
-    }
+      this.message = 'Coleta concluída! Leve a carga ao ECOCENTRO. Depois visite os prédios para instalar energia solar.';
+    } else this.message = `Resíduo recolhido (${this.collected}/${TOTAL_TRASH}). Continue a coleta.`;
     this.emit();
   }
 
   private deliverWaste(): void {
     if (this.delivered || this.collected < TOTAL_TRASH) return;
-    this.delivered = true;
-    this.cit += 100;
-    this.recyclingRate = 63;
-    this.missionStage = 'improve';
-    this.message = 'Resíduos recebidos no EcoCentro e encaminhados à triagem. +100 CIT simulados. Abra PLANO URBANO.';
-    this.emit();
-  }
-
-  installSolarEnergy(): void {
-    if (this.solarInstalled) {
-      this.message = 'A estrutura solar deste bairro já foi instalada.';
-      this.emit();
-      return;
-    }
-    if (!this.delivered) {
-      this.message = 'Primeiro conclua a coleta e entregue os resíduos no EcoCentro.';
-      this.emit();
-      return;
-    }
-    if (this.cit < SOLAR_COST) {
-      this.message = `CIT insuficiente. A instalação solar custa ${SOLAR_COST} CIT.`;
-      this.emit();
-      return;
-    }
-
-    this.cit -= SOLAR_COST;
-    this.solarInstalled = true;
-    this.renewableShare = 35;
-    this.airQuality = Math.min(100, this.airQuality + 7);
-
-    const solarMat = this.material('solar-panel-material', new Color3(0.10, 0.23, 0.42));
-    for (let i = 0; i < 3; i += 1) {
-      const panel = MeshBuilder.CreateBox(`eco-center-solar-panel-${i}`, { width: 1.9, height: 0.12, depth: 1.15 }, this.scene);
-      panel.position.set(-27 + i * 2, 3.48, -1.2);
-      panel.material = solarMat;
-    }
-    // A solar carport is built in the marked municipal parking bay, directly above the vehicle.
-    const carportSupport = this.material('solar-carport-support-material', new Color3(0.20, 0.28, 0.25));
-    for (const x of [9.7, 16.3]) {
-      for (const z of [21.3, 28.7]) {
-        const post = MeshBuilder.CreateCylinder('solar-carport-post', { height: 4.0, diameter: 0.18, tessellation: 8 }, this.scene);
-        post.position.set(x, 2.0, z);
-        post.material = carportSupport;
-      }
-    }
-    const canopyBeam = MeshBuilder.CreateBox('solar-carport-beam', { width: 7.1, height: 0.18, depth: 7.8 }, this.scene);
-    canopyBeam.position.set(13, 4.0, 25);
-    canopyBeam.material = carportSupport;
-    const canopyPanelMaterial = this.material('solar-carport-panel-material', new Color3(0.06, 0.23, 0.43));
-    const panelGridMaterial = this.material('solar-panel-grid-material', new Color3(0.39, 0.67, 0.83));
-    for (const x of [10.8, 13, 15.2]) {
-      const panel = MeshBuilder.CreateBox('solar-carport-panel', { width: 2.05, height: 0.10, depth: 3.35 }, this.scene);
-      panel.position.set(x, 4.13, 25);
-      panel.material = canopyPanelMaterial;
-      for (const z of [23.9, 25.0, 26.1]) {
-        const grid = MeshBuilder.CreateBox('solar-carport-panel-grid-line', { width: 1.95, height: 0.012, depth: 0.025 }, this.scene);
-        grid.position.set(x, 4.19, z);
-        grid.material = panelGridMaterial;
-      }
-    }
-    const solarPad = MeshBuilder.CreateGround('solar-ev-parking-pad', { width: 8.2, height: 8.0 }, this.scene);
-    solarPad.position.set(13, 0.045, 25);
-    solarPad.material = this.material('solar-ev-parking-pad-material', new Color3(0.18, 0.35, 0.25));
-    const charger = MeshBuilder.CreateBox('solar-ev-charger', { width: 0.72, height: 1.65, depth: 0.5 }, this.scene);
-    charger.position.set(16.1, 0.85, 23.2);
-    charger.material = this.material('charger-material', new Color3(0.10, 0.46, 0.55));
-    const chargerTexture = new DynamicTexture('solar-ev-charger-texture', { width: 256, height: 256 }, this.scene, false);
-    const chargerContext = chargerTexture.getContext() as unknown as CanvasRenderingContext2D;
-    chargerContext.fillStyle = '#103C42'; chargerContext.fillRect(0, 0, 256, 256);
-    chargerContext.fillStyle = '#D9F8EE'; chargerContext.font = 'bold 32px Arial'; chargerContext.textAlign = 'center';
-    chargerContext.fillText('RECARGA', 128, 90);
-    chargerContext.fillStyle = '#8DE5C4'; chargerContext.font = 'bold 48px Arial'; chargerContext.fillText('EV', 128, 158);
-    chargerTexture.update();
-    const chargerFace = MeshBuilder.CreatePlane('solar-ev-charger-face', { width: 0.58, height: 0.58 }, this.scene);
-    chargerFace.position.set(16.1, 1.12, 23.47);
-    const chargerFaceMaterial = this.material('solar-ev-charger-face-material', new Color3(1, 1, 1));
-    chargerFaceMaterial.diffuseTexture = chargerTexture;
-    chargerFaceMaterial.emissiveColor = new Color3(0.14, 0.23, 0.24);
-    chargerFace.material = chargerFaceMaterial;
-    const chargeCable = MeshBuilder.CreateTube('solar-ev-charge-cable', {
-      path: [new Vector3(15.8, 1.45, 23.4), new Vector3(15.0, 1.55, 23.6), new Vector3(14.2, 1.18, 24.2)],
-      radius: 0.055, tessellation: 8,
-    }, this.scene);
-    chargeCable.material = this.material('solar-ev-charge-cable-material', new Color3(0.06, 0.08, 0.08));
-    const carportSign = MeshBuilder.CreateBox('solar-carport-sign', { width: 5.6, height: 0.78, depth: 0.12 }, this.scene);
-    carportSign.position.set(13, 5.05, 21.0);
-    carportSign.material = this.material('solar-carport-sign-material', new Color3(0.07, 0.29, 0.20));
-    const carportSignTexture = new DynamicTexture('solar-carport-sign-texture', { width: 900, height: 140 }, this.scene, false);
-    const carportSignContext = carportSignTexture.getContext() as unknown as CanvasRenderingContext2D;
-    carportSignContext.fillStyle = '#0B4932'; carportSignContext.fillRect(0, 0, 900, 140);
-    carportSignContext.fillStyle = '#E5FFB9'; carportSignContext.font = 'bold 54px Arial'; carportSignContext.textAlign = 'center';
-    carportSignContext.fillText('ESTAÇÃO SOLAR · RECARGA ELÉTRICA', 450, 88);
-    carportSignTexture.update();
-    const carportSignFace = MeshBuilder.CreatePlane('solar-carport-sign-face', { width: 5.45, height: 0.68 }, this.scene);
-    carportSignFace.position.set(13, 5.05, 21.08);
-    const carportSignMaterial = this.material('solar-carport-sign-face-material', new Color3(1, 1, 1));
-    carportSignMaterial.diffuseTexture = carportSignTexture;
-    carportSignMaterial.emissiveColor = new Color3(0.12, 0.20, 0.13);
-    carportSignFace.material = carportSignMaterial;
-    this.message = 'Energia solar instalada! Abra o minimapa e siga o marcador VAGA SOLAR: a cobertura com painéis e o carregador estão junto ao veículo municipal.';
-    this.emit();
-  }
-
-  electrifyMunicipalVehicle(): void {
-    if (this.electricVehicle) {
-      this.message = 'O veículo municipal já foi convertido para elétrico.';
-      this.emit();
-      return;
-    }
-    if (!this.solarInstalled) {
-      this.message = 'Instale primeiro a energia solar e a estrutura de recarga para apoiar o veículo elétrico.';
-      this.emit();
-      return;
-    }
-    if (this.cit < ELECTRIC_VEHICLE_COST) {
-      this.message = `CIT insuficiente. A conversão do veículo custa ${ELECTRIC_VEHICLE_COST} CIT.`;
-      this.emit();
-      return;
-    }
-
-    this.cit -= ELECTRIC_VEHICLE_COST;
-    this.electricVehicle = true;
-    this.vehicleMaterial.diffuseColor = new Color3(0.08, 0.52, 0.34);
-    const evBadgeTexture = new DynamicTexture('municipal-ev-badge-texture', { width: 512, height: 192 }, this.scene, false);
-    const evBadgeContext = evBadgeTexture.getContext() as unknown as CanvasRenderingContext2D;
-    evBadgeContext.fillStyle = '#063F31'; evBadgeContext.fillRect(0, 0, 512, 192);
-    evBadgeContext.fillStyle = '#DFFFF0'; evBadgeContext.font = 'bold 92px Arial'; evBadgeContext.textAlign = 'center';
-    evBadgeContext.fillText('100% EV', 256, 122);
-    evBadgeTexture.update();
-    const evBadgeMaterial = this.material('municipal-ev-badge-material', new Color3(1, 1, 1));
-    evBadgeMaterial.diffuseTexture = evBadgeTexture;
-    evBadgeMaterial.emissiveColor = new Color3(0.08, 0.18, 0.12);
-    for (const side of [-1, 1]) {
-      const badge = MeshBuilder.CreatePlane('municipal-ev-side-badge', { width: 1.05, height: 0.42 }, this.scene);
-      badge.parent = this.vehicle;
-      badge.position.set(side * 1.07, 0.37, 0.25);
-      badge.rotation.y = side * Math.PI / 2;
-      badge.material = evBadgeMaterial;
-      const sill = MeshBuilder.CreateBox('municipal-ev-green-sill', { width: 0.07, height: 0.14, depth: 2.5 }, this.scene);
-      sill.parent = this.vehicle;
-      sill.position.set(side * 1.06, -0.25, 0);
-      sill.material = this.material('municipal-ev-green-sill-material', new Color3(0.10, 0.68, 0.48));
-    }
-    const evFrontMark = MeshBuilder.CreateBox('municipal-ev-front-mark', { width: 0.48, height: 0.22, depth: 0.07 }, this.scene);
-    evFrontMark.parent = this.vehicle;
-    evFrontMark.position.set(0, 0.20, 1.96);
-    evFrontMark.material = this.material('municipal-ev-front-mark-material', new Color3(0.12, 0.75, 0.55));
-    this.sustainableMobility = 43;
-    this.airQuality = Math.min(100, this.airQuality + 15);
-    // Water and vegetation restoration require their own interventions;
-    // changing the fleet alone only improves the local mobility indicators.
-    this.missionStage = this.isNextNeighborhoodUnlocked() ? 'complete' : 'improve';
-    this.message = this.isNextNeighborhoodUnlocked()
-      ? 'Bairro recuperado! O Porto foi liberado no mapa da cidade. Você concluiu a primeira fase!'
-      : 'Veículo municipal eletrificado! Siga o marcador VAGA SOLAR no minimapa para ver o carro convertido e a estação de recarga.';
+    this.delivered = true; this.cit += 100; this.recyclingRate = 63;
+    this.refreshMissionStage();
+    this.message = 'Resíduos entregues! +100 CIT. Percorra as fachadas e instale painéis em cada prédio (10 CIT por instalação). Após três prédios, a base do veículo será ativada.';
     this.emit();
   }
 
   private isNextNeighborhoodUnlocked(): boolean {
-    return this.recyclingRate >= 60 && this.renewableShare >= 30 && this.sustainableMobility >= 30;
+    return this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS && this.electricVehicle
+      && this.recyclingRate >= 60 && this.renewableShare >= 30 && this.sustainableMobility >= 30;
   }
 
   setPaused(value: boolean): void {
@@ -1092,50 +1203,44 @@ export class GreenCityGame {
 
   private getNearbyInteraction(): { action: NearbyAction; label: string } | null {
     if (this.paused || this.mapOpen) return null;
-    if (this.inVehicle) return { action: 'exit-vehicle', label: 'F · SAIR DO VEÍCULO' };
-
+    if (this.inVehicle) {
+      const atBase = this.isVehicleInsideBase();
+      const moving = Math.abs(this.vehicleSpeed) > 0.45;
+      if (atBase && moving) return { action: 'exit-vehicle', label: 'PARE COMPLETAMENTE NA VAGA' };
+      return { action: 'exit-vehicle', label: atBase ? 'F · DESCER NA BASE DE ELETRIFICAÇÃO' : 'F · SAIR DO VEÍCULO' };
+    }
     if (this.missionStage === 'deliver') {
-      const distanceToEco = Math.hypot(
-        this.player.position.x - this.ecoCenterPosition.x,
-        this.player.position.z - this.ecoCenterPosition.z,
-      );
-      if (distanceToEco <= 8.5) {
-        return { action: 'deliver-waste', label: 'E · ENTREGAR RESÍDUOS NO ECOCENTRO' };
+      const distanceToEco = Math.hypot(this.player.position.x - this.ecoCenterPosition.x, this.player.position.z - this.ecoCenterPosition.z);
+      if (distanceToEco <= 8.5) return { action: 'deliver-waste', label: 'E · ENTREGAR RESÍDUOS NO ECOCENTRO' };
+    }
+    if (this.delivered) {
+      const building = this.findNearbySolarBuilding();
+      if (building) return { action: 'install-building-solar', label: `E · INSTALAR SOLAR EM ${building.label} · 10 CIT` };
+      if (!this.electricVehicle && this.vehicleStationActive && this.isVehicleParkedAtBase()) {
+        const distanceToCar = Math.hypot(this.player.position.x - this.vehicle.position.x, this.player.position.z - this.vehicle.position.z);
+        if (distanceToCar <= 5.2) return { action: 'convert-vehicle', label: 'E · CONVERTER ESTE CARRO PARA ELÉTRICO' };
       }
     }
-
     if (this.missionStage === 'collect') {
       let closestWaste = Number.POSITIVE_INFINITY;
       for (const item of this.trash) {
         if (!item.isEnabled()) continue;
-        const distance = Math.hypot(
-          this.player.position.x - item.position.x,
-          this.player.position.z - item.position.z,
-        );
+        const distance = Math.hypot(this.player.position.x - item.position.x, this.player.position.z - item.position.z);
         closestWaste = Math.min(closestWaste, distance);
       }
       if (closestWaste <= 3.3) return { action: 'collect-waste', label: 'E · RECOLHER RESÍDUO' };
     }
-
-    const vehicleDistance = Math.hypot(
-      this.player.position.x - this.vehicle.position.x,
-      this.player.position.z - this.vehicle.position.z,
-    );
+    const vehicleDistance = Math.hypot(this.player.position.x - this.vehicle.position.x, this.player.position.z - this.vehicle.position.z);
     if (vehicleDistance <= 6.5) return { action: 'enter-vehicle', label: 'F · ENTRAR NO VEÍCULO' };
     return null;
   }
 
   performNearbyAction(): void {
     const nearby = this.getNearbyInteraction();
-    if (!nearby) {
-      this.message = 'Aproxime-se de um resíduo, do EcoCentro ou do veículo para interagir.';
-      this.emit();
-      return;
-    }
-    if (nearby.action === 'enter-vehicle' || nearby.action === 'exit-vehicle') {
-      this.toggleVehicle();
-      return;
-    }
+    if (!nearby) { this.message = 'Aproxime-se de um resíduo, de um prédio sem painéis ou da base do veículo para interagir.'; this.emit(); return; }
+    if (nearby.action === 'enter-vehicle' || nearby.action === 'exit-vehicle') { this.toggleVehicle(); return; }
+    if (nearby.action === 'install-building-solar') { this.installNearbyBuildingSolar(); return; }
+    if (nearby.action === 'convert-vehicle') { this.convertVehicleAtBase(); return; }
     this.interact();
   }
 
@@ -1146,7 +1251,8 @@ export class GreenCityGame {
       collected: this.collected,
       total: TOTAL_TRASH,
       delivered: this.delivered,
-      solarInstalled: this.solarInstalled,
+      solarBuildingsInstalled: this.solarBuildingsInstalled,
+      solarBuildingsTotal: TOTAL_SOLAR_BUILDINGS,
       electricVehicle: this.electricVehicle,
       recyclingRate: this.recyclingRate,
       renewableShare: this.renewableShare,

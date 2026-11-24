@@ -89,3 +89,9 @@ Limitação: os resíduos ainda são entregues como carga única; os cinco recip
 
 ## Navegação da estação solar 0.3.4
 O minimapa agora identifica a vaga municipal com a cor de status do veículo (amarela antes da conversão e verde depois). Após instalar os painéis ou converter o carro, a mensagem contextual orienta o jogador a seguir o marcador para conferir fisicamente a estação.
+
+
+## Missões físicas de energia e mobilidade 0.3.5
+As opções de instalação e conversão foram removidas do painel. Após entregar a carga, o jogador instala painéis em cada edifício individualmente por proximidade e tecla E. Cada instalação custa 10 CIT. Depois de três prédios, a base de eletrificação fica ativa. O jogador entra no carro no ponto inicial, dirige pela via de serviço, estaciona na vaga, para completamente, sai e interage ao lado do veículo para convertê-lo por 20 CIT. A conclusão exige oito telhados solarizados e o veículo elétrico.
+A recompensa de entrega é de 100 CIT: 8 edifícios a 10 CIT e a conversão do veículo a 20 CIT.
+O painel urbano agora é apenas informativo. Os prédios receberam acabamento texturizado e detalhes de cobertura; a árvore ganhou copa multifacetada e o carro recebeu janelas, espelhos, capô arredondado, lanternas e cubos de roda. São melhorias procedurais low-poly; não equivalem ainda a modelos artísticos GLB de produção.
