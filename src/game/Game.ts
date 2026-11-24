@@ -1,13 +1,7 @@
 import {
-  ArcRotateCamera, Color3, Color4, CreateBox, CreateCapsule, CreateCylinder,
-  CreateGround, CreateSphere, DirectionalLight, Engine, HemisphericLight,
-  Mesh, RegisterImageProcessingConfiguration, RegisterStandardEngineExtensions,
-  RegisterStandardMaterial, Scene, StandardMaterial, Vector3,
-} from '@babylonjs/core/pure';
-
-RegisterStandardEngineExtensions();
-RegisterStandardMaterial();
-RegisterImageProcessingConfiguration();
+  ArcRotateCamera, Color3, Color4, DirectionalLight, Engine, HemisphericLight,
+  Mesh, MeshBuilder, Scene, StandardMaterial, Vector3,
+} from '@babylonjs/core';
 import type { GameSnapshot, MissionStage, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
@@ -104,7 +98,7 @@ export class GreenCityGame {
   }
 
   private buildDistrict(): void {
-    const ground = CreateGround('district-ground', { width: 90, height: 90 }, this.scene);
+    const ground = MeshBuilder.CreateGround('district-ground', { width: 90, height: 90 }, this.scene);
     ground.position.y = -0.08;
     ground.checkCollisions = true;
     ground.material = this.material('ground', new Color3(0.34, 0.43, 0.31));
@@ -112,31 +106,31 @@ export class GreenCityGame {
     const roadMat = this.material('asphalt', new Color3(0.13, 0.16, 0.17));
     const sidewalkMat = this.material('sidewalk', new Color3(0.55, 0.57, 0.52));
     const lineMat = this.material('road-lines', new Color3(0.88, 0.82, 0.57));
-    const road = CreateBox('main-road', { width: 16, depth: 82, height: 0.12 }, this.scene);
+    const road = MeshBuilder.CreateBox('main-road', { width: 16, depth: 82, height: 0.12 }, this.scene);
     road.position.y = 0.01;
     road.material = roadMat;
     road.checkCollisions = true;
     for (const x of [-9.3, 9.3]) {
-      const walk = CreateBox('sidewalk', { width: 2.6, depth: 82, height: 0.22 }, this.scene);
+      const walk = MeshBuilder.CreateBox('sidewalk', { width: 2.6, depth: 82, height: 0.22 }, this.scene);
       walk.position.set(x, 0.09, 0);
       walk.material = sidewalkMat;
       walk.checkCollisions = true;
     }
     for (let z = -36; z <= 36; z += 9) {
-      const stripe = CreateBox('road-dash', { width: 0.18, depth: 3.5, height: 0.02 }, this.scene);
+      const stripe = MeshBuilder.CreateBox('road-dash', { width: 0.18, depth: 3.5, height: 0.02 }, this.scene);
       stripe.position.set(0, 0.085, z);
       stripe.material = lineMat;
     }
 
     // A crosswalk and curb details give the main street a legible scale.
     for (let i = -3; i <= 3; i++) {
-      const crossing = CreateBox('crosswalk-mark', { width: 1.0, height: 0.025, depth: 0.34 }, this.scene);
+      const crossing = MeshBuilder.CreateBox('crosswalk-mark', { width: 1.0, height: 0.025, depth: 0.34 }, this.scene);
       crossing.position.set(i * 1.45, 0.10, 11);
       crossing.material = lineMat;
     }
     const curbMat = this.material('curb', new Color3(0.72, 0.70, 0.61));
     for (const x of [-10.72, 10.72]) {
-      const curb = CreateBox('street-curb', { width: 0.18, height: 0.28, depth: 82 }, this.scene);
+      const curb = MeshBuilder.CreateBox('street-curb', { width: 0.18, height: 0.28, depth: 82 }, this.scene);
       curb.position.set(x, 0.15, 0);
       curb.material = curbMat;
     }
@@ -147,11 +141,11 @@ export class GreenCityGame {
       [20, -30, 12, 17], [30, -10, 10, 14], [20, 15, 13, 16], [31, 34, 11, 12],
     ];
     positions.forEach(([x, z, w, h], i) => {
-      const building = CreateBox(`building-${i}`, { width: w, depth: 10, height: h }, this.scene);
+      const building = MeshBuilder.CreateBox(`building-${i}`, { width: w, depth: 10, height: h }, this.scene);
       building.position.set(x, h / 2, z);
       building.material = this.material(`building-mat-${i}`, buildingColors[i % buildingColors.length]);
       building.checkCollisions = true;
-      const roof = CreateBox(`roof-${i}`, { width: w + 0.5, depth: 10.5, height: 0.35 }, this.scene);
+      const roof = MeshBuilder.CreateBox(`roof-${i}`, { width: w + 0.5, depth: 10.5, height: 0.35 }, this.scene);
       roof.position.set(x, h + 0.17, z);
       roof.material = this.material(`roof-mat-${i}`, new Color3(0.22, 0.28, 0.25));
 
@@ -163,21 +157,21 @@ export class GreenCityGame {
       const windowRows = Math.max(1, Math.floor((h - 3) / 4));
       for (let row = 0; row < windowRows; row++) {
         for (const offset of [-3, 0, 3]) {
-          const frame = CreateBox('facade-window-frame', { width: 0.16, height: 1.6, depth: 1.75 }, this.scene);
+          const frame = MeshBuilder.CreateBox('facade-window-frame', { width: 0.16, height: 1.6, depth: 1.75 }, this.scene);
           frame.position.set(facadeX, 3.5 + row * 3.5, z + offset);
           frame.material = frameMat;
-          const glass = CreateBox('facade-window-glass', { width: 0.18, height: 1.28, depth: 1.42 }, this.scene);
+          const glass = MeshBuilder.CreateBox('facade-window-glass', { width: 0.18, height: 1.28, depth: 1.42 }, this.scene);
           glass.position.set(facadeX + facadeSide * 0.025, 3.5 + row * 3.5, z + offset);
           glass.material = glassMat;
         }
       }
-      const entrance = CreateBox('facade-entry', { width: 0.18, height: 2.2, depth: 1.35 }, this.scene);
+      const entrance = MeshBuilder.CreateBox('facade-entry', { width: 0.18, height: 2.2, depth: 1.35 }, this.scene);
       entrance.position.set(facadeX + facadeSide * 0.03, 1.16, z - 2.9);
       entrance.material = glassMat;
-      const storefront = CreateBox('storefront-sign-panel', { width: 0.18, height: 0.62, depth: 4.1 }, this.scene);
+      const storefront = MeshBuilder.CreateBox('storefront-sign-panel', { width: 0.18, height: 0.62, depth: 4.1 }, this.scene);
       storefront.position.set(facadeX + facadeSide * 0.03, 2.65, z + 1.25);
       storefront.material = this.material(`storefront-sign-${i}`, new Color3(0.12, 0.35, 0.24));
-      const awning = CreateBox('storefront-awning', { width: 0.48, height: 0.12, depth: 4.35 }, this.scene);
+      const awning = MeshBuilder.CreateBox('storefront-awning', { width: 0.48, height: 0.12, depth: 4.35 }, this.scene);
       awning.position.set(facadeX + facadeSide * 0.22, 2.34, z + 1.25);
       awning.material = frameMat;
     });
@@ -185,20 +179,20 @@ export class GreenCityGame {
     const treeMat = this.material('tree-leaves', new Color3(0.12, 0.34, 0.20));
     const trunkMat = this.material('tree-trunk', new Color3(0.27, 0.17, 0.10));
     for (const [x, z] of [[-11, -29], [-11, -14], [-11, 4], [-11, 24], [11, -25], [11, -6], [11, 13], [11, 30], [-35, 5], [35, -20]]) {
-      const trunk = CreateCylinder('tree-trunk', { height: 2.2, diameter: 0.35 }, this.scene);
+      const trunk = MeshBuilder.CreateCylinder('tree-trunk', { height: 2.2, diameter: 0.35 }, this.scene);
       trunk.position.set(x, 1.1, z);
       trunk.material = trunkMat;
       trunk.checkCollisions = true;
-      const crown = CreateSphere('tree-crown', { diameter: 2.4, segments: 6 }, this.scene);
+      const crown = MeshBuilder.CreateSphere('tree-crown', { diameter: 2.4, segments: 6 }, this.scene);
       crown.position.set(x, 2.7, z);
       crown.material = treeMat;
       this.parkTrees.push(crown);
     }
 
-    const plaza = CreateGround('plaza', { width: 14, height: 12 }, this.scene);
+    const plaza = MeshBuilder.CreateGround('plaza', { width: 14, height: 12 }, this.scene);
     plaza.position.set(-25, 0.03, 0);
     plaza.material = sidewalkMat;
-    const sign = CreateBox('district-sign', { width: 4.5, height: 2.2, depth: 0.25 }, this.scene);
+    const sign = MeshBuilder.CreateBox('district-sign', { width: 4.5, height: 2.2, depth: 0.25 }, this.scene);
     sign.position.set(-24, 2.4, 7);
     sign.material = this.material('sign-green', new Color3(0.07, 0.25, 0.16));
 
@@ -207,11 +201,11 @@ export class GreenCityGame {
     const lampMat = this.material('streetlamp-metal', new Color3(0.18, 0.23, 0.20));
     const lampLens = this.material('streetlamp-lens', new Color3(0.88, 0.78, 0.52));
     for (const bx of [-29.5, -20.5]) {
-      const seat = CreateBox('plaza-bench-seat', { width: 2.2, height: 0.16, depth: 0.62 }, this.scene);
+      const seat = MeshBuilder.CreateBox('plaza-bench-seat', { width: 2.2, height: 0.16, depth: 0.62 }, this.scene);
       seat.position.set(bx, 0.72, 4.2);
       seat.material = benchMat;
       for (const dx of [-0.8, 0.8]) {
-        const leg = CreateBox('plaza-bench-leg', { width: 0.12, height: 0.72, depth: 0.12 }, this.scene);
+        const leg = MeshBuilder.CreateBox('plaza-bench-leg', { width: 0.12, height: 0.72, depth: 0.12 }, this.scene);
         leg.position.set(bx + dx, 0.36, 4.2);
         leg.material = lampMat;
       }
@@ -221,19 +215,19 @@ export class GreenCityGame {
       new Color3(0.77, 0.63, 0.18), new Color3(0.67, 0.26, 0.20),
     ];
     binColors.forEach((color, index) => {
-      const bin = CreateBox('selective-collection-bin', { width: 0.7, height: 1.05, depth: 0.7 }, this.scene);
+      const bin = MeshBuilder.CreateBox('selective-collection-bin', { width: 0.7, height: 1.05, depth: 0.7 }, this.scene);
       bin.position.set(-31 + index * 1.05, 0.55, -4.8);
       bin.material = this.material(`selective-bin-${index}`, color);
     });
     for (const z of [-30, -8, 15, 34]) {
       for (const lx of [-10.7, 10.7]) {
-        const pole = CreateCylinder('streetlamp-pole', { height: 5.1, diameter: 0.12, tessellation: 8 }, this.scene);
+        const pole = MeshBuilder.CreateCylinder('streetlamp-pole', { height: 5.1, diameter: 0.12, tessellation: 8 }, this.scene);
         pole.position.set(lx, 2.55, z);
         pole.material = lampMat;
-        const arm = CreateBox('streetlamp-arm', { width: 0.95, height: 0.1, depth: 0.12 }, this.scene);
+        const arm = MeshBuilder.CreateBox('streetlamp-arm', { width: 0.95, height: 0.1, depth: 0.12 }, this.scene);
         arm.position.set(lx + (lx < 0 ? 0.4 : -0.4), 4.95, z);
         arm.material = lampMat;
-        const lens = CreateBox('streetlamp-lens', { width: 0.42, height: 0.12, depth: 0.28 }, this.scene);
+        const lens = MeshBuilder.CreateBox('streetlamp-lens', { width: 0.42, height: 0.12, depth: 0.28 }, this.scene);
         lens.position.set(lx + (lx < 0 ? 0.8 : -0.8), 4.9, z);
         lens.material = lampLens;
       }
@@ -241,31 +235,31 @@ export class GreenCityGame {
   }
 
   private buildEcoCenter(): void {
-    const walls = CreateBox('eco-center-building', { width: 7, depth: 4.5, height: 3.2 }, this.scene);
+    const walls = MeshBuilder.CreateBox('eco-center-building', { width: 7, depth: 4.5, height: 3.2 }, this.scene);
     walls.position.set(-25, 1.6, -1.2);
     walls.material = this.material('eco-center-walls', new Color3(0.34, 0.43, 0.34));
     walls.checkCollisions = true;
 
-    const roof = CreateBox('eco-center-roof', { width: 7.4, depth: 4.9, height: 0.3 }, this.scene);
+    const roof = MeshBuilder.CreateBox('eco-center-roof', { width: 7.4, depth: 4.9, height: 0.3 }, this.scene);
     roof.position.set(-25, 3.25, -1.2);
     roof.material = this.material('eco-center-roof-material', new Color3(0.17, 0.22, 0.19));
 
-    const sign = CreateBox('eco-center-sign', { width: 3.8, height: 0.9, depth: 0.18 }, this.scene);
+    const sign = MeshBuilder.CreateBox('eco-center-sign', { width: 3.8, height: 0.9, depth: 0.18 }, this.scene);
     sign.position.set(-25, 2.5, 1.15);
     sign.material = this.material('eco-center-sign-material', new Color3(0.08, 0.34, 0.20));
 
-    const marker = CreateCylinder('eco-center-marker', { diameter: 1.2, height: 0.12, tessellation: 16 }, this.scene);
+    const marker = MeshBuilder.CreateCylinder('eco-center-marker', { diameter: 1.2, height: 0.12, tessellation: 16 }, this.scene);
     marker.position.set(this.ecoCenterPosition.x, 0.08, this.ecoCenterPosition.z);
     marker.material = this.material('eco-center-marker-material', new Color3(0.20, 0.72, 0.36));
   }
 
   private buildRiver(): void {
-    const river = CreateGround('polluted-river', { width: 18, height: 84, subdivisions: 1 }, this.scene);
+    const river = MeshBuilder.CreateGround('polluted-river', { width: 18, height: 84, subdivisions: 1 }, this.scene);
     river.position.set(48, -0.015, 0);
     river.material = this.riverMaterial;
     const bankMat = this.material('river-bank', new Color3(0.39, 0.35, 0.26));
     for (const x of [38.5, 57.5]) {
-      const bank = CreateBox('river-bank', { width: 1.2, height: 0.55, depth: 84 }, this.scene);
+      const bank = MeshBuilder.CreateBox('river-bank', { width: 1.2, height: 0.55, depth: 84 }, this.scene);
       bank.position.set(x, 0.16, 0);
       bank.material = bankMat;
       bank.checkCollisions = true;
@@ -274,7 +268,7 @@ export class GreenCityGame {
 
   private createPlayer(): Mesh {
     // Invisible capsule maintains collision logic; attached meshes provide the visible field-agent silhouette.
-    const root = CreateCapsule('player-collider', { height: 1.8, radius: 0.38, tessellation: 10 }, this.scene);
+    const root = MeshBuilder.CreateCapsule('player-collider', { height: 1.8, radius: 0.38, tessellation: 10 }, this.scene);
     root.position.set(0, 1.0, 25);
     root.ellipsoid = new Vector3(0.40, 0.9, 0.40);
     root.ellipsoidOffset = Vector3.Zero();
@@ -289,48 +283,48 @@ export class GreenCityGame {
     const boots = this.material('agent-boots', new Color3(0.09, 0.12, 0.11));
     const reflective = this.material('agent-reflective-strip', new Color3(0.89, 0.78, 0.40));
 
-    const torso = CreateCapsule('agent-torso', { height: 0.86, radius: 0.29, tessellation: 10 }, this.scene);
+    const torso = MeshBuilder.CreateCapsule('agent-torso', { height: 0.86, radius: 0.29, tessellation: 10 }, this.scene);
     torso.parent = root;
     torso.position.set(0, 0.10, 0);
     torso.material = jacket;
-    const head = CreateSphere('agent-head', { diameter: 0.42, segments: 10 }, this.scene);
+    const head = MeshBuilder.CreateSphere('agent-head', { diameter: 0.42, segments: 10 }, this.scene);
     head.parent = root;
     head.position.set(0, 0.78, 0.02);
     head.material = skin;
-    const hat = CreateCylinder('agent-safety-helmet', { height: 0.18, diameterTop: 0.38, diameterBottom: 0.50, tessellation: 10 }, this.scene);
+    const hat = MeshBuilder.CreateCylinder('agent-safety-helmet', { height: 0.18, diameterTop: 0.38, diameterBottom: 0.50, tessellation: 10 }, this.scene);
     hat.parent = root;
     hat.position.set(0, 1.0, 0);
     hat.material = helmet;
-    const brim = CreateCylinder('agent-helmet-brim', { height: 0.055, diameter: 0.57, tessellation: 12 }, this.scene);
+    const brim = MeshBuilder.CreateCylinder('agent-helmet-brim', { height: 0.055, diameter: 0.57, tessellation: 12 }, this.scene);
     brim.parent = root;
     brim.position.set(0, 0.94, 0);
     brim.material = helmet;
 
     for (const side of [-1, 1]) {
-      const arm = CreateCapsule('agent-arm', { height: 0.72, radius: 0.13, tessellation: 8 }, this.scene);
+      const arm = MeshBuilder.CreateCapsule('agent-arm', { height: 0.72, radius: 0.13, tessellation: 8 }, this.scene);
       arm.parent = root;
       arm.position.set(side * 0.36, 0.12, 0);
       arm.rotation.z = side * -0.12;
       arm.material = jacket;
-      const hand = CreateSphere('agent-hand', { diameter: 0.18, segments: 8 }, this.scene);
+      const hand = MeshBuilder.CreateSphere('agent-hand', { diameter: 0.18, segments: 8 }, this.scene);
       hand.parent = root;
       hand.position.set(side * 0.38, -0.25, 0.02);
       hand.material = skin;
-      const leg = CreateCapsule('agent-leg', { height: 0.68, radius: 0.14, tessellation: 8 }, this.scene);
+      const leg = MeshBuilder.CreateCapsule('agent-leg', { height: 0.68, radius: 0.14, tessellation: 8 }, this.scene);
       leg.parent = root;
       leg.position.set(side * 0.15, -0.53, 0);
       leg.material = pants;
-      const boot = CreateBox('agent-boot', { width: 0.28, height: 0.18, depth: 0.40 }, this.scene);
+      const boot = MeshBuilder.CreateBox('agent-boot', { width: 0.28, height: 0.18, depth: 0.40 }, this.scene);
       boot.parent = root;
       boot.position.set(side * 0.15, -0.88, 0.06);
       boot.material = boots;
     }
 
-    const chestStrip = CreateBox('agent-reflective-strip', { width: 0.48, height: 0.10, depth: 0.34 }, this.scene);
+    const chestStrip = MeshBuilder.CreateBox('agent-reflective-strip', { width: 0.48, height: 0.10, depth: 0.34 }, this.scene);
     chestStrip.parent = root;
     chestStrip.position.set(0, 0.17, 0.25);
     chestStrip.material = reflective;
-    const backpack = CreateBox('agent-field-backpack', { width: 0.40, height: 0.48, depth: 0.19 }, this.scene);
+    const backpack = MeshBuilder.CreateBox('agent-field-backpack', { width: 0.40, height: 0.48, depth: 0.19 }, this.scene);
     backpack.parent = root;
     backpack.position.set(0, 0.12, -0.27);
     backpack.material = this.material('agent-backpack', new Color3(0.22, 0.30, 0.24));
@@ -345,11 +339,11 @@ export class GreenCityGame {
     const organicMat = this.material('waste-organic', new Color3(0.48, 0.36, 0.21));
     const positions = [[-4, 17], [4, 8], [-5, -4], [5, -18], [-3, -30]];
     const makers = [
-      () => CreateBox('waste-paper-cardboard', { width: 0.62, height: 0.12, depth: 0.48 }, this.scene),
-      () => CreateCylinder('waste-plastic-bottle', { height: 0.66, diameter: 0.34, tessellation: 8 }, this.scene),
-      () => CreateCylinder('waste-metal-can', { height: 0.52, diameter: 0.38, tessellation: 10 }, this.scene),
-      () => CreateCylinder('waste-glass-container', { height: 0.58, diameter: 0.38, tessellation: 8 }, this.scene),
-      () => CreateSphere('waste-organic', { diameter: 0.46, segments: 7 }, this.scene),
+      () => MeshBuilder.CreateBox('waste-paper-cardboard', { width: 0.62, height: 0.12, depth: 0.48 }, this.scene),
+      () => MeshBuilder.CreateCylinder('waste-plastic-bottle', { height: 0.66, diameter: 0.34, tessellation: 8 }, this.scene),
+      () => MeshBuilder.CreateCylinder('waste-metal-can', { height: 0.52, diameter: 0.38, tessellation: 10 }, this.scene),
+      () => MeshBuilder.CreateCylinder('waste-glass-container', { height: 0.58, diameter: 0.38, tessellation: 8 }, this.scene),
+      () => MeshBuilder.CreateSphere('waste-organic', { diameter: 0.46, segments: 7 }, this.scene),
     ];
     const materials = [paperMat, plasticMat, metalMat, glassMat, organicMat];
     positions.forEach(([x, z], index) => {
@@ -437,19 +431,19 @@ export class GreenCityGame {
   }
 
   private createVehicle(): Mesh {
-    const car = CreateBox('municipal-service-vehicle', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
+    const car = MeshBuilder.CreateBox('municipal-service-vehicle', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
     car.position.set(3, 0.48, 25);
     car.checkCollisions = true;
     this.vehicleMaterial = this.material('vehicle-body', new Color3(0.34, 0.37, 0.36));
     car.material = this.vehicleMaterial;
 
-    const cabin = CreateBox('vehicle-cabin', { width: 1.65, height: 0.75, depth: 1.75 }, this.scene);
+    const cabin = MeshBuilder.CreateBox('vehicle-cabin', { width: 1.65, height: 0.75, depth: 1.75 }, this.scene);
     cabin.parent = car;
     cabin.position.set(0, 0.68, -0.15);
     cabin.material = this.material('vehicle-glass', new Color3(0.18, 0.29, 0.30));
     const wheelMat = this.material('vehicle-tires', new Color3(0.045, 0.05, 0.05));
     for (const x of [-1.08, 1.08]) for (const z of [-1.25, 1.25]) {
-      const wheel = CreateCylinder('vehicle-wheel', { diameter: 0.72, height: 0.22, tessellation: 12 }, this.scene);
+      const wheel = MeshBuilder.CreateCylinder('vehicle-wheel', { diameter: 0.72, height: 0.22, tessellation: 12 }, this.scene);
       wheel.parent = car;
       wheel.position.set(x, -0.12, z);
       wheel.rotation.z = Math.PI / 2;
@@ -566,11 +560,11 @@ export class GreenCityGame {
 
     const solarMat = this.material('solar-panel-material', new Color3(0.10, 0.23, 0.42));
     for (let i = 0; i < 3; i += 1) {
-      const panel = CreateBox(`eco-center-solar-panel-${i}`, { width: 1.9, height: 0.12, depth: 1.15 }, this.scene);
+      const panel = MeshBuilder.CreateBox(`eco-center-solar-panel-${i}`, { width: 1.9, height: 0.12, depth: 1.15 }, this.scene);
       panel.position.set(-27 + i * 2, 3.48, -1.2);
       panel.material = solarMat;
     }
-    const charger = CreateBox('solar-ev-charger', { width: 0.65, height: 1.45, depth: 0.48 }, this.scene);
+    const charger = MeshBuilder.CreateBox('solar-ev-charger', { width: 0.65, height: 1.45, depth: 0.48 }, this.scene);
     charger.position.set(-20.5, 0.73, 3);
     charger.material = this.material('charger-material', new Color3(0.13, 0.43, 0.52));
     this.message = 'Energia solar instalada no EcoCentro. A geração renovável agora pode sustentar a recarga elétrica local.';
