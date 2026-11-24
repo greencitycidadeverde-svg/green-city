@@ -1,7 +1,7 @@
 {
   "name": "green-city-mvp",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -22,5 +22,7 @@
     "vite": "7.3.7"
   },
   "description": "GREEN CITY — primeiro protótipo 3D jogável para navegador.",
-  "engines": { "node": "22.x" }
+  "engines": {
+    "node": "22.x"
+  }
 }
