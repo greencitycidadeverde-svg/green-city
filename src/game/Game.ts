@@ -59,7 +59,6 @@ export class GreenCityGame {
   private characterAnimationTime = 0;
   private mobileMoveX = 0;
   private mobileMoveY = 0;
-  private playerModelRoot?: AbstractMesh;
   private playerModelHeadingRoot?: TransformNode;
   private playerModelHeadingOffset = 0;
   private vehicleModelRoot?: AbstractMesh;
@@ -1397,7 +1396,6 @@ export class GreenCityGame {
       modelRoot.scaling.scaleInPlace(0.82);
       modelRoot.isPickable = false;
       this.playerModelHeadingRoot = headingRoot;
-      this.playerModelRoot = modelRoot;
 
       this.playerArms.length = 0;
       this.playerLegs.length = 0;
