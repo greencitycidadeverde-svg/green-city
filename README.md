@@ -84,3 +84,8 @@ As oito regiões posteriores ao Porto ainda não têm cenário 3D jogável. NPCs
 - Direção visual editável: https://www.figma.com/design/0h4zS7dK3C6uJr3qVLo6On
 - Publicação web: Vercel.
 - Supabase será avaliado quando houver necessidade de contas ou sincronização remota.
+
+
+## Projeto pedagógico e visual
+
+A visão completa da campanha, progressão de conhecimento e direção de arte está em [docs/GREEN_CITY_10_PHASES.md](docs/GREEN_CITY_10_PHASES.md).
