@@ -3,6 +3,7 @@ import {
   Mesh, MeshBuilder, Scene, StandardMaterial, Vector3,
 } from '@babylonjs/core';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
+import type { AbstractMesh } from '@babylonjs/core';
 import type { GameSnapshot, MissionStage, NearbyAction, PortMissionStage, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
@@ -69,6 +70,8 @@ export class GreenCityGame {
   private readonly portSepticInstalled: boolean[] = [false, false];
   private readonly portMeshes: Mesh[] = [];
   private phaseOneMeshes: Mesh[] = [];
+  private readonly phaseOneModelRoots: AbstractMesh[] = [];
+  private readonly portModelRoots: AbstractMesh[] = [];
   private portTruck!: Mesh;
   private portRiverMaterial!: StandardMaterial;
   private portTreatmentInstalled = false;
@@ -122,6 +125,7 @@ export class GreenCityGame {
     this.portMeshes.push(...this.scene.meshes.slice(portStartIndex) as Mesh[]);
     this.portMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.phaseOneMeshes = this.scene.meshes.slice(0, portStartIndex).filter((mesh) => !this.isPlayerPart(mesh as Mesh)) as Mesh[];
+    void this.loadWorldModels();
     this.bindInput(canvas);
     this.emit();
 
@@ -861,6 +865,8 @@ export class GreenCityGame {
     this.activePhase = 2;
     this.phaseOneMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.portMeshes.forEach((mesh) => mesh.setEnabled(true));
+    this.phaseOneModelRoots.forEach((root) => root.setEnabled(false));
+    this.portModelRoots.forEach((root) => root.setEnabled(true));
     this.player.position.set(-25, 1, 30.5);
     this.player.setEnabled(true);
     this.inVehicle = false;
@@ -1148,7 +1154,7 @@ export class GreenCityGame {
     let objectUrl: string | undefined;
     try {
       await import('@babylonjs/loaders/glTF/2.0');
-      const response = await fetch('/models/green-city-character.glb.gz', { cache: 'force-cache' });
+      const response = await fetch('/models/personagem.glb.gz', { cache: 'force-cache' });
       if (!response.ok) throw new Error(`HTTP ${response.status} while loading character model`);
       if (typeof DecompressionStream === 'undefined') {
         throw new Error('Este navegador não oferece suporte à descompactação do modelo 3D.');
@@ -1199,6 +1205,86 @@ export class GreenCityGame {
     } finally {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     }
+  }
+
+
+  /** Importa um GLB compactado em gzip e preserva os materiais PBR embutidos. */
+  private async importCompressedModel(path: string): Promise<{ root: AbstractMesh; meshes: AbstractMesh[] }> {
+    await import('@babylonjs/loaders/glTF/2.0');
+    const response = await fetch(path, { cache: 'force-cache' });
+    if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar ${path}`);
+    if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador não oferece suporte à descompactação dos modelos 3D.');
+    const compressed = await response.arrayBuffer();
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const bytes = await new Response(stream).arrayBuffer();
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'model/gltf-binary' }));
+    try {
+      const imported = await ImportMeshAsync(url, this.scene, { pluginExtension: '.glb' });
+      const root = imported.meshes.find((mesh) => mesh.name === '__root__') ?? imported.meshes[0];
+      if (!root) throw new Error(`O GLB ${path} não contém uma malha principal.`);
+      imported.meshes.forEach((mesh) => {
+        mesh.isPickable = false;
+        if (mesh instanceof Mesh) mesh.checkCollisions = false;
+      });
+      return { root, meshes: imported.meshes };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  /** Modelos estáticos e veículos GLB, mantendo os colisores de movimento existentes. */
+  private async loadWorldModels(): Promise<void> {
+    try {
+      const tree = await this.importCompressedModel('/models/arvore.glb.gz');
+      tree.root.position.set(-38, 0, 8);
+      tree.root.scaling.setAll(0.72);
+      this.phaseOneModelRoots.push(tree.root);
+      const treeSpots = [[38, 0, -25], [-38, 0, -24], [38, 0, 24], [-38, 0, 30], [14, 0, -39], [-14, 0, -39]];
+      treeSpots.forEach(([x, y, z], index) => {
+        const clone = tree.root.clone(`green-city-tree-${index}`, null, false);
+        if (!clone) return;
+        clone.position.set(x, y, z);
+        clone.scaling.setAll(index % 2 === 0 ? 0.64 : 0.58);
+        this.phaseOneModelRoots.push(clone);
+      });
+    } catch (error) {
+      console.warn('[GREEN CITY] Modelo de árvore não carregado; mantendo a vegetação do cenário.', error);
+    }
+
+    try {
+      const building = await this.importCompressedModel('/models/edificio.glb.gz');
+      building.root.position.set(-34, 0, -31);
+      building.root.scaling.setAll(0.58);
+      this.phaseOneModelRoots.push(building.root);
+    } catch (error) {
+      console.warn('[GREEN CITY] Modelo de edifício não carregado; mantendo os edifícios do cenário.', error);
+    }
+
+    try {
+      const car = await this.importCompressedModel('/models/carro_eletrico.glb.gz');
+      this.vehicle.getChildMeshes().forEach((mesh) => mesh.setEnabled(false));
+      car.root.parent = this.vehicle;
+      car.root.position.set(0, -0.53, 0);
+      car.root.scaling.setAll(0.90);
+      this.phaseOneModelRoots.push(car.root);
+    } catch (error) {
+      console.warn('[GREEN CITY] Modelo de carro não carregado; mantendo o veículo reserva.', error);
+    }
+
+    try {
+      const truck = await this.importCompressedModel('/models/caminhao_coleta.glb.gz');
+      this.portTruck.getChildMeshes().forEach((mesh) => mesh.setEnabled(false));
+      truck.root.parent = this.portTruck;
+      truck.root.position.set(0, -0.60, 0);
+      truck.root.scaling.setAll(0.56);
+      this.portModelRoots.push(truck.root);
+    } catch (error) {
+      console.warn('[GREEN CITY] Modelo do caminhão não carregado; mantendo o caminhão reserva.', error);
+    }
+
+    this.phaseOneModelRoots.forEach((root) => root.setEnabled(this.activePhase === 1));
+    this.portModelRoots.forEach((root) => root.setEnabled(this.activePhase === 2));
+    this.emit();
   }
 
   private createPlayer(): Mesh {
@@ -1737,6 +1823,22 @@ export class GreenCityGame {
   private isNextNeighborhoodUnlocked(): boolean {
     return this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS && this.electricVehicle
       && this.recyclingRate >= 60 && this.renewableShare >= 30 && this.sustainableMobility >= 30;
+  }
+
+  /** Recebe o vetor do joystick virtual e o converte para os mesmos comandos WASD. */
+  setMobileMovement(horizontal: number, vertical: number): void {
+    for (const key of ['w', 'a', 's', 'd']) this.keys.delete(key);
+    const x = Math.max(-1, Math.min(1, horizontal));
+    const y = Math.max(-1, Math.min(1, vertical));
+    if (y < -0.16) this.keys.add('w');
+    if (y > 0.16) this.keys.add('s');
+    if (x < -0.16) this.keys.add('a');
+    if (x > 0.16) this.keys.add('d');
+  }
+
+  setMobileJump(pressed: boolean): void {
+    if (pressed && !this.paused && !this.mapOpen) this.keys.add(' ');
+    else this.keys.delete(' ');
   }
 
   setPaused(value: boolean): void {

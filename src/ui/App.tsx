@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { GreenCityGame } from '../game/Game';
 import { CITY_NEIGHBORHOODS } from '../game/neighborhoods';
 import type { GameSnapshot } from '../game/types';
@@ -54,6 +55,7 @@ export default function App() {
   const gameRef = useRef<GreenCityGame | null>(null);
   const [state, setState] = useState(initial);
   const [showHelp, setShowHelp] = useState(true);
+  const [joystick, setJoystick] = useState({ x: 0, y: 0 });
   const [showPlan, setShowPlan] = useState(false);
   const [gameReady, setGameReady] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
@@ -93,6 +95,22 @@ export default function App() {
       gameRef.current = null;
     };
   }, [playRequested]);
+
+  const moveJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const radius = Math.max(1, Math.min(rect.width, rect.height) * 0.36);
+    let x = (event.clientX - (rect.left + rect.width / 2)) / radius;
+    let y = (event.clientY - (rect.top + rect.height / 2)) / radius;
+    const magnitude = Math.hypot(x, y);
+    if (magnitude > 1) { x /= magnitude; y /= magnitude; }
+    setJoystick({ x, y });
+    gameRef.current?.setMobileMovement(x, y);
+  };
+  const stopJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    setJoystick({ x: 0, y: 0 });
+    gameRef.current?.setMobileMovement(0, 0);
+  };
 
   const missionProgress = state.phase === 1
     ? state.missionStage === 'complete'
@@ -163,6 +181,25 @@ export default function App() {
       onClick={() => gameRef.current?.performNearbyAction()}
       aria-label={state.nearbyLabel}
     >{state.nearbyLabel}<span>TOCAR / CLICAR</span></button>}
+    {gameReady && !state.paused && !state.mapOpen && !showHelp && <div className="mobile-controls">
+      <div className="mobile-joystick" role="group" aria-label="Direcional: arraste para mover o personagem ou dirigir"
+        onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); moveJoystick(event); }}
+        onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) moveJoystick(event); }}
+        onPointerUp={stopJoystick} onPointerCancel={stopJoystick}>
+        <span className="mobile-stick-base" />
+        <span className="mobile-stick-knob" style={{ transform: `translate(calc(-50% + ${joystick.x * 32}px), calc(-50% + ${joystick.y * 32}px))` }} />
+        <small>ARRASTE</small>
+      </div>
+      <div className="mobile-action-stack">
+        {state.nearbyAction && <button type="button" className="mobile-action-button" onClick={() => gameRef.current?.performNearbyAction()}>AÇÃO</button>}
+        <button type="button" className="mobile-action-button mobile-action-button--jump"
+          onPointerDown={() => gameRef.current?.setMobileJump(true)}
+          onPointerUp={() => gameRef.current?.setMobileJump(false)}
+          onPointerCancel={() => gameRef.current?.setMobileJump(false)}
+          onPointerLeave={() => gameRef.current?.setMobileJump(false)}>PULAR</button>
+      </div>
+    </div>}
+
     <div className="vehicle-status">{state.phase === 2
       ? state.inVehicle ? `CAMINHÃO DE COLETA · ${state.vehicleSpeed} KM/H` : 'CAMINHÃO DE COLETA · F PARA ENTRAR'
       : state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
