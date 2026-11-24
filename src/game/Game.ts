@@ -1326,11 +1326,30 @@ export class GreenCityGame {
   }
 
 
-  /** Carrega diretamente um arquivo GLB estático de /public/models. */
+  /** Carrega e descompacta o GLB gzipado publicado em /public/models. */
+  private readonly modelBytesCache = new Map<string, Promise<ArrayBuffer>>();
+
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}`, { cache: 'force-cache' });
-    if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
-    return await response.arrayBuffer();
+    let pending = this.modelBytesCache.get(assetName);
+    if (!pending) {
+      pending = (async () => {
+        const response = await fetch(`/models/${assetName}.gz`, { cache: 'force-cache' });
+        if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
+        if (typeof DecompressionStream === 'undefined') {
+          throw new Error('Este navegador não oferece suporte à descompactação gzip dos modelos 3D.');
+        }
+        const compressed = await response.arrayBuffer();
+        const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return await new Response(stream).arrayBuffer();
+      })();
+      this.modelBytesCache.set(assetName, pending);
+    }
+    try {
+      return await pending;
+    } catch (error) {
+      this.modelBytesCache.delete(assetName);
+      throw error;
+    }
   }
 
   /**
@@ -1695,7 +1714,7 @@ export class GreenCityGame {
     this.syncVehicleModel(this.vehicleVisualRoot, this.vehicle, 0);
     this.syncVehicleModel(this.vehicleModelRoot, this.vehicle, 0.48);
     this.syncVehicleModel(this.portTruckVisualRoot, this.portTruck, 0);
-    this.syncVehicleModel(this.portTruckModelRoot, this.portTruck, 0.48);
+    this.syncVehicleModel(this.portTruckModelRoot, this.portTruck, 0.60);
     this.characterAnimationTime += step * (playerMoving ? 10.5 : 1.8);
     const gait = playerMoving ? 0.58 : 0.035;
     this.playerArms.forEach((arm, index) => {
