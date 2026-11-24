@@ -7,8 +7,12 @@
 - A Fase 02 ainda é documentação de design: não existe cenário 3D jogável do Porto nesta versão.
 
 ## Verificação da versão 0.3.2
-- Alterações preparadas para compilação e publicação; resultado do build/deploy será registrado após a execução.
-- Inspeção visual e teste manual no navegador ainda necessários para validar escala, orientação dos letreiros, legibilidade e desempenho.
+- Commit de código: `ce59068933df0f11e7d77c7be04cc7266c665458`; correção de tipagem das texturas: `e63eb651a50474fc99cfc27a8c017efaee003657`.
+- Vercel deployment `dpl_6zwNT3WarisSdATAcK3ZBBMDs4CC` — estado READY, produção.
+- Build TypeScript/Vite concluído; 2.034 módulos transformados.
+- npm auditou 70 pacotes e encontrou zero vulnerabilidades; nenhuma dependência nova.
+- Módulo 3D: 5.427,30 kB (1.203,20 kB gzip); o aviso de chunk acima de 500 kB permanece e requer otimização.
+- Inspeção visual e teste manual no navegador ainda necessários para validar escala, orientação dos letreiros, legibilidade, interações e desempenho no computador do jogador.
 
 
 ## Direção do produto
