@@ -278,8 +278,7 @@ export default function App() {
         <h2>FASE 01 CONCLUÍDA!</h2>
         <p>Parabéns! Você recuperou o Centro Industrial. Agora abra o mapa da cidade, veja o Porto destacado como liberado e escolha quando deseja começar a próxima missão.</p>
         <div className="completion-stats"><span>8 prédios solares</span><span>1 veículo elétrico</span><span>Região 02 liberada</span></div>
-        <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); gameRef.current?.setMapOpen(true); }}>VER MAPA E ESCOLHER A FASE 02 <span>→</span></button>
-        <button className="completion-map-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); gameRef.current?.setMapOpen(true); }}>VER MAPA DAS 10 REGIÕES</button>
+        <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
       </section>
     </div>}
 
