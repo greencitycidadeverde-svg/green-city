@@ -1,7 +1,30 @@
 export type MissionStage = 'collect' | 'deliver' | 'solar' | 'vehicle' | 'complete';
-export type NearbyAction = 'collect-waste' | 'deliver-waste' | 'enter-vehicle' | 'exit-vehicle' | 'install-building-solar' | 'convert-vehicle';
+export type PortMissionStage = 'inspect' | 'treatment' | 'septic' | 'collect' | 'complete';
+export type NearbyAction =
+  | 'collect-waste'
+  | 'deliver-waste'
+  | 'enter-vehicle'
+  | 'exit-vehicle'
+  | 'install-building-solar'
+  | 'convert-vehicle'
+  | 'inspect-outfall'
+  | 'install-treatment'
+  | 'install-septic'
+  | 'collect-company-waste';
 
 export interface GameSnapshot {
+  phase: 1 | 2;
+  completedNeighborhoods: number;
+  thirdNeighborhoodUnlocked: boolean;
+  portMissionStage: PortMissionStage;
+  outfallsInspected: number;
+  outfallsTotal: number;
+  treatmentInstalled: boolean;
+  septicInstalled: number;
+  septicTotal: number;
+  companyWasteCollected: number;
+  companyWasteTotal: number;
+  waterQuality: number;
   cit: number;
   collected: number;
   total: number;
