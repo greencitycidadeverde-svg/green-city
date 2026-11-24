@@ -2,6 +2,7 @@ import {
   ArcRotateCamera, Color3, Color4, DirectionalLight, DynamicTexture, Engine, HemisphericLight,
   Mesh, MeshBuilder, Scene, StandardMaterial, Vector3,
 } from '@babylonjs/core';
+import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import type { GameSnapshot, MissionStage, NearbyAction, PortMissionStage, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
@@ -98,6 +99,7 @@ export class GreenCityGame {
     this.buildEcoCenter();
     this.buildVehicleConversionStation();
     this.player = this.createPlayer();
+    void this.loadPlayerModel();
     this.vehicle = this.createVehicle();
     this.camera = new ArcRotateCamera('third-person-camera', -Math.PI / 2, 1.15, 8, new Vector3(0, 1.3, 0), this.scene);
     this.camera.lowerRadiusLimit = 5;
@@ -1134,6 +1136,69 @@ export class GreenCityGame {
       radius: 0.055, tessellation: 8,
     }, this.scene);
     cable.material = this.material('ev-base-charger-cable-material', new Color3(0.07, 0.10, 0.09));
+  }
+
+
+  /**
+   * Loads the optimized GREEN CITY GLB asynchronously.
+   * The invisible player capsule remains responsible for movement/collisions;
+   * the original procedural character is kept as a safe fallback until import succeeds.
+   */
+  private async loadPlayerModel(): Promise<void> {
+    let objectUrl: string | undefined;
+    try {
+      await import('@babylonjs/loaders/glTF/2.0');
+      const response = await fetch('/models/green-city-character.glb.gz', { cache: 'force-cache' });
+      if (!response.ok) throw new Error(`HTTP ${response.status} while loading character model`);
+      if (typeof DecompressionStream === 'undefined') {
+        throw new Error('Este navegador não oferece suporte à descompactação do modelo 3D.');
+      }
+
+      const compressed = await response.arrayBuffer();
+      const decompressedStream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+      const glbBytes = await new Response(decompressedStream).arrayBuffer();
+      const fallbackParts = this.player.getChildMeshes();
+      objectUrl = URL.createObjectURL(new Blob([glbBytes], { type: 'model/gltf-binary' }));
+
+      const imported = await ImportMeshAsync(objectUrl, this.scene, { pluginExtension: '.glb' });
+      const modelRoot = imported.meshes.find((mesh) => mesh.name === '__root__') ?? imported.meshes[0];
+      if (!modelRoot) throw new Error('O arquivo GLB não retornou uma malha principal.');
+
+      modelRoot.parent = this.player;
+      modelRoot.position.set(0, -1, 0);
+      modelRoot.scaling.scaleInPlace(0.82);
+      modelRoot.isPickable = false;
+
+      this.playerArms.length = 0;
+      this.playerLegs.length = 0;
+      for (const part of imported.meshes) {
+        if (!(part instanceof Mesh) || part === modelRoot) continue;
+        part.isPickable = false;
+        part.checkCollisions = false;
+        if (part.name === 'UpperArm_L' || part.name === 'UpperArm_R') {
+          const side = part.name.endsWith('_L') ? -1 : 1;
+          part.rotationQuaternion = null;
+          part.setPivotPoint(new Vector3(side * 0.33, 1.40, 0));
+          this.playerArms.push(part);
+        } else if (part.name === 'Trouser_L_Thigh' || part.name === 'Trouser_R_Thigh') {
+          const side = part.name.includes('_L_') ? -1 : 1;
+          part.rotationQuaternion = null;
+          part.setPivotPoint(new Vector3(side * 0.12, 0.94, 0));
+          this.playerLegs.push(part);
+        }
+      }
+
+      // Remove only the temporary procedural visual; keep the collision capsule.
+      fallbackParts.forEach((part) => part.dispose(false, false));
+      this.message = 'Personagem 3D personalizado carregado.';
+      this.emit();
+    } catch (error) {
+      console.warn('[GREEN CITY] Não foi possível carregar o personagem GLB; mantendo o personagem reserva.', error);
+      this.message = 'Personagem reserva ativado; o restante do jogo continua disponível.';
+      this.emit();
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    }
   }
 
   private createPlayer(): Mesh {
