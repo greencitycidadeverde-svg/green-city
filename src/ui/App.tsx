@@ -16,6 +16,8 @@ const initial: GameSnapshot = {
   septicTotal: 2,
   companyWasteCollected: 0,
   companyWasteTotal: 3,
+  cooperativeSorted: 0,
+  cooperativeTotal: 5,
   waterQuality: 24,
   cit: 0,
   collected: 0,
@@ -128,7 +130,13 @@ export default function App() {
           ? 35
           : state.portMissionStage === 'septic'
             ? 40 + Math.round((state.septicInstalled / state.septicTotal) * 25)
-            : 70 + Math.round((state.companyWasteCollected / state.companyWasteTotal) * 30);
+            : state.portMissionStage === 'collect'
+              ? 70 + Math.round((state.companyWasteCollected / state.companyWasteTotal) * 20)
+              : state.portMissionStage === 'deliver'
+                ? 90
+                : state.portMissionStage === 'sorting'
+                  ? Math.min(99, 92 + Math.round((state.cooperativeSorted / state.cooperativeTotal) * 8))
+                  : 100;
 
   const phaseOneMission = {
     collect: { eyebrow: 'FASE 01 · DIAGNÓSTICO E COLETA', title: 'Comece a recuperar o bairro', description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para encaminhamento correto.', progress: `${state.collected}/${state.total} resíduos` },
@@ -142,12 +150,19 @@ export default function App() {
     inspect: { eyebrow: 'FASE 02 · DIAGNÓSTICO DA ÁGUA', title: 'Investigue os despejos no rio', description: 'Encontre os três pontos de descarga próximos ao rio e pressione E para registrar uma amostra de cada um.', progress: `${state.outfallsInspected}/${state.outfallsTotal} pontos inspecionados` },
     treatment: { eyebrow: 'FASE 02 · TRATAMENTO DE EFLUENTES', title: 'Construa a estação de tratamento', description: 'Vá até a área sinalizada entre o pátio e o rio e pressione E para instalar a ETE. A estação tratará os efluentes industriais antes da descarga.', progress: 'Diagnóstico concluído · ETE pendente' },
     septic: { eyebrow: 'FASE 02 · SANEAMENTO LOCAL', title: 'Instale as fossas sépticas', description: `Instale sistemas sépticos nas duas instalações sanitárias isoladas do porto. ${state.septicInstalled}/${state.septicTotal} concluídas.`, progress: `${state.septicInstalled}/${state.septicTotal} fossas instaladas` },
-    collect: { eyebrow: 'FASE 02 · COLETA NAS EMPRESAS', title: 'Use o caminhão de coleta', description: 'Entre no caminhão amarelo com F. Dirija até as áreas de resíduos das três empresas, pare perto de cada carga e pressione E para recolher.', progress: `${state.companyWasteCollected}/${state.companyWasteTotal} empresas atendidas` },
-    complete: { eyebrow: 'FASE 02 · PORTO RECUPERADO', title: 'A água e a logística estão melhores', description: 'A ETE está operando, as duas instalações sanitárias receberam fossas sépticas e os resíduos das três empresas foram coletados. A próxima região foi liberada.', progress: 'Fase concluída' },
+    collect: { eyebrow: 'FASE 02 · COLETA NAS EMPRESAS', title: 'Recolha os materiais nas empresas', description: 'Aproxime-se do caminhão amarelo e toque em ENTRAR. Dirija até as três empresas, pare ao lado de cada carga e toque em COLETAR.', progress: `${state.companyWasteCollected}/${state.companyWasteTotal} empresas atendidas` },
+    deliver: { eyebrow: 'FASE 02 · TRANSPORTE E DESTINAÇÃO', title: 'Leve a carga até a cooperativa', description: 'Com as três cargas no caminhão, siga até a COOPERATIVA. Entre na área de descarga, pare completamente e toque em DESCARREGAR.', progress: '3/3 empresas atendidas · entrega pendente' },
+    sorting: { eyebrow: 'FASE 02 · TRIAGEM E RECICLAGEM', title: 'Separe os cinco grupos de materiais', description: `Desça do caminhão e toque em cada baia da cooperativa para separar papel/papelão, plástico, vidro, metal e orgânico. ${state.cooperativeSorted}/${state.cooperativeTotal} grupos separados.`, progress: `${state.cooperativeSorted}/${state.cooperativeTotal} grupos separados` },
+    complete: { eyebrow: 'FASE 02 · PORTO RECUPERADO', title: 'Materiais recebidos e separados', description: 'A ETE está operando, as instalações sanitárias foram regularizadas e os materiais das três empresas foram entregues e separados na cooperativa. A próxima região foi liberada.', progress: 'Fase concluída' },
   }[state.portMissionStage];
 
   const mission = state.phase === 1 ? phaseOneMission : portMission;
-
+  const interactionLabel = state.nearbyLabel.replace(/^([EF]) · /, 'TOQUE · ');
+  const mobileActionLabel = state.nearbyAction === 'enter-vehicle' ? 'ENTRAR'
+    : state.nearbyAction === 'exit-vehicle' ? 'SAIR'
+      : state.nearbyAction === 'collect-company-waste' ? 'COLETAR'
+        : state.nearbyAction === 'deliver-cooperative' ? 'DESCARREGAR'
+          : state.nearbyAction === 'sort-cooperative-materials' ? 'SEPARAR' : 'AÇÃO';
 
   return <main className="game-shell">
     <canvas ref={canvasRef} className="game-canvas" tabIndex={0} aria-label="Mundo 3D jogável de GREEN CITY" />
@@ -180,7 +195,7 @@ export default function App() {
       className="interaction-prompt"
       onClick={() => gameRef.current?.performNearbyAction()}
       aria-label={state.nearbyLabel}
-    >{state.nearbyLabel}<span>TOCAR / CLICAR</span></button>}
+    >{interactionLabel}<span>TOCAR / CLICAR</span></button>}
     {gameReady && !state.paused && !state.mapOpen && !showHelp && <div className="mobile-controls">
       <div className="mobile-joystick" role="group" aria-label="Direcional: arraste para mover o personagem ou dirigir"
         onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); moveJoystick(event); }}
@@ -191,8 +206,8 @@ export default function App() {
         <small>ARRASTE</small>
       </div>
       <div className="mobile-action-stack">
-        {state.nearbyAction && <button type="button" className="mobile-action-button" onClick={() => gameRef.current?.performNearbyAction()}>AÇÃO</button>}
-        <button type="button" className="mobile-action-button mobile-action-button--jump"
+        {state.nearbyAction && <button type="button" className="mobile-action-button" aria-label={interactionLabel} onClick={() => gameRef.current?.performNearbyAction()}>{mobileActionLabel}</button>}
+        <button type="button" aria-label="Pular" className="mobile-action-button mobile-action-button--jump"
           onPointerDown={() => gameRef.current?.setMobileJump(true)}
           onPointerUp={() => gameRef.current?.setMobileJump(false)}
           onPointerCancel={() => gameRef.current?.setMobileJump(false)}
@@ -201,7 +216,9 @@ export default function App() {
     </div>}
 
     <div className="vehicle-status">{state.phase === 2
-      ? state.inVehicle ? `CAMINHÃO DE COLETA · ${state.vehicleSpeed} KM/H` : 'CAMINHÃO DE COLETA · F PARA ENTRAR'
+      ? state.inVehicle
+        ? state.portMissionStage === 'deliver' ? `CAMINHÃO · DESTINO: COOPERATIVA · ${state.vehicleSpeed} KM/H` : `CAMINHÃO DE COLETA · ${state.vehicleSpeed} KM/H`
+        : state.portMissionStage === 'deliver' ? 'CARGA A BORDO · RETORNE AO CAMINHÃO' : 'CAMINHÃO DE COLETA · APROXIME-SE PARA ENTRAR'
       : state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
 
     <div className="minimap" aria-label="Minimapa do bairro">
