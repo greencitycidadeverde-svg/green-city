@@ -3282,7 +3282,7 @@ export class GreenCityGame {
         entries.push({ id: 'community-rain-garden', label: 'Área para jardim de chuva', x: this.peripheryRainGardenPosition.x, z: this.peripheryRainGardenPosition.z, done: this.peripheryRainGardenBuilt });
       }
     } else {
-      const add = (id: string, label: string, site: PortSite | Vector3, done: boolean): void => entries.push({ id, label, x: site.x, z: site.z, done });
+      const add = (id: string, label: string, site: PortSite | Vector3, done: boolean): void => { entries.push({ id, label, x: site.x, z: site.z, done }); };
       if (this.forestMissionStage === 'survey') {
         this.forestHabitatPositions.forEach((site, i) => add('forest-habitat-' + i, 'Fragmento de habitat ' + (i + 1), site, this.forestHabitatsInspected[i]));
       } else if (this.forestMissionStage === 'harvest') {
