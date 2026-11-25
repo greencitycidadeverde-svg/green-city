@@ -2429,6 +2429,86 @@ export class GreenCityGame {
     }));
   }
 
+
+  /** Restore the authenticated player's saved mission state. */
+  restoreProgress(data: Partial<import('./types').GameProgressData>): void {
+    if (data.phase === 2 && this.activePhase !== 2) this.enterPortPhase(true);
+    this.cit = Math.max(0, Number(data.cit ?? this.cit));
+
+    if (this.activePhase === 1) {
+      const collected = Array.isArray(data.collectedWaste) ? data.collectedWaste : [];
+      this.collected = Math.min(TOTAL_TRASH, collected.filter(Boolean).length);
+      this.trash.forEach((item, index) => item.setEnabled(!collected[index]));
+      this.delivered = data.deliveredWaste === true;
+
+      const solar = Array.isArray(data.solarBuildings) ? data.solarBuildings : [];
+      this.solarBuildingsInstalled = 0;
+      this.buildings.forEach((building, index) => {
+        if (solar[index] && !building.solarInstalled) {
+          building.solarInstalled = true;
+          this.solarBuildingsInstalled += 1;
+          this.createBuildingSolarPanels(building, index);
+        }
+      });
+      this.renewableShare = Math.min(100, 5 + this.solarBuildingsInstalled * 9);
+      this.recyclingRate = this.delivered ? 63 : 18;
+      if (this.solarBuildingsInstalled >= SOLAR_BUILDINGS_REQUIRED_FOR_EV) this.activateVehicleStation();
+      this.electricVehicle = data.electricVehicle === true;
+      if (this.electricVehicle) {
+        this.vehicleMaterial.diffuseColor = new Color3(0.08, 0.52, 0.34);
+        this.vehicleModelPaintMaterials.forEach((paint) => {
+          paint.albedoColor = new Color3(0.17, 0.78, 0.39);
+          paint.emissiveColor = new Color3(0.012, 0.055, 0.025);
+        });
+        this.sustainableMobility = 72;
+      }
+      this.refreshMissionStage();
+      if (data.missionStage) this.missionStage = data.missionStage;
+      this.message = 'Seu progresso do Centro Industrial foi restaurado.';
+    } else {
+      const inspected = Array.isArray(data.outfallsInspected) ? data.outfallsInspected : [];
+      this.portOutfallInspected.clear();
+      inspected.forEach((index) => {
+        if (!Number.isInteger(index) || index < 0 || index >= this.portOutfallMarkers.length) return;
+        this.portOutfallInspected.add(index);
+        const marker = this.portOutfallMarkers[index];
+        if (marker) marker.material = this.material('port-outfall-inspected-' + index, new Color3(0.18, 0.62, 0.52));
+      });
+      this.portOutfallsInspected = this.portOutfallInspected.size;
+
+      if (data.treatmentInstalled && !this.portTreatmentInstalled) this.installPortTreatment();
+
+      const septic = Array.isArray(data.septicInstalled) ? data.septicInstalled : [];
+      this.portSepticInstalled.forEach((installed, index) => {
+        if (!septic[index] || installed) return;
+        const site = this.portSepticPositions[index];
+        this.player.position.set(site.x, 1, site.z);
+        this.installPortSeptic();
+      });
+
+      const collected = Array.isArray(data.companyWasteCollected) ? data.companyWasteCollected : [];
+      this.portWasteCollected = 0;
+      this.portWastePiles.forEach((pile, index) => {
+        const wasCollected = collected[index] === true;
+        pile.setEnabled(!wasCollected);
+        if (wasCollected) this.portWasteCollected += 1;
+      });
+
+      const sorted = Array.isArray(data.cooperativeSorted) ? data.cooperativeSorted : [];
+      this.portCooperativeSorted.forEach((wasSorted, index) => {
+        this.portCooperativeSorted[index] = sorted[index] === true;
+        if (this.portCooperativeSorted[index] && this.portCooperativeBinMaterials[index]) {
+          this.portCooperativeBinMaterials[index].emissiveColor = new Color3(0.10, 0.22, 0.10);
+        }
+      });
+      this.portMissionStage = data.portMissionStage ?? this.portMissionStage;
+      this.portWaterQuality = Math.max(0, Math.min(100, Number(data.portWaterQuality ?? this.portWaterQuality)));
+      this.player.position.set(-25, 1, 30.5);
+      this.message = 'Seu progresso do Porto foi restaurado.';
+    }
+    this.emit();
+  }
+
   getSnapshot(): GameSnapshot {
     const nearby = this.getNearbyInteraction();
     const mapObjectives = this.getMapObjectives();
@@ -2476,6 +2556,22 @@ export class GreenCityGame {
       vehicleX: this.activeVehicle.position.x,
       vehicleZ: this.activeVehicle.position.z,
       message: this.message,
+      progressData: {
+        phase: this.activePhase,
+        cit: this.cit,
+        collectedWaste: this.trash.map((item) => !item.isEnabled()),
+        deliveredWaste: this.delivered,
+        solarBuildings: this.buildings.map((building) => building.solarInstalled),
+        electricVehicle: this.electricVehicle,
+        missionStage: this.missionStage,
+        outfallsInspected: [...this.portOutfallInspected],
+        treatmentInstalled: this.portTreatmentInstalled,
+        septicInstalled: [...this.portSepticInstalled],
+        companyWasteCollected: this.portWastePiles.map((pile) => !pile.isEnabled()),
+        cooperativeSorted: [...this.portCooperativeSorted],
+        portMissionStage: this.portMissionStage,
+        portWaterQuality: this.portWaterQuality,
+      },
     };
   }
 

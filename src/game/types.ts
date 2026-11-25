@@ -22,6 +22,23 @@ export interface MapObjective {
   status: 'done' | 'next' | 'upcoming';
 }
 
+export interface GameProgressData {
+  phase: 1 | 2;
+  cit: number;
+  collectedWaste: boolean[];
+  deliveredWaste: boolean;
+  solarBuildings: boolean[];
+  electricVehicle: boolean;
+  missionStage: MissionStage;
+  outfallsInspected: number[];
+  treatmentInstalled: boolean;
+  septicInstalled: boolean[];
+  companyWasteCollected: boolean[];
+  cooperativeSorted: boolean[];
+  portMissionStage: PortMissionStage;
+  portWaterQuality: number;
+}
+
 export interface GameSnapshot {
   phase: 1 | 2;
   completedNeighborhoods: number;
@@ -63,5 +80,6 @@ export interface GameSnapshot {
   vehicleX: number;
   vehicleZ: number;
   message: string;
+  progressData: GameProgressData;
 }
 export type SnapshotListener = (snapshot: GameSnapshot) => void;
