@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.27 — Fase 04: coleta dedicada de orgânicos sem mistura
+- Reforçada a separação na origem em três fluxos: recicláveis secos, orgânicos compostáveis e rejeitos.
+- Adicionado balde marrom fechado para orgânicos junto à compostagem, visualmente separado da doca e das baias da cooperativa de recicláveis.
+- Missão e caderno explicam que, quando oferecido, o serviço de coleta de orgânicos usa recipiente próprio e retirada independente, com frequência definida pelo prestador conforme volume, logística e acordo local.
+- Esclarecido que a coleta de orgânicos pode ser doméstica, comunitária ou dedicada; a frequência semanal, quinzenal ou mensal é ilustrativa e não padrão nacional.
+- Documento permanente atualizado com a regra de não misturar restos de comida com papelão, plástico, vidro ou metal.
+
 ## 0.4.26 — Fase 04: identificação por cores e cooperativa com nome
 - A coleta pós-consumo passou a exibir seis categorias com as cores de referência da Resolução CONAMA nº 275/2001: papel/papelão (azul), plástico (vermelho), vidro (verde), metal (amarelo), orgânicos (marrom) e rejeito geral (cinza).
 - A missão, as instruções e o mapa indicam categoria, cor e destino; orgânicos seguem à compostagem e rejeitos permanecem fora da carga da cooperativa.

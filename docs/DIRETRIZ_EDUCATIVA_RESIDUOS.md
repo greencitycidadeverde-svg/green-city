@@ -29,6 +29,25 @@ A cor nunca substitui o nome, o pictograma, a identificação de risco nem as in
 
 A resolução define o código para identificação de coletores e transportadores e campanhas educativas; para programas públicos abrangidos, estabelece sua adoção, e recomenda seu uso a iniciativas privadas, cooperativas, escolas e outras entidades. O GREEN CITY adotará esse código como padrão pedagógico visual nacional em todo o jogo.
 
+## Regra operacional para coleta de orgânicos
+
+A separação de resíduos deve ocorrer na origem, no momento em que são gerados. O GREEN CITY deve ensinar três frações distintas:
+1. **Recicláveis secos:** papel/papelão, plástico, vidro e metal. Manter limpos e secos, sem restos de comida.
+2. **Orgânicos compostáveis:** restos de alimentos e resíduos vegetais adequados. Armazenar em recipiente próprio, preferencialmente com tampa, separado dos recicláveis secos.
+3. **Rejeitos:** materiais que não podem ser reaproveitados/reciclados/compostados no sistema disponível; seguem para coleta e destinação próprias.
+
+### Serviço dedicado de orgânicos por cooperativa ou prestador
+
+A compostagem pode ser doméstica, comunitária, institucional ou operada por um serviço especializado. Quando uma cooperativa, associação ou prestador oferece coleta de orgânicos, o jogo pode representar:
+- entrega ou disponibilização de um balde/bombona exclusivo para restos alimentares compostáveis, identificado como **ORGÂNICOS — NÃO MISTURAR COM RECICLÁVEIS SECOS**;
+- recipiente com tampa, volume adequado e condições de higiene/armazenamento definidas pelo operador;
+- retirada em rota própria e frequência combinada conforme volume gerado, número de participantes, capacidade de armazenamento, logística e acordo local;
+- frequência ilustrativa semanal, quinzenal ou mensal apenas como exemplos de contrato/serviço — nunca apresentar nenhuma delas como padrão nacional obrigatório;
+- transporte dos orgânicos em carga segregada para compostagem ou biodigestão, sem passar pela carga de papel, plástico, vidro e metal;
+- comunicação clara ao participante sobre quais restos alimentares são aceitos, preparação, horário/dia da coleta e o que fazer se o recipiente encher antes da próxima retirada.
+
+Se não houver serviço dedicado disponível, a alternativa pode ser composteira doméstica/comunitária ou a destinação indicada pelo serviço municipal. O jogo não deve sugerir que toda cooperativa oferece compostagem. A cooperativa do cenário pode oferecer o serviço como uma atividade adicional opcional, mas precisa manter equipe, recipiente, coleta, transporte e área de compostagem separados da linha de triagem dos recicláveis secos.
+
 ## Rotas e distinções que o jogo deve ensinar
 
 ### Recicláveis secos
@@ -74,3 +93,6 @@ Incineração é uma tecnologia de tratamento aplicável apenas a resíduos e si
 - Resolução CONAMA nº 358, de 29 de abril de 2005 — tratamento e disposição final de resíduos de serviços de saúde.
 - Resolução CONAMA nº 362, de 23 de junho de 2005 — coleta e destinação de óleo lubrificante usado ou contaminado.
 - Orientações da ANP sobre rerrefino de óleo lubrificante usado ou contaminado.
+
+## Princípio reforçado na versão 0.4.27
+Orgânicos permanecem num balde fechado e exclusivo ou numa composteira doméstica/comunitária. Quando uma cooperativa oferece coleta de orgânicos, sua retirada é uma operação independente, com rota e periodicidade definidas pelo prestador de acordo com o volume, capacidade e logística local. A carga seca de papel/papelão, plástico, vidro e metal nunca recebe restos de comida. Rejeitos seguem uma terceira rota. O cenário agora representa fisicamente o balde de orgânicos separado da cooperativa de recicláveis secos.

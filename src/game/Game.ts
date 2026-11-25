@@ -1422,7 +1422,8 @@ export class GreenCityGame {
       lid.position.set(site.x, 1.72, site.z); lid.material = binMaterial;
       postSign('forest-sorting-sign-' + index, item.label, item.examples, site.x, 3.1, site.z + 1.12, 4.7);
     });
-    postSign('forest-consumer-sign', 'PONTO DE SEPARAÇÃO', 'COR + NOME + EXEMPLO · CADA RESÍDUO TEM SUA ROTA', 12.5, 5, 22.5, 12.2);
+    postSign('forest-consumer-sign', 'SEPARAÇÃO NA ORIGEM', 'RECICLÁVEIS SECOS · ORGÂNICOS · REJEITOS — NÃO MISTURE', 12.5, 5, 22.5, 12.2);
+    postSign('forest-dry-recyclables-sign', 'RECICLÁVEIS SECOS', 'PAPEL · PLÁSTICO · VIDRO · METAL', 8, 4.35, 20.6, 9.8);
 
     // Painel didático com o código completo de cores da CONAMA 275/2001.
     // Resíduos especiais aparecem apenas como orientação: não são manipulados na coleta comum.
@@ -1500,6 +1501,24 @@ export class GreenCityGame {
       const compostRow = MeshBuilder.CreateBox('forest-compost-row-' + i, { width: 5.5, height: 0.7, depth: 1.2 }, this.scene);
       compostRow.position.set(34, 0.4, 15.5 + i * 1.6); compostRow.material = this.material('forest-compost-row-material-' + i, new Color3(0.24 + i * 0.04, 0.19, 0.12));
     }
+
+    // Balde fechado para o serviço opcional de coleta de orgânicos.
+    // Fica junto à compostagem e afastado da doca e das baias de recicláveis secos.
+    const organicBucketBrown = this.material('forest-organic-bucket-brown', new Color3(0.38, 0.23, 0.14));
+    const organicBucket = MeshBuilder.CreateCylinder('forest-organic-pickup-bucket', {
+      height: 1.55, diameterTop: 1.18, diameterBottom: 0.94, tessellation: 12,
+    }, this.scene);
+    organicBucket.position.set(40.2, 0.78, 21.4); organicBucket.material = organicBucketBrown;
+    const organicBucketRim = MeshBuilder.CreateTorus('forest-organic-bucket-rim', {
+      diameter: 1.2, thickness: 0.09, tessellation: 12,
+    }, this.scene);
+    organicBucketRim.position.set(40.2, 1.51, 21.4); organicBucketRim.material = organicBucketBrown;
+    const organicBucketLid = MeshBuilder.CreateCylinder('forest-organic-bucket-lid', {
+      height: 0.14, diameter: 1.24, tessellation: 12,
+    }, this.scene);
+    organicBucketLid.position.set(40.2, 1.62, 21.4); organicBucketLid.material = this.material('forest-organic-bucket-lid-material', new Color3(0.27, 0.17, 0.1));
+    postSign('forest-organic-pickup-sign', 'BALDE DE ORGÂNICOS', 'COLETA SEPARADA · RECIPIENTE COM TAMPA', 40.2, 3.25, 24.0, 8.5);
+    postSign('forest-organic-service-sign', 'SERVIÇO OPCIONAL', 'RETIRADA PROGRAMADA CONFORME VOLUME E ROTA', 30.5, 3.2, 25.8, 9.0);
 
     // Personagens low-poly originais: agricultor, motorista, operário, comerciante, cooperado e biólogo.
     const npc = (id: string, x: number, z: number, clothing: Color3, hat: Color3): void => {
@@ -1673,7 +1692,7 @@ export class GreenCityGame {
           'Plásticos identificados seguem à cooperativa para separação por tipo.',
           'Vidros seguem à triagem específica; não misture cerâmica, louça ou espelhos sem orientação local.',
           'Metais seguem à triagem e preparação para encaminhamento.',
-          'Orgânicos seguem à compostagem; não entram na cooperativa de recicláveis secos.',
+          'Orgânicos ficam em recipiente próprio. Pode haver composteira doméstica ou balde exclusivo de um serviço de coleta de orgânicos; a frequência é definida pelo prestador conforme volume e rota. Nunca misture com os recicláveis secos.',
           'Rejeitos não recicláveis ou contaminados inseparáveis seguem à coleta de rejeitos, conforme o serviço local.',
         ][i];
         this.message = routeMessage + ' (' + count + '/' + this.forestPackagingSorted.length + ' categorias separadas).';
