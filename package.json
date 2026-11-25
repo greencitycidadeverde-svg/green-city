@@ -1,7 +1,7 @@
 {
   "name": "green-city-mvp",
   "private": true,
-  "version": "0.4.16",
+  "version": "0.4.17",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -13,7 +13,8 @@
     "@babylonjs/core": "8.28.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "@babylonjs/loaders": "8.28.0"
+    "@babylonjs/loaders": "8.28.0",
+    "@supabase/supabase-js": "2.119.2"
   },
   "devDependencies": {
     "@types/react": "19.1.8",
