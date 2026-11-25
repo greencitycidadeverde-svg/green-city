@@ -136,8 +136,8 @@ export class GreenCityGame {
   private readonly peripheryIssueMarkers: Mesh[] = [];
   private readonly peripheryWastePiles: Mesh[] = [];
   private readonly peripheryIssueInspected = new Set<number>();
-  private peripheryWasteTotal = PERIPHERY_WASTE_CATALOG.length;
-  private peripheryRecyclableTotal = 3;
+  private peripheryWasteTotal: number = PERIPHERY_WASTE_CATALOG.length;
+  private peripheryRecyclableTotal: number = 3;
   private readonly peripheryWasteCollected: boolean[] = [false, false, false, false, false];
   private readonly peripheryOrganicDeposited: boolean[] = [false, false];
   private readonly peripheryRecyclableDeposited: boolean[] = [false, false, false];
