@@ -287,6 +287,7 @@ comment on table public.learning_journal is 'Caderno de Campo and Caderno de Apr
 -- Final hardening migrations, concatenated for a one-file reference snapshot.
 -- Remove the public SECURITY DEFINER role RPC and add audit/index support.
 drop function if exists public.admin_set_user_role(uuid, text);
+grant update (role) on public.profiles to authenticated;
 create policy profiles_update_admin_role on public.profiles for update to authenticated
 using ((select private.is_admin())) with check ((select private.is_admin()));
 
