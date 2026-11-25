@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800;900&display=swap');
 
 :root {
   color-scheme: dark;
@@ -1222,4 +1223,331 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .team-invite-actions { flex-direction:column; }
   .team-invite-actions button,.campaign-share-button,.student-team-share button { width:100%; }
   .student-team-share { align-items:stretch;flex-direction:column; }
+}
+
+
+/* GREEN CITY 0.4.21 — aventura ilustrada e rolagem da campanha */
+.campaign-shell {
+  height:100vh;height:100dvh;min-height:100%;
+  overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;
+  scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#45b978 #d8f1dd;
+  color:#234a3a;font-family:'Nunito', 'Trebuchet MS', sans-serif;
+  background:
+    radial-gradient(ellipse at 8% 12%,rgba(255,211,104,.28),transparent 27%),
+    radial-gradient(ellipse at 94% 24%,rgba(104,206,238,.23),transparent 30%),
+    linear-gradient(180deg,#f3fff1 0%,#e9f8ff 54%,#fff6e6 100%);
+}
+.campaign-shell::-webkit-scrollbar { width:13px; }
+.campaign-shell::-webkit-scrollbar-track { background:#dff2e2;border-left:1px solid rgba(46,137,83,.1); }
+.campaign-shell::-webkit-scrollbar-thumb { min-height:44px;border:3px solid #dff2e2;border-radius:20px;background:linear-gradient(180deg,#78ce85,#32a66f); }
+.campaign-shell::-webkit-scrollbar-thumb:hover { background:linear-gradient(180deg,#58ba70,#218a60); }
+.campaign-header {
+  position:sticky;top:0;z-index:15;min-height:82px;
+  background:rgba(247,255,247,.88);backdrop-filter:blur(16px);
+  border-bottom:2px solid rgba(75,160,106,.16);
+}
+.campaign-brand-mark { filter:drop-shadow(0 5px 7px rgba(48,126,69,.18)); }
+.campaign-brand strong { font-family:'Baloo 2','Nunito',sans-serif;font-size:20px;letter-spacing:.025em; }
+.campaign-brand small { font-family:'Nunito',sans-serif;font-size:9px;font-weight:900;letter-spacing:.07em; }
+.campaign-avatar { background:linear-gradient(145deg,#ffe28e,#ffbb65);color:#7b4b24;border:3px solid #fff;box-shadow:0 4px 12px rgba(170,116,47,.15); }
+.campaign-user-copy strong { font-family:'Nunito',sans-serif;font-size:13px;font-weight:900; }
+.campaign-user-copy small { font-family:'Nunito',sans-serif;font-size:8px;letter-spacing:.07em; }
+.campaign-signout { border:2px solid #d7ebd8;border-radius:999px;background:#fff;color:#477b58;font-family:'Nunito',sans-serif;font-size:10px;font-weight:900; }
+.campaign-intro { position:relative;padding:32px 4px 25px; }
+.campaign-intro::after {
+  content:'🌱';position:absolute;right:255px;top:9px;font-size:38px;opacity:.72;
+  filter:drop-shadow(0 5px 4px rgba(57,125,71,.13));animation:gc-float 3.8s ease-in-out infinite;
+}
+.campaign-intro h1 { color:#205a3b;font-family:'Baloo 2','Nunito',sans-serif;font-size:clamp(31px,4.2vw,47px);font-weight:800;letter-spacing:-.025em; }
+.campaign-intro p { color:#557b68;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700; }
+.campaign-eyebrow,.campaign-progress-title strong,.campaign-region-state,.campaign-footer-actions b {
+  font-family:'Nunito',sans-serif;font-weight:1000;letter-spacing:.075em;
+}
+.campaign-level {
+  position:relative;min-width:240px;padding:16px 18px 15px 54px;
+  border:2px solid #fff;border-radius:22px;
+  background:linear-gradient(135deg,#fff1bd,#ffe0a0);
+  box-shadow:0 9px 0 rgba(221,174,84,.13),0 14px 25px rgba(112,142,82,.09);
+}
+.campaign-level::before { content:'⭐';position:absolute;left:17px;top:20px;font-size:27px; }
+.campaign-level span { color:#9b7331;font-family:'Nunito',sans-serif;font-size:9px;font-weight:1000; }
+.campaign-level strong { color:#78511e;font-family:'Baloo 2','Nunito',sans-serif;font-size:20px; }
+.campaign-level small { color:#8d6b37;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800; }
+.campaign-progress-strip {
+  margin-bottom:23px;padding:17px 20px;border:2px solid #fff;border-radius:22px;
+  background:rgba(255,255,255,.84);box-shadow:0 8px 0 rgba(89,163,111,.08),0 15px 28px rgba(55,124,77,.08);
+}
+.campaign-progress-title { color:#2d6848;font-family:'Nunito',sans-serif;font-size:13px;font-weight:900; }
+.campaign-progress-title strong { font-size:11px; }
+.campaign-progress-title span { color:#658c75;font-size:11px;font-weight:800; }
+.campaign-progress-track { height:14px;margin:11px 0 12px;border:2px solid #fff;border-radius:999px;background:#e5f1df;box-shadow:inset 0 2px 4px rgba(44,103,60,.08); }
+.campaign-progress-track span { background:linear-gradient(90deg,#7bd66f 0%,#38b98b 55%,#55c5df 100%);box-shadow:0 2px 7px rgba(43,158,103,.2); }
+.campaign-progress-legend { color:#658372;font-family:'Nunito',sans-serif;font-size:10px;font-weight:800; }
+.campaign-progress-legend i,.campaign-region-dot { width:10px;height:10px;box-shadow:0 1px 3px rgba(31,77,49,.18); }
+.campaign-section-heading h2 { color:#235d3d;font-family:'Baloo 2','Nunito',sans-serif;font-size:29px;font-weight:800;letter-spacing:-.02em; }
+.campaign-continue {
+  min-height:47px;padding:0 21px;border:0;border-radius:999px;
+  background:linear-gradient(135deg,#ffcf64,#ffad55);color:#69421b;
+  font-family:'Nunito',sans-serif;font-size:11px;font-weight:1000;letter-spacing:.035em;
+  box-shadow:0 5px 0 #e99a4a,0 10px 19px rgba(225,144,61,.18);transition:transform .16s,filter .16s;
+}
+.campaign-continue:not(:disabled):hover { transform:translateY(-2px);filter:brightness(1.04); }
+.campaign-map-layout { gap:19px; }
+.campaign-map-board {
+  min-height:620px;border:5px solid #fff;border-radius:30px;
+  background:
+    radial-gradient(ellipse at 10% 18%,rgba(255,255,255,.42) 0 8%,transparent 8.5%),
+    radial-gradient(ellipse at 86% 78%,rgba(255,255,255,.23) 0 12%,transparent 12.5%),
+    linear-gradient(rgba(255,255,255,.12) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px),
+    linear-gradient(145deg,#c9f0ba 0%,#b8e8bc 49%,#9cdbb7 100%);
+  background-size:auto,auto,42px 42px,42px 42px,auto;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.9),0 10px 0 rgba(62,145,89,.10),0 18px 34px rgba(42,107,70,.12);
+}
+.campaign-map-board::before,.campaign-map-board::after { position:absolute;z-index:1;pointer-events:none;filter:drop-shadow(0 4px 3px rgba(50,122,85,.12)); }
+.campaign-map-board::before { content:'☀️';top:13px;right:13%;font-size:38px;animation:gc-sun-bob 4.5s ease-in-out infinite; }
+.campaign-map-board::after { content:'☁️';top:14px;left:15%;font-size:34px;opacity:.9;animation:gc-cloud-drift 8s ease-in-out infinite; }
+.map-water { background:linear-gradient(145deg,#65c9eb,#9ce7ef 58%,#c2f3ea);border:3px solid rgba(255,255,255,.48);box-shadow:inset 0 0 18px rgba(255,255,255,.28); }
+.map-park { background:radial-gradient(ellipse at 35% 28%,#b7ee88,#69c879 72%);border:3px solid rgba(255,255,255,.55);box-shadow:0 5px 0 rgba(57,145,83,.12); }
+.map-park::before { content:'🌳　🌲　🌳';position:absolute;inset:0;display:grid;place-items:center;font-size:22px;white-space:nowrap;filter:drop-shadow(0 2px 2px rgba(30,95,50,.12)); }
+.map-road-h,.map-road-v { background:#fff1cc;border:2px solid rgba(213,178,117,.4);box-shadow:0 3px 0 rgba(190,151,94,.12); }
+.map-road-h::after,.map-road-v::after { content:'';position:absolute;inset:45% 0 auto;height:3px;border-top:2px dashed rgba(223,180,95,.75); }
+.map-road-v::after { inset:0 45% 0 auto;width:3px;height:auto;border-top:0;border-left:2px dashed rgba(223,180,95,.75); }
+.map-district-block { border:2px solid #fff;border-radius:11px;background:linear-gradient(145deg,#ffe6aa,#ffc98c);box-shadow:0 5px 0 rgba(193,130,70,.16); }
+.campaign-route-lines path { stroke:rgba(255,255,255,.86);stroke-width:10;stroke-dasharray:3 19;filter:drop-shadow(0 2px 1px rgba(54,128,84,.25)); }
+.campaign-route-lines .route-branch { stroke:#ffb74d;stroke-width:6; }
+.map-compass { z-index:2;right:18px;top:15px;padding:7px 10px;border:2px solid #fff;border-radius:999px;background:rgba(255,255,255,.85);color:#4a8a62;font-family:'Nunito',sans-serif;font-size:11px;font-weight:1000; }
+.map-board-label { z-index:2;left:16px;bottom:13px;padding:10px 13px;border:2px solid #fff;border-radius:15px;background:rgba(255,255,255,.82);box-shadow:0 4px 12px rgba(52,108,66,.1); }
+.map-board-label span { color:#5c916c;font-family:'Nunito',sans-serif;font-size:8px;font-weight:1000; }
+.map-board-label strong { color:#286341;font-family:'Baloo 2','Nunito',sans-serif;font-size:17px; }
+.map-board-label small { color:#71927b;font-family:'Nunito',sans-serif;font-size:8px;font-weight:900; }
+.map-region-node { width:138px;gap:3px;cursor:default; }
+.map-region-node::before {
+  display:block;min-height:35px;font-size:31px;line-height:1.12;
+  filter:drop-shadow(0 4px 2px rgba(46,111,70,.19));
+  animation:gc-float 3.6s ease-in-out infinite;
+}
+.map-region-node:nth-of-type(1)::before { content:'🏭'; }
+.map-region-node:nth-of-type(2)::before { content:'⚓';animation-delay:-.4s; }
+.map-region-node:nth-of-type(3)::before { content:'🏘️';animation-delay:-.8s; }
+.map-region-node:nth-of-type(4)::before { content:'🌳';animation-delay:-1.2s; }
+.map-region-node:nth-of-type(5)::before { content:'🌊';animation-delay:-1.6s; }
+.map-region-node:nth-of-type(6)::before { content:'🌾';animation-delay:-2s; }
+.map-region-node:nth-of-type(7)::before { content:'🏛️';animation-delay:-2.4s; }
+.map-region-node:nth-of-type(8)::before { content:'🔬';animation-delay:-2.8s; }
+.map-region-node:nth-of-type(9)::before { content:'💧';animation-delay:-3.2s; }
+.map-region-node:nth-of-type(10)::before { content:'🦜';animation-delay:-3.6s; }
+.map-region-number {
+  width:33px;height:33px;border:3px solid #fff;border-radius:50%;
+  font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000;
+  box-shadow:0 4px 0 rgba(40,91,57,.15),0 7px 12px rgba(40,91,57,.13);
+}
+.map-region-node strong {
+  max-width:132px;padding:5px 9px;border:2px solid #fff;border-radius:999px;
+  background:rgba(255,255,255,.96);color:#285c3c;font-family:'Nunito',sans-serif;
+  font-size:10px;font-weight:1000;line-height:1.15;box-shadow:0 3px 0 rgba(66,129,83,.12);
+}
+.map-region-node small {
+  padding:3px 7px;border:1px solid rgba(255,255,255,.8);border-radius:999px;
+  background:rgba(255,255,255,.78);color:#527b60;font-family:'Nunito',sans-serif;
+  font-size:7px;font-weight:1000;letter-spacing:.025em;
+}
+.map-region-clickable:hover::before { animation:gc-bounce .45s ease; }
+.map-region-clickable:hover .map-region-number { transform:scale(1.12);box-shadow:0 0 0 5px rgba(255,199,91,.28),0 5px 14px rgba(32,67,42,.2); }
+.map-region-restored .map-region-number { background:#43b96c; }
+.map-region-restoring .map-region-number { background:#f5b640; }
+.map-region-degraded .map-region-number { background:#f07863; }
+.map-region-locked .map-region-number,.map-region-planned .map-region-number { background:#91a69b; }
+.campaign-map-aside { gap:14px; }
+.campaign-aside-card { padding:18px;border:2px solid #fff;border-radius:22px;background:rgba(255,255,255,.9);box-shadow:0 7px 0 rgba(75,155,105,.09),0 13px 22px rgba(45,107,70,.07); }
+.campaign-aside-current { border-color:#d6f4cf;background:linear-gradient(145deg,#38a96c,#23875c);box-shadow:0 7px 0 rgba(30,120,76,.2),0 13px 22px rgba(45,107,70,.12); }
+.campaign-aside-current .campaign-eyebrow { color:#e6ffd5; }
+.campaign-aside-number { color:#ffe18a;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000; }
+.campaign-aside-card h3 { font-family:'Baloo 2','Nunito',sans-serif;font-size:24px; }
+.campaign-aside-card p { color:#e0f7e6;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700; }
+.campaign-aside-current button { min-height:43px;border:2px solid #fff;border-radius:999px;background:#ffda75;color:#71481d;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000;box-shadow:0 4px 0 rgba(119,80,34,.13); }
+.campaign-stat-row strong { color:#34a66d;font-family:'Baloo 2','Nunito',sans-serif;font-size:25px; }
+.campaign-stat-row span { color:#668575;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800; }
+.campaign-map-note { border:2px solid #fff;border-left:7px solid #ffbd54;border-radius:17px;background:#fff2c9;box-shadow:0 6px 0 rgba(199,150,69,.1); }
+.campaign-map-note b { color:#8c6827;font-family:'Nunito',sans-serif;font-size:9px;font-weight:1000; }
+.campaign-map-note span { color:#80683b;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700; }
+.campaign-region-list { gap:9px;margin-top:18px; }
+.campaign-region-row {
+  min-height:60px;padding:11px 13px;border:2px solid #fff;border-radius:17px;
+  background:rgba(255,255,255,.78);box-shadow:0 4px 0 rgba(72,145,95,.07);
+  transition:transform .16s,border-color .16s,background .16s,box-shadow .16s;
+}
+.campaign-region-row:not(:disabled):hover { transform:translateY(-2px);border-color:#a8e5b3;background:#fff;box-shadow:0 7px 0 rgba(72,145,95,.1); }
+.campaign-region-number { color:#5a8b6b;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000; }
+.campaign-region-copy strong { color:#2c6745;font-family:'Nunito',sans-serif;font-size:11px;font-weight:1000; }
+.campaign-region-copy small { color:#739382;font-family:'Nunito',sans-serif;font-size:9px;font-weight:700; }
+.campaign-region-state { color:#638a70;font-family:'Nunito',sans-serif;font-size:7px; }
+.campaign-region-arrow { color:#35a86d;font-weight:1000; }
+.campaign-footer-actions {
+  margin-top:25px;padding:17px 19px;border:2px solid #fff;border-radius:22px;
+  background:rgba(255,255,255,.82);box-shadow:0 7px 0 rgba(77,148,100,.08);
+}
+.campaign-footer-actions b { color:#2e6a48;font-family:'Nunito',sans-serif;font-size:10px; }
+.campaign-footer-actions span { color:#6e907c;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700; }
+.campaign-journal-button,.campaign-admin-button,.admin-panel-heading button {
+  min-height:40px;padding:0 15px;border:2px solid #d5edd8;border-radius:999px;
+  background:#effaf0;color:#34734d;font-family:'Nunito',sans-serif;font-size:9px;font-weight:1000;
+}
+.campaign-admin-button { border-color:#278b5b;background:linear-gradient(135deg,#32ad70,#25885c);color:#fff; }
+.campaign-site-footer { padding:8px 0 4px;color:#739681;font-family:'Nunito',sans-serif;font-size:8px;letter-spacing:.07em; }
+.admin-panel { border:2px solid #fff;border-radius:22px;box-shadow:0 8px 0 rgba(77,148,100,.08); }
+@keyframes gc-float { 0%,100% { transform:translateY(0) rotate(-2deg); } 50% { transform:translateY(-6px) rotate(2deg); } }
+@keyframes gc-bounce { 0%,100% { transform:translateY(0) scale(1); } 45% { transform:translateY(-8px) scale(1.12); } }
+@keyframes gc-sun-bob { 0%,100% { transform:rotate(-7deg) translateY(0); } 50% { transform:rotate(8deg) translateY(-5px); } }
+@keyframes gc-cloud-drift { 0%,100% { transform:translateX(0); } 50% { transform:translateX(12px); } }
+
+/* Menus e mapas dentro do cenário 3D: leitura clara com aparência de aventura. */
+.topbar {
+  border-bottom:2px solid rgba(255,255,255,.8);
+  background:linear-gradient(100deg,rgba(28,125,79,.97),rgba(35,157,113,.94) 56%,rgba(50,165,155,.92));
+  box-shadow:0 5px 18px rgba(12,58,39,.16);
+}
+.brand strong { color:#fff;font-family:'Baloo 2','Nunito',sans-serif;font-size:18px;letter-spacing:.04em; }
+.brand small { color:#d8ffe1;font-family:'Nunito',sans-serif;font-size:9px;font-weight:900; }
+.wallet { border:2px solid rgba(255,255,255,.9);border-radius:16px;background:#ffdf80;box-shadow:0 4px 0 rgba(121,85,35,.14); }
+.wallet span { color:#86602b;font-family:'Nunito',sans-serif;font-weight:1000; }
+.wallet strong { color:#704c1c;font-family:'Nunito',sans-serif;font-weight:1000; }
+.mission-card {
+  border:3px solid rgba(255,255,255,.96);border-radius:23px;
+  background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(237,255,226,.96));
+  box-shadow:0 8px 0 rgba(27,104,63,.12),0 18px 38px rgba(12,45,27,.18);
+}
+.mission-card .eyebrow { color:#2f9b64;font-family:'Nunito',sans-serif;font-weight:1000; }
+.mission-card h1 { color:#245e3f;font-family:'Baloo 2','Nunito',sans-serif;font-size:clamp(23px,2.2vw,29px);letter-spacing:-.02em; }
+.mission-card p { color:#537866;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700; }
+.progress-track { height:10px;border:2px solid white;background:#e2f1df; }
+.progress-track span { background:linear-gradient(90deg,#7ed66c,#36b98a,#59c5df); }
+.progress-row b { color:#36794e;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000; }
+.success-line { color:#278f60;font-family:'Nunito',sans-serif;font-size:10px; }
+.status-message {
+  border:2px solid #fff;border-radius:18px;background:rgba(255,255,255,.94);
+  color:#35684d;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;
+  box-shadow:0 7px 0 rgba(34,115,69,.13),0 12px 24px rgba(0,0,0,.12);
+}
+.vehicle-status { border:2px solid #fff;border-radius:999px;background:rgba(255,255,255,.94);color:#36704d;font-family:'Nunito',sans-serif;font-size:9px;font-weight:1000; }
+.minimap { border:4px solid #fff;border-radius:20px;background:linear-gradient(30deg,transparent 47%,rgba(255,255,255,.22) 48%,rgba(255,255,255,.22) 52%,transparent 53%),linear-gradient(145deg,#7bcf7b,#45aa85 62%,#32a4be);box-shadow:0 8px 0 rgba(16,86,54,.14),0 14px 28px rgba(0,0,0,.2); }
+.minimap::before,.minimap::after { background:rgba(255,244,199,.65); }
+.map-road { background:rgba(255,244,207,.95); }
+.map-road-v { width:19px; }
+.map-road-h { height:13px; }
+.map-river { width:23px;background:linear-gradient(90deg,#54c2e8,#b1f1f0);border:2px solid rgba(255,255,255,.7); }
+.map-player { width:15px;height:15px;background:#ffdc65;border:3px solid white;box-shadow:0 0 0 6px rgba(255,220,101,.28),0 0 18px rgba(255,220,101,.8); }
+.plan-button,.map-button,.help-button {
+  border:2px solid #fff;border-radius:999px;background:linear-gradient(135deg,#ffcf68,#ffad61);
+  color:#70451d;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000;
+  box-shadow:0 5px 0 rgba(122,79,34,.16),0 9px 17px rgba(0,0,0,.16);
+}
+.map-button { background:linear-gradient(135deg,#fff,#dff6e8);color:#34704c;border-color:#fff; }
+.plan-button:hover,.map-button:hover { transform:translateY(-2px);background:#fff0ba;border-color:#fff; }
+.controls {
+  border:2px solid rgba(255,255,255,.92);border-radius:17px;
+  background:rgba(255,255,255,.94);color:#537761;
+  font-family:'Nunito',sans-serif;font-size:10px;font-weight:800;
+  box-shadow:0 6px 0 rgba(24,95,60,.12),0 10px 22px rgba(0,0,0,.1);
+}
+.controls b { color:#2f7049;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000; }
+.bottom-left { color:#fff;font-family:'Nunito',sans-serif;font-size:9px;font-weight:1000;text-shadow:0 2px 5px rgba(0,0,0,.45); }
+.welcome-overlay,.pause-overlay { background:rgba(30,104,82,.38);backdrop-filter:blur(5px); }
+.welcome-panel {
+  border:4px solid #fff;border-radius:28px;
+  background:radial-gradient(circle at 100% 0%,rgba(255,219,113,.35),transparent 42%),linear-gradient(145deg,#fffef5,#eaffed);
+  box-shadow:0 10px 0 rgba(31,111,70,.15),0 28px 65px rgba(0,0,0,.25);
+  color:#28583e;
+}
+.welcome-panel h2 { color:#245e3f;font-family:'Baloo 2','Nunito',sans-serif;font-size:clamp(29px,4vw,39px);letter-spacing:-.02em; }
+.welcome-panel p { color:#547965;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700; }
+.welcome-panel button {
+  min-height:51px;border:2px solid #fff;border-radius:999px;
+  background:linear-gradient(135deg,#ffda73,#ffb15d);color:#70451d;
+  font-family:'Nunito',sans-serif;font-size:11px;font-weight:1000;
+  box-shadow:0 5px 0 rgba(173,119,45,.18),0 10px 20px rgba(173,119,45,.16);
+}
+.welcome-panel small { color:#779581;font-family:'Nunito',sans-serif;font-weight:700; }
+.loading-box { border:3px solid #fff;border-radius:18px;background:#f5fff2;color:#36714e;font-family:'Nunito',sans-serif;font-weight:900; }
+.world-map-overlay { background:rgba(29,103,91,.42);backdrop-filter:blur(7px); }
+.world-map-panel {
+  border:4px solid #fff;border-radius:28px;
+  background:radial-gradient(circle at 100% 0%,rgba(255,220,122,.38),transparent 36%),linear-gradient(145deg,#fffef6,#e9fff0);
+  box-shadow:0 10px 0 rgba(31,111,70,.14),0 28px 75px rgba(0,0,0,.25);
+  color:#28583e;
+}
+.world-map-panel h2 { color:#245e3f;font-family:'Baloo 2','Nunito',sans-serif;font-size:clamp(27px,3vw,35px);letter-spacing:-.02em; }
+.world-map-panel > p { color:#577b66;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700; }
+.world-map-close {
+  border:2px solid white;border-radius:999px;padding:9px 15px;
+  background:#ffda73;color:#70451d;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000;
+}
+.city-map-board { border:3px solid white;border-radius:22px;background:linear-gradient(145deg,#c5f1c0,#9de2cf); }
+.city-map-river { background:linear-gradient(90deg,#6dcaf0,#b4f0ee); }
+.city-map-road { background:#fff0c9;border:2px solid rgba(217,177,112,.38); }
+.district-card {
+  min-height:195px;padding:18px;border:3px solid white;border-radius:22px;
+  background:linear-gradient(145deg,#fff7d9,#ffe7bb);color:#5e4a2c;
+  box-shadow:0 6px 0 rgba(173,129,60,.13),0 12px 20px rgba(30,83,48,.08);
+  transition:transform .16s,box-shadow .16s;
+}
+.district-card:nth-child(3n+2) { background:linear-gradient(145deg,#e7f7ff,#caefff); }
+.district-card:nth-child(3n) { background:linear-gradient(145deg,#efffe8,#d9f6c9); }
+.district-card:hover { transform:translateY(-3px);box-shadow:0 9px 0 rgba(82,145,98,.12),0 16px 24px rgba(30,83,48,.1); }
+.district-current { border-color:#7bd78e;box-shadow:0 0 0 4px rgba(123,215,142,.18),0 6px 0 rgba(65,153,88,.16); }
+.district-available { border-color:#7acde9; }
+.district-locked { opacity:.72;filter:saturate(.75); }
+.district-card-top span { color:#668879;font-family:'Nunito',sans-serif;font-size:9px;font-weight:1000; }
+.district-card-top b { color:#248b5c;font-family:'Nunito',sans-serif;font-size:9px;font-weight:1000; }
+.district-available .district-card-top b { color:#298db9; }
+.district-locked .district-card-top b { color:#7c8f85; }
+.district-card h3 { margin:8px 0 4px;color:#285d3e;font-family:'Baloo 2','Nunito',sans-serif;font-size:22px; }
+.district-theme { color:#39845b;font-family:'Nunito',sans-serif;font-size:11px;font-weight:1000; }
+.district-card p { color:#5d7b69;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700; }
+.district-card small { color:#708a79;font-family:'Nunito',sans-serif;font-size:10px;font-weight:700; }
+.city-map-footer { color:#587d66;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800; }
+.map-disclaimer { color:#708b79!important;font-family:'Nunito',sans-serif;font-weight:700; }
+.metrics-grid { border:2px solid white;border-radius:20px;background:#f2fff0; }
+.metric-copy { color:#527963;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800; }
+.metric-copy strong { color:#268c5c;font-family:'Nunito',sans-serif;font-size:12px;font-weight:1000; }
+.metric-track { height:10px;border:2px solid white;background:#e1f1dd; }
+.metric-track span { background:linear-gradient(90deg,#7bd66f,#38b98b,#55c5df); }
+.upgrade-card { border:2px solid white;border-radius:20px;background:linear-gradient(145deg,#f4fff0,#e3f7e9);box-shadow:0 5px 0 rgba(73,146,94,.08); }
+.upgrade-card h3 { color:#285d3e;font-family:'Baloo 2','Nunito',sans-serif;font-size:20px; }
+.upgrade-card p { color:#5c7c68;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700; }
+.upgrade-card button { border:2px solid white;border-radius:999px;background:linear-gradient(135deg,#ffda73,#ffb15d);color:#70451d;font-family:'Nunito',sans-serif;font-size:10px;font-weight:1000; }
+.plan-hint { border:2px solid white;border-left:7px solid #ffbf57;border-radius:16px;background:#fff3cd;color:#7b632e;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800; }
+.economy-note { color:#728d7b;font-family:'Nunito',sans-serif;font-size:10px;font-weight:700; }
+.pause-overlay .welcome-panel { width:min(460px,100%); }
+@media(max-width:1000px) {
+  .campaign-map-board { min-height:580px; }
+  .map-region-node { width:119px; }
+  .map-region-node strong { max-width:116px;font-size:9px; }
+}
+@media(max-width:760px) {
+  .campaign-shell { height:100vh;height:100dvh;padding:0 14px 25px; }
+  .campaign-header { min-height:68px; }
+  .campaign-intro::after { display:none; }
+  .campaign-intro h1 { font-size:31px; }
+  .campaign-intro p { font-size:13px; }
+  .campaign-map-board { min-height:540px; }
+  .map-region-node { width:105px; }
+  .map-region-node::before { min-height:29px;font-size:25px; }
+  .map-region-node strong { max-width:102px;font-size:8px; }
+  .map-region-node small { font-size:6px; }
+}
+@media(max-width:520px) {
+  .campaign-map-board { min-height:475px; }
+  .map-region-node { width:84px;gap:2px; }
+  .map-region-node::before { min-height:24px;font-size:21px; }
+  .map-region-number { width:28px;height:28px;font-size:8px; }
+  .map-region-node strong { max-width:82px;padding:4px 5px;font-size:7px; }
+  .map-region-node small { padding:2px 5px;font-size:5px; }
+  .campaign-level { padding-left:50px; }
+  .campaign-region-state { font-size:5px; }
+  .campaign-progress-legend { gap:9px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .campaign-map-board::before,.campaign-map-board::after,.map-region-node::before { animation:none!important; }
+  .campaign-region-row,.campaign-continue,.district-card { transition:none!important; }
 }
