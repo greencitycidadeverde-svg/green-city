@@ -1,3 +1,8 @@
+## [0.4.21] - 2026-11-24
+- Redesenhada a campanha com linguagem visual de aventura infantil: paleta mais viva, tipografia arredondada, cartões acolhedores, ícones ilustrados das dez regiões e microanimações.
+- Reestilizados os mapas, menus, indicadores e painéis pedagógicos do cenário 3D para melhorar legibilidade e afinidade com o público infantil, preservando os conteúdos técnicos.
+- Adicionada rolagem vertical independente na página de campanha, com barra lateral estilizada; o controle do cenário 3D permanece sem rolagem da página.
+
 ## [0.3.6] - 2026-11-24
 - Adicionada vaga de estacionamento inicial para localizar o veículo municipal após a missão do EcoCentro.
 - O minimapa agora acompanha a posição atual do carro e exibe separadamente a base de eletrificação como destino.
