@@ -43,6 +43,10 @@ type AccountData = {
 
 type AdminUser = ProfileRow;
 
+const getAuthRedirectOrigin = (): string => import.meta.env.PROD
+  ? 'https://green-city-beta.vercel.app'
+  : window.location.origin;
+
 const REGIONS = [
   { phase: 1, slug: 'centro-industrial', name: 'Centro Industrial', x: 13, y: 26, focus: 'Resíduos, energia e mobilidade' },
   { phase: 2, slug: 'porto', name: 'Porto', x: 34, y: 15, focus: 'Efluentes, saneamento e cooperativa' },
@@ -171,12 +175,12 @@ function AuthenticatedApp() {
           password,
           options: {
             data: { display_name: displayName.trim() },
-            emailRedirectTo: window.location.origin + '/',
+            emailRedirectTo: getAuthRedirectOrigin() + '/',
           },
         });
         if (error) throw error;
         if (!data.session) {
-          setMessage('Cadastro iniciado! Enviamos um link de confirmação para seu e-mail. Abra a mensagem e confirme o endereço para ativar a conta.');
+          setMessage('Se este for um novo cadastro, enviamos um link de confirmação para seu e-mail. Abra a mensagem para confirmar. Se você já confirmou o endereço ou já possui uma conta, use “Já tenho uma conta” para entrar ou “Esqueci minha senha” para recuperar o acesso.');
         } else {
           setMessage('Conta criada. Preparando sua cidade...');
         }
@@ -185,10 +189,16 @@ function AuthenticatedApp() {
           email: email.trim().toLowerCase(),
           password,
         });
+        if (error?.code === 'invalid_credentials') {
+          throw new Error('E-mail ou senha não conferem. Se você acabou de se cadastrar, confirme o e-mail primeiro. Se já confirmou e não lembra a senha, use “Esqueci minha senha”.');
+        }
+        if (error?.code === 'email_not_confirmed') {
+          throw new Error('Seu e-mail ainda não foi confirmado. Abra a mensagem de confirmação enviada pelo GREEN CITY.');
+        }
         if (error) throw error;
       } else if (authMode === 'forgot') {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-          redirectTo: window.location.origin + '/?auth=recovery',
+          redirectTo: getAuthRedirectOrigin() + '/?auth=recovery',
         });
         if (error) throw error;
         setMessage('Enviamos um link para redefinir sua senha. Confira sua caixa de entrada e a pasta de spam.');
