@@ -24,7 +24,7 @@ export type NearbyAction =
   | 'build-rain-garden'
   | 'inspect-forest-habitat' | 'harvest-farm-produce' | 'load-farm-truck' | 'process-food-products'
   | 'stock-local-market' | 'sort-consumer-packaging' | 'deliver-forest-cooperative'
-  | 'plant-native-seedling' | 'protect-forest-spring' | 'record-forest-wildlife';
+  | 'plant-native-seedling' | 'protect-forest-spring' | 'record-forest-wildlife' | 'inspect-forest-fire-prevention';
 
 export interface MapObjective {
   id: string;
@@ -68,6 +68,7 @@ export interface GameProgressData {
   forestSeedlingsPlanted?: boolean[];
   forestSpringProtected?: boolean;
   forestWildlifeRecorded?: boolean;
+  forestFirePreventionInspected?: boolean;
 }
 
 export interface GameSnapshot {
@@ -112,6 +113,7 @@ export interface GameSnapshot {
   forestSeedlingsTotal: number;
   forestSpringProtected: boolean;
   forestWildlifeRecorded: boolean;
+  forestFirePreventionInspected: boolean;
   cit: number;
   collected: number;
   total: number;

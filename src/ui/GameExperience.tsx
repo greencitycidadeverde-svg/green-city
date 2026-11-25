@@ -39,6 +39,7 @@ const initial: GameSnapshot = {
   forestProcessed: false, forestMarketStocked: false,
   forestPackagingSorted: 0, forestPackagingTotal: 3, forestCooperativeDelivered: false,
   forestSeedlingsPlanted: 0, forestSeedlingsTotal: 3, forestSpringProtected: false, forestWildlifeRecorded: false,
+  forestFirePreventionInspected: false,
   cit: 0,
   collected: 0,
   total: 5,
@@ -208,7 +209,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                     : snapshot.forestMissionStage === 'sorting'
                       ? 60 + Math.round(snapshot.forestPackagingSorted / snapshot.forestPackagingTotal * 15)
                       : snapshot.forestMissionStage === 'cooperative' ? 78
-                        : Math.min(99, 80 + snapshot.forestSeedlingsPlanted * 4 + (snapshot.forestSpringProtected ? 7 : 0) + (snapshot.forestWildlifeRecorded ? 5 : 0));
+                        : Math.min(99, 80 + snapshot.forestSeedlingsPlanted * 4 + (snapshot.forestSpringProtected ? 7 : 0) + (snapshot.forestWildlifeRecorded ? 5 : 0) + (snapshot.forestFirePreventionInspected ? 3 : 0));
     const signature = JSON.stringify([snapshot.phase, snapshot.progressData, percent]);
     if (lastPersistedSnapshotRef.current === signature) return;
     lastPersistedSnapshotRef.current = signature;
@@ -435,7 +436,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                   : state.forestMissionStage === 'market' ? 56
                     : state.forestMissionStage === 'sorting' ? 60 + Math.round(state.forestPackagingSorted / state.forestPackagingTotal * 15)
                       : state.forestMissionStage === 'cooperative' ? 78
-                        : Math.min(99, 80 + state.forestSeedlingsPlanted * 4 + (state.forestSpringProtected ? 7 : 0) + (state.forestWildlifeRecorded ? 5 : 0));
+                        : Math.min(99, 77 + state.forestSeedlingsPlanted * 4 + (state.forestSpringProtected ? 7 : 0) + (state.forestWildlifeRecorded ? 5 : 0) + (state.forestFirePreventionInspected ? 3 : 0));
 
   const phaseOneMission = {
     collect: { eyebrow: 'FASE 01 · DIAGNÓSTICO E COLETA', title: 'Comece a recuperar o bairro', description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para encaminhamento correto.', progress: `${state.collected}/${state.total} resíduos` },
@@ -474,7 +475,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     market: { eyebrow: 'FASE 04 · COMÉRCIO LOCAL', title: 'Leve os produtos até o mercado', description: 'O caminhão transporta os alimentos embalados até o mercado. Receba a carga e organize os produtos para venda ao consumidor.', progress: 'Produtos processados · recebimento no mercado pendente' },
     sorting: { eyebrow: 'FASE 04 · CONSUMO RESPONSÁVEL', title: 'Separe os resíduos depois do consumo', description: 'Separe papel/papelão e plástico limpos para a coleta seletiva. Restos de alimentos e resíduos vegetais seguem para compostagem, não para a cooperativa de recicláveis.', progress: state.forestPackagingSorted + '/' + state.forestPackagingTotal + ' fluxos separados' },
     cooperative: { eyebrow: 'FASE 04 · COOPERATIVA', title: 'Encaminhe os recicláveis à cooperativa', description: 'A cooperativa recebe, separa e prepara os materiais recicláveis para encaminhar às indústrias. A transformação de papel, plástico, vidro e metal será aprofundada na Fase 08.', progress: state.forestCooperativeDelivered ? 'Materiais recebidos' : 'Separação concluída · entrega pendente' },
-    restore: { eyebrow: 'FASE 04 · RESTAURAÇÃO ECOLÓGICA', title: 'Proteja a floresta e acompanhe a vida', description: 'Plante três mudas nativas, proteja a nascente e registre a fauna. Restauração exige espécies adequadas, continuidade e monitoramento — não acontece apenas no dia do plantio.', progress: state.forestSeedlingsPlanted + '/' + state.forestSeedlingsTotal + ' mudas · ' + (state.forestSpringProtected ? 'nascente protegida' : 'nascente pendente') + ' · ' + (state.forestWildlifeRecorded ? 'fauna registrada' : 'monitoramento pendente') },
+    restore: { eyebrow: 'FASE 04 · RESTAURAÇÃO ECOLÓGICA', title: 'Proteja a floresta e acompanhe a vida', description: 'Plante três mudas nativas, proteja a nascente e registre a fauna. Restauração exige espécies adequadas, continuidade e monitoramento — não acontece apenas no dia do plantio.', progress: state.forestSeedlingsPlanted + '/' + state.forestSeedlingsTotal + ' mudas · ' + (state.forestSpringProtected ? 'nascente protegida' : 'nascente pendente') + ' · ' + (state.forestWildlifeRecorded ? 'fauna registrada' : 'monitoramento pendente') + ' · ' + (state.forestFirePreventionInspected ? 'prevenção verificada' : 'prevenção pendente') },
     complete: { eyebrow: 'FASE 04 · RESERVA FLORESTAL', title: 'A floresta e a comunidade estão conectadas', description: 'Você investigou habitats, acompanhou a agricultura familiar, transporte, indústria, mercado, destinação de resíduos e ações de restauração da reserva.', progress: 'Fase concluída' },
   }[state.forestMissionStage];
 
@@ -500,7 +501,8 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                                 : state.nearbyAction === 'deliver-forest-cooperative' ? 'ENTREGAR'
                                   : state.nearbyAction === 'plant-native-seedling' ? 'PLANTAR'
                                     : state.nearbyAction === 'protect-forest-spring' ? 'PROTEGER'
-                                      : state.nearbyAction === 'record-forest-wildlife' ? 'REGISTRAR' : 'AÇÃO';
+                                      : state.nearbyAction === 'record-forest-wildlife' ? 'REGISTRAR'
+                                        : state.nearbyAction === 'inspect-forest-fire-prevention' ? 'CONFERIR' : 'AÇÃO';
 
   return <main className="game-shell">
     <canvas ref={canvasRef} className="game-canvas" tabIndex={0} aria-label="Mundo 3D jogável de GREEN CITY" />
@@ -880,13 +882,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="completion-medal">✓</div>
         <div className="eyebrow">CADERNO DE APRENDIZADO · FASE 04 DE 10</div>
         <h2>A Reserva Florestal está mais protegida!</h2>
-        <p>Você investigou habitats, acompanhou a cadeia da agricultura familiar e participou da recuperação ecológica da reserva.</p>
+        <p>Você investigou habitats, acompanhou a cadeia da agricultura familiar, verificou a prevenção de incêndios e participou da recuperação ecológica da reserva.</p>
         <div className="completion-stats"><span>3 habitats investigados</span><span>3 caixas colhidas</span><span>1 transporte até a indústria</span><span>1 entrega à cooperativa</span><span>3 mudas plantadas</span></div>
         <div className="learning-report-grid">
           <article className="learning-report-card"><small>BIODIVERSIDADE</small><h3>Habitat é mais que árvores</h3><p>Animais, plantas, água, solo e relações entre espécies formam o ecossistema. Fragmentos conectados podem facilitar o deslocamento e a troca entre populações.</p></article>
           <article className="learning-report-card"><small>AGRICULTURA FAMILIAR</small><h3>Produção local e responsabilidade</h3><p>Famílias produtoras cultivam e colhem alimentos. O cuidado com o solo, a água, a diversidade e a redução de perdas ajuda a tornar a produção mais sustentável.</p></article>
           <article className="learning-report-card"><small>CADEIA PRODUTIVA</small><h3>Do campo ao mercado</h3><p>O caminhoneiro transporta a produção até a agroindústria. A indústria processa e embala; o mercado comercializa; e os consumidores precisam separar os resíduos após o uso.</p></article>
           <article className="learning-report-card"><small>RESÍDUOS E COOPERATIVA</small><h3>Cada material tem uma rota</h3><p>Papel e plástico limpos seguem à cooperativa para triagem e preparação. Orgânicos seguem à compostagem. A cooperativa não é a fábrica recicladora: a transformação industrial será aprofundada na Fase 08.</p></article>
+          <article className="learning-report-card"><small>PREVENÇÃO DE INCÊNDIOS</small><h3>Prevenir é proteger</h3><p>Mapear riscos, evitar queimadas, manter alerta e comunicar sinais de fumaça são medidas importantes. O combate deve ser feito por equipes treinadas e com segurança.</p></article>
           <article className="learning-report-card learning-report-card--result"><small>RESTAURAÇÃO E MONITORAMENTO</small><h3>Plantar é o começo do trabalho</h3><p>Proteger nascentes, recuperar vegetação ciliar e acompanhar mudas e fauna exige continuidade. O resultado ambiental precisa ser monitorado ao longo do tempo.</p></article>
         </div>
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que embalagens recicláveis e restos de alimentos precisam ser separados, e como a cadeia de produção pode proteger a floresta?</span></div>
@@ -944,7 +947,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <Metric label="Colheita familiar" value={Math.round(state.forestProduceHarvested / state.forestProduceTotal * 100)} />
             <Metric label="Processamento e mercado" value={(Number(state.forestProcessed) + Number(state.forestMarketStocked)) * 50} />
             <Metric label="Separação pós-consumo" value={Math.round(state.forestPackagingSorted / state.forestPackagingTotal * 100)} />
-            <Metric label="Restauração de habitats" value={Math.round((state.forestSeedlingsPlanted / state.forestSeedlingsTotal * 60) + (state.forestSpringProtected ? 20 : 0) + (state.forestWildlifeRecorded ? 20 : 0))} />
+            <Metric label="Restauração e prevenção" value={Math.round((state.forestSeedlingsPlanted / state.forestSeedlingsTotal * 55) + (state.forestSpringProtected ? 18 : 0) + (state.forestWildlifeRecorded ? 14 : 0) + (state.forestFirePreventionInspected ? 13 : 0))} />
           </div>
           <div className="upgrade-grid">
             <article className="upgrade-card"><div className="eyebrow">AGRICULTURA FAMILIAR</div><h3>{state.forestProduceHarvested}/{state.forestProduceTotal} caixas colhidas</h3><p>Famílias produtoras cultivam e colhem alimentos. O cuidado com o solo, a água e a vegetação nativa ajuda a manter a produção e os serviços do ecossistema.</p></article>

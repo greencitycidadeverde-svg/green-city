@@ -136,6 +136,7 @@ export class GreenCityGame {
   private readonly forestCooperativeDeliveryPosition = new Vector3(-13, 0, 16);
   private readonly forestSpringPosition = new Vector3(2, 0, -8);
   private readonly forestWildlifePosition = new Vector3(34, 0, -20);
+  private readonly forestFirePreventionPosition = new Vector3(14, 0, 23.5);
   private forestMissionStage: ForestMissionStage = 'survey';
   private readonly forestHabitatsInspected: boolean[] = [false, false, false];
   private readonly forestProduceHarvested: boolean[] = [false, false, false];
@@ -153,6 +154,7 @@ export class GreenCityGame {
   private readonly forestSeedlingMarkers: Mesh[] = [];
   private forestSpringProtected = false;
   private forestWildlifeRecorded = false;
+  private forestFirePreventionInspected = false;
   private readonly forestHabitatMarkers: Mesh[] = [];
   private readonly forestPackagingBins: StandardMaterial[] = [];
 
@@ -1156,9 +1158,9 @@ export class GreenCityGame {
 
     // Centro de conservação e viveiro.
     building('forest-research-base', -34, 31, 11, 4.8, 8.5, new Color3(0.72, 0.72, 0.57), new Color3(0.19, 0.3, 0.23));
-    sign('forest-research-sign', 'CENTRO DE CONSERVAÇÃO', 'Pesquisa, educação e monitoramento da reserva', -34, 6.7, 35.42, 9.4);
+    sign('forest-research-sign', 'CENTRO DE CONSERVAÇÃO', 'Pesquisa, educação e monitoramento da reserva', -34, 4.1, 35.42, 9.4);
     building('forest-native-nursery', -11, 29, 10, 3.6, 8, new Color3(0.59, 0.72, 0.52), new Color3(0.22, 0.38, 0.24));
-    sign('forest-nursery-sign', 'VIVEIRO DE NATIVAS', 'Mudas de espécies adequadas ao ecossistema local', -11, 5.7, 33.2, 8.8);
+    sign('forest-nursery-sign', 'VIVEIRO DE NATIVAS', 'Mudas de espécies adequadas ao ecossistema local', -11, 3.9, 33.2, 8.8);
     for (let row = 0; row < 3; row++) {
       const bed = MeshBuilder.CreateBox('forest-nursery-bed-' + row, { width: 7.5, height: 0.18, depth: 1.2 }, this.scene);
       bed.position.set(-11, 0.12, 22 + row * 2); bed.material = this.material('forest-nursery-bed-material-' + row, new Color3(0.31, 0.22, 0.13));
@@ -1169,6 +1171,35 @@ export class GreenCityGame {
         sprout.position.set(-14.1 + col * 1.22, 0.82, 22 + row * 2); sprout.material = leafMats[2];
       }
     }
+
+
+    // Corredor ecológico: faixas de vegetação nativa conectam fragmentos junto ao curso d'água.
+    const corridorTrunk = this.material('forest-corridor-trunk', new Color3(0.29, 0.19, 0.12));
+    const corridorLeaf = this.material('forest-corridor-leaf', new Color3(0.24, 0.49, 0.24));
+    for (let i = 0; i < 6; i++) {
+      for (const x of [-4.2, 8.1]) {
+        const z = -11 - i * 3.1;
+        const trunk = MeshBuilder.CreateCylinder('forest-corridor-tree-trunk-' + i + '-' + x, { height: 2.8, diameterTop: 0.12, diameterBottom: 0.34, tessellation: 7 }, this.scene);
+        trunk.position.set(x, 1.4, z); trunk.material = corridorTrunk;
+        const crown = MeshBuilder.CreateSphere('forest-corridor-tree-crown-' + i + '-' + x, { diameter: 2.3, segments: 7 }, this.scene);
+        crown.position.set(x, 3.0, z); crown.material = corridorLeaf;
+      }
+    }
+    postSign('forest-corridor-sign', 'CORREDOR ECOLÓGICO', 'Vegetação conectada pode facilitar o deslocamento da fauna', 10.2, 3.4, -6.1, 9.0);
+
+    // Posto de prevenção: observação de risco, comunicação e apoio a equipes capacitadas.
+    building('forest-fire-prevention-station', 14, 30, 10, 4.2, 7,
+      new Color3(0.73, 0.65, 0.47), new Color3(0.58, 0.25, 0.16));
+    sign('forest-fire-prevention-sign', 'PREVENÇÃO DE INCÊNDIOS', 'Monitoramento de risco, alerta e comunicação segura', 14, 4.0, 33.62, 10.4);
+    const waterTank = MeshBuilder.CreateCylinder('forest-fire-water-tank', { height: 3.4, diameter: 2.7, tessellation: 12 }, this.scene);
+    waterTank.position.set(21.2, 1.9, 30); waterTank.material = this.material('forest-fire-water-tank-material', new Color3(0.58, 0.66, 0.67));
+    const tankCap = MeshBuilder.CreateCylinder('forest-fire-water-tank-cap', { height: 0.35, diameter: 2.9, tessellation: 12 }, this.scene);
+    tankCap.position.set(21.2, 3.75, 30); tankCap.material = this.material('forest-fire-water-tank-cap-material', new Color3(0.37, 0.44, 0.44));
+    const radioMast = MeshBuilder.CreateCylinder('forest-fire-radio-mast', { height: 6.4, diameter: 0.16, tessellation: 8 }, this.scene);
+    radioMast.position.set(7.2, 3.2, 33); radioMast.material = this.material('forest-fire-radio-mast-material', new Color3(0.32, 0.35, 0.32));
+    const beacon = MeshBuilder.CreateSphere('forest-fire-radio-beacon', { diameter: 0.68, segments: 8 }, this.scene);
+    beacon.position.set(7.2, 6.5, 33); beacon.material = this.material('forest-fire-radio-beacon-material', new Color3(0.88, 0.22, 0.12));
+    postSign('forest-fire-safety-sign', 'SEGURANÇA DA RESERVA', 'Não provoque queimadas; comunique fumaça e siga a equipe treinada', 12, 2.9, 23.5, 9.6);
 
     // Nascente, curso d'água e observação da fauna.
     const creek = MeshBuilder.CreateGround('forest-creek', { width: 11, height: 53 }, this.scene);
@@ -1190,7 +1221,7 @@ export class GreenCityGame {
     towerDeck.position.set(33, 6.7, -26); towerDeck.material = this.material('forest-lookout-deck-material', new Color3(0.49, 0.36, 0.22));
     const towerRoof = MeshBuilder.CreateBox('forest-lookout-roof', { width: 5.8, height: 0.3, depth: 5.8 }, this.scene);
     towerRoof.position.set(33, 8.6, -26); towerRoof.material = this.material('forest-lookout-roof-material', new Color3(0.21, 0.31, 0.22));
-    sign('forest-wildlife-sign', 'OBSERVAÇÃO DA FAUNA', 'Registre sinais e imagens sem perturbar os animais', 33, 10.1, -22.9, 9.0);
+    postSign('forest-wildlife-sign', 'OBSERVAÇÃO DA FAUNA', 'Registre sinais e imagens sem perturbar os animais', 33, 3.7, -21.2, 9.0);
 
     // Três locais para diagnóstico de fragmentação e conectividade de habitats.
     this.forestHabitatPositions.forEach((site, index) => {
@@ -1203,7 +1234,7 @@ export class GreenCityGame {
 
     // Propriedade de agricultura familiar e talhões de cultivo.
     building('family-farm-house', -31, -29, 10.5, 4.4, 8.8, new Color3(0.73, 0.59, 0.39), new Color3(0.31, 0.2, 0.13));
-    sign('family-farm-sign', 'AGRICULTURA FAMILIAR', 'Produção local, trabalho da família e cuidado com o solo', -31, 6.2, -24.45, 9.6);
+    sign('family-farm-sign', 'AGRICULTURA FAMILIAR', 'Produção local, trabalho da família e cuidado com o solo', -31, 4.0, -24.45, 9.6);
     const soil = this.material('family-farm-soil', new Color3(0.37, 0.25, 0.14));
     const crop = this.material('family-farm-crop', new Color3(0.17, 0.46, 0.2));
     const tomato = this.material('family-farm-tomato', new Color3(0.83, 0.2, 0.12));
@@ -1256,7 +1287,7 @@ export class GreenCityGame {
       const silo = MeshBuilder.CreateCylinder('food-industry-silo', { height: 6.5, diameter: 3, tessellation: 12 }, this.scene);
       silo.position.set(x, 3.25, -18.6); silo.material = this.material('food-industry-silo-material', new Color3(0.73, 0.77, 0.74));
     }
-    sign('food-industry-sign', 'AGROINDÚSTRIA', 'Recebe, processa, prepara e embala alimentos', 26, 10.4, -21.25, 9.3);
+    sign('food-industry-sign', 'AGROINDÚSTRIA', 'Recebe, processa, prepara e embala alimentos', 26, 5.3, -21.25, 9.3);
     const intake = MeshBuilder.CreateBox('food-industry-receiving-dock', { width: 8.5, height: 0.72, depth: 3 }, this.scene);
     intake.position.set(14, 0.36, -25); intake.material = this.material('food-industry-dock-material', new Color3(0.38, 0.42, 0.39));
     const conveyor = MeshBuilder.CreateBox('food-industry-conveyor', { width: 8, height: 0.65, depth: 1.3 }, this.scene);
@@ -1267,7 +1298,7 @@ export class GreenCityGame {
     building('local-market', 26, 7, 13, 4.8, 9, new Color3(0.79, 0.66, 0.43), new Color3(0.59, 0.19, 0.14));
     const awning = MeshBuilder.CreateBox('local-market-awning', { width: 13.8, height: 0.42, depth: 1.6 }, this.scene);
     awning.position.set(26, 3.15, 12); awning.material = this.material('local-market-awning-material', new Color3(0.83, 0.27, 0.18));
-    sign('local-market-sign', 'MERCADO LOCAL', 'Comércio aproxima a produção dos consumidores', 26, 6.65, 11.65, 8.4);
+    sign('local-market-sign', 'MERCADO LOCAL', 'Comércio aproxima a produção dos consumidores', 26, 3.9, 11.65, 8.4);
     for (let i = 0; i < 4; i++) {
       const shelf = MeshBuilder.CreateBox('local-market-shelf-' + i, { width: 2.2, height: 0.72, depth: 1.05 }, this.scene);
       shelf.position.set(21.2 + i * 1.55, 0.45, 14.1); shelf.material = this.material('local-market-shelf-material-' + i, new Color3(0.42, 0.29, 0.17));
@@ -1294,7 +1325,7 @@ export class GreenCityGame {
 
     // Cooperativa é galpão de recebimento e triagem, não uma fábrica recicladora.
     building('forest-cooperative', -24, 16, 18, 6.7, 13, new Color3(0.62, 0.7, 0.56), new Color3(0.12, 0.31, 0.22));
-    sign('forest-cooperative-sign', 'COOPERATIVA DE TRIAGEM', 'Recebe, separa e prepara recicláveis para encaminhar à indústria', -24, 9, 22.75, 10.8);
+    sign('forest-cooperative-sign', 'COOPERATIVA DE TRIAGEM', 'Recebe, separa e prepara recicláveis para encaminhar à indústria', -24, 4.3, 22.75, 10.8);
     const dock = MeshBuilder.CreateBox('forest-cooperative-dock', { width: 11, height: 0.68, depth: 3.2 }, this.scene);
     dock.position.set(-13, 0.34, 15); dock.material = this.material('forest-cooperative-dock-material', new Color3(0.4, 0.43, 0.38));
     for (let i = 0; i < 3; i++) {
@@ -1338,6 +1369,7 @@ export class GreenCityGame {
     npc('npc-market-vendor', 32, 13, new Color3(0.52, 0.22, 0.17), new Color3(0.87, 0.76, 0.55));
     npc('npc-cooperative-sorter', -8, 15, new Color3(0.12, 0.41, 0.3), new Color3(0.9, 0.69, 0.16));
     npc('npc-forest-biologist', -28, 34, new Color3(0.15, 0.39, 0.32), new Color3(0.88, 0.67, 0.15));
+    npc('npc-forest-fire-ranger', 9, 27, new Color3(0.75, 0.29, 0.16), new Color3(0.25, 0.36, 0.26));
 
     // Fauna ilustrativa sem atribuir espécies a um bioma ainda não escolhido.
     const birdBody = this.material('forest-bird-body', new Color3(0.19, 0.38, 0.55));
@@ -1385,6 +1417,7 @@ export class GreenCityGame {
     } else if (this.forestMissionStage === 'cooperative' && !this.forestCooperativeDelivered && dist(this.forestCooperativeDeliveryPosition) <= 8.5) {
       return { action: 'deliver-forest-cooperative', label: 'E · ENTREGAR RECICLÁVEIS À COOPERATIVA' };
     } else if (this.forestMissionStage === 'restore') {
+      if (!this.forestFirePreventionInspected && dist(this.forestFirePreventionPosition) <= 7.0) return { action: 'inspect-forest-fire-prevention', label: 'E · CONFERIR PREVENÇÃO DE INCÊNDIOS' };
       const seedling = this.forestSeedlingPositions.findIndex((site, index) => !this.forestSeedlingsPlanted[index] && dist(site) <= 4.8);
       if (seedling >= 0) return { action: 'plant-native-seedling', label: 'E · PLANTAR MUDA NATIVA' };
       if (!this.forestSpringProtected && dist(this.forestSpringPosition) <= 7.5) return { action: 'protect-forest-spring', label: 'E · PROTEGER A NASCENTE E A MATA CILIAR' };
@@ -1415,7 +1448,7 @@ export class GreenCityGame {
   }
 
   private checkForestCompletion(): void {
-    if (this.forestSeedlingsPlanted.every(Boolean) && this.forestSpringProtected && this.forestWildlifeRecorded) {
+    if (this.forestSeedlingsPlanted.every(Boolean) && this.forestSpringProtected && this.forestWildlifeRecorded && this.forestFirePreventionInspected) {
       this.forestMissionStage = 'complete'; this.cit += 60;
       this.message = 'Reserva Florestal recuperada no cenário educativo! Você conectou biodiversidade, agricultura familiar, indústria, consumo responsável, cooperativa e restauração ecológica.';
     }
@@ -1496,6 +1529,11 @@ export class GreenCityGame {
     if (action === 'protect-forest-spring') {
       this.forestSpringProtected = true; this.buildForestSpringRecovery();
       this.message = 'Nascente protegida no cenário. A vegetação ciliar ajuda a estabilizar margens, reter sedimentos e manter habitats.';
+      this.checkForestCompletion(); this.emit(); return;
+    }
+    if (action === 'inspect-forest-fire-prevention') {
+      this.forestFirePreventionInspected = true;
+      this.message = 'Prevenção registrada: monitorar condições de risco, evitar queimadas, manter alerta e comunicar fumaça ou foco de incêndio às equipes responsáveis. O combate deve ser feito por brigadas capacitadas, com segurança.';
       this.checkForestCompletion(); this.emit(); return;
     }
     if (action === 'record-forest-wildlife') {
@@ -3301,6 +3339,7 @@ export class GreenCityGame {
         this.forestSeedlingPositions.forEach((site, i) => add('forest-seedling-' + i, 'Plantio de muda nativa ' + (i + 1), site, this.forestSeedlingsPlanted[i]));
         add('forest-spring', 'Proteção da nascente', this.forestSpringPosition, this.forestSpringProtected);
         add('forest-wildlife', 'Monitoramento da fauna', this.forestWildlifePosition, this.forestWildlifeRecorded);
+        add('forest-fire-prevention', 'Posto de prevenção de incêndios', this.forestFirePreventionPosition, this.forestFirePreventionInspected);
       }
     }
 
@@ -3440,6 +3479,7 @@ export class GreenCityGame {
       this.forestSpringProtected = data.forestSpringProtected === true;
       if (this.forestSpringProtected) this.buildForestSpringRecovery();
       this.forestWildlifeRecorded = data.forestWildlifeRecorded === true;
+      this.forestFirePreventionInspected = data.forestFirePreventionInspected === true;
       if (this.forestTruckRoot) this.forestTruckRoot.position.copyFrom(
         this.forestProcessed || this.forestMarketStocked ? this.forestMarketDeliveryPosition
           : this.forestTruckLoaded ? this.forestFactoryDeliveryPosition : this.forestTruckLoadingPosition,
@@ -3516,6 +3556,7 @@ export class GreenCityGame {
       forestSeedlingsTotal: this.forestSeedlingsPlanted.length,
       forestSpringProtected: this.forestSpringProtected,
       forestWildlifeRecorded: this.forestWildlifeRecorded,
+      forestFirePreventionInspected: this.forestFirePreventionInspected,
       missionStage: this.missionStage,
       nextNeighborhoodUnlocked: this.isNextNeighborhoodUnlocked(),
       paused: this.paused,
@@ -3565,6 +3606,7 @@ export class GreenCityGame {
         forestSeedlingsPlanted: [...this.forestSeedlingsPlanted],
         forestSpringProtected: this.forestSpringProtected,
         forestWildlifeRecorded: this.forestWildlifeRecorded,
+        forestFirePreventionInspected: this.forestFirePreventionInspected,
       },
     };
   }
