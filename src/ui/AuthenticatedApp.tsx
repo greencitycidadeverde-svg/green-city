@@ -374,6 +374,24 @@ function AuthenticatedApp() {
     return <main className="auth-shell"><section className="auth-card auth-loading"><span className="auth-spinner" /><b>Carregando seu mapa e seu progresso...</b></section></main>;
   }
 
+  if (session && authMode === 'update') {
+    return <main className="auth-shell">
+      <div className="auth-atmosphere"><span /><span /><span /><span /></div>
+      <section className="auth-card">
+        <div className="auth-brand"><span className="auth-brand-mark">G</span><div><strong>GREEN CITY</strong><small>PLATAFORMA EDUCACIONAL</small></div></div>
+        <div className="auth-copy"><div className="auth-eyebrow">RECUPERAÇÃO DE ACESSO</div><h1>Escolha sua nova senha.</h1><p>Depois de salvar, você poderá entrar novamente na sua campanha.</p></div>
+        <form className="auth-form" onSubmit={submitAuth}>
+          <label><span>NOVA SENHA</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required minLength={8} placeholder="Mínimo de 8 caracteres" /></label>
+          <label><span>CONFIRMAR SENHA</span><input type="password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} autoComplete="new-password" required minLength={8} placeholder="Digite novamente" /></label>
+          {errorMessage && <div className="auth-feedback auth-feedback-error" role="alert">{errorMessage}</div>}
+          {message && <div className="auth-feedback auth-feedback-success" role="status">{message}</div>}
+          <button className="auth-submit" type="submit" disabled={busy}>{busy ? 'AGUARDE...' : 'SALVAR NOVA SENHA'} <span>→</span></button>
+        </form>
+        <div className="auth-links"><button type="button" onClick={() => void signOut()}>Sair da recuperação</button></div>
+      </section>
+    </main>;
+  }
+
   if (!account) {
     return <main className="auth-shell"><section className="auth-card">
       <div className="auth-brand"><span className="auth-brand-mark">G</span><div><strong>GREEN CITY</strong><small>CONTA AUTENTICADA</small></div></div>
