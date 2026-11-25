@@ -67,8 +67,10 @@ export default function App() {
   const [gameError, setGameError] = useState<string | null>(null);
   const [playRequested, setPlayRequested] = useState(false);
   const [phaseCompleteSeen, setPhaseCompleteSeen] = useState(false);
+  const [portCompleteSeen, setPortCompleteSeen] = useState(false);
   const [phaseCompleteOpen, setPhaseCompleteOpen] = useState(false);
   const phaseCompleteTriggeredRef = useRef(false);
+  const portCompleteTriggeredRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +85,10 @@ export default function App() {
           setState(snapshot);
           if (snapshot.phase === 1 && snapshot.missionStage === 'complete' && !phaseCompleteTriggeredRef.current) {
             phaseCompleteTriggeredRef.current = true;
+            setPhaseCompleteOpen(true);
+          }
+          if (snapshot.phase === 2 && snapshot.portMissionStage === 'complete' && !portCompleteTriggeredRef.current) {
+            portCompleteTriggeredRef.current = true;
             setPhaseCompleteOpen(true);
           }
         });
@@ -405,13 +411,77 @@ export default function App() {
     </div>}
 
     {state.phase === 1 && state.missionStage === 'complete' && phaseCompleteOpen && !phaseCompleteSeen && <div className="phase-complete-overlay">
-      <section className="phase-complete-panel">
+      <section className="phase-complete-panel learning-report">
         <div className="completion-medal">✓</div>
-        <div className="eyebrow">MISSÃO CONCLUÍDA · FASE 01 DE 10</div>
-        <h2>FASE 01 CONCLUÍDA!</h2>
-        <p>Parabéns! Você recuperou o Centro Industrial. Agora abra o mapa da cidade, veja o Porto destacado como liberado e escolha quando deseja começar a próxima missão.</p>
-        <div className="completion-stats"><span>8 prédios solares</span><span>1 veículo elétrico</span><span>Região 02 liberada</span></div>
+        <div className="eyebrow">CADERNO DE APRENDIZADO · FASE 01 DE 10</div>
+        <h2>O Centro Industrial começou a mudar!</h2>
+        <p>Você não apenas cumpriu tarefas: ajudou a dar um destino melhor aos resíduos, modernizou os prédios e tornou o transporte municipal mais sustentável.</p>
+        <div className="completion-stats"><span>5 resíduos recolhidos</span><span>8 prédios com energia solar</span><span>1 veículo elétrico</span></div>
+        <div className="learning-report-grid">
+          <article className="learning-report-card">
+            <small>O PROBLEMA</small>
+            <h3>Resíduos sem destino correto</h3>
+            <p>Lixo abandonado pode sujar o solo e chegar aos bueiros, córregos e rios. Quando materiais diferentes são misturados, fica mais difícil reaproveitar cada um.</p>
+          </article>
+          <article className="learning-report-card">
+            <small>O QUE FIZEMOS</small>
+            <h3>Coleta e separação</h3>
+            <p>Recolhemos os materiais e levamos ao EcoCentro, onde papel, plástico, vidro, metal e orgânicos podem seguir caminhos adequados, como reciclagem ou tratamento específico.</p>
+          </article>
+          <article className="learning-report-card">
+            <small>ENERGIA MAIS LIMPA</small>
+            <h3>Sol nos telhados e carro elétrico</h3>
+            <p>Os painéis solares geram eletricidade sem queimar combustível no local. O veículo elétrico não solta gases pelo escapamento enquanto circula, ajudando a reduzir a poluição do ar nas ruas.</p>
+          </article>
+          <article className="learning-report-card learning-report-card--result">
+            <small>O QUE APRENDEMOS</small>
+            <h3>Prevenir é melhor do que remediar</h3>
+            <p>Separar resíduos, reaproveitar materiais e escolher energia e transporte mais limpos evita parte da poluição antes que ela chegue à natureza.</p>
+          </article>
+        </div>
+        <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que uma garrafa plástica não deve ser jogada junto com restos de comida e folhas?</span></div>
+        <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 02</small><b>Porto: água, saneamento e responsabilidade das empresas.</b><span>Agora vamos aprender que efluentes e resíduos precisam de tratamentos diferentes.</span></div>
         <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
+      </section>
+    </div>}
+
+    {state.phase === 2 && state.portMissionStage === 'complete' && phaseCompleteOpen && !portCompleteSeen && <div className="phase-complete-overlay">
+      <section className="phase-complete-panel learning-report">
+        <div className="completion-medal">✓</div>
+        <div className="eyebrow">CADERNO DE APRENDIZADO · FASE 02 DE 10</div>
+        <h2>O Porto está no caminho da recuperação!</h2>
+        <p>Você investigou os pontos de despejo, ajudou a organizar o saneamento e garantiu que os resíduos das empresas fossem recolhidos e separados.</p>
+        <div className="completion-stats"><span>3 pontos de despejo investigados</span><span>1 ETE implantada</span><span>2 sistemas sépticos</span><span>3 empresas atendidas</span></div>
+        <div className="learning-report-grid">
+          <article className="learning-report-card">
+            <small>O PROBLEMA DA ÁGUA</small>
+            <h3>Efluentes sem tratamento</h3>
+            <p>Água usada em processos de uma empresa pode carregar sujeira, matéria orgânica e produtos químicos. Despejar esse efluente sem tratamento adequado pode prejudicar os seres vivos e a qualidade da água.</p>
+          </article>
+          <article className="learning-report-card">
+            <small>ETE · EFLUENTE INDUSTRIAL</small>
+            <h3>Tratar antes de devolver ao ambiente</h3>
+            <p>A Estação de Tratamento de Efluentes recebe a água usada pela atividade industrial e aplica etapas adequadas aos contaminantes encontrados. Só depois do tratamento e das verificações necessárias o efluente pode seguir para a destinação permitida. Água tratada não significa água potável.</p>
+          </article>
+          <article className="learning-report-card">
+            <small>FOSSA SÉPTICA · ESGOTO SANITÁRIO</small>
+            <h3>Outra solução para outro tipo de água</h3>
+            <p>As fossas atendem banheiros e instalações sanitárias isoladas. Dentro do tanque, parte dos sólidos se deposita e microrganismos ajudam a decompor a matéria orgânica. O líquido ainda precisa de destinação ou tratamento complementar adequado, e a fossa exige manutenção. Ela não substitui a ETE industrial.</p>
+          </article>
+          <article className="learning-report-card">
+            <small>RESÍDUOS SÓLIDOS DAS EMPRESAS</small>
+            <h3>Separar para reaproveitar</h3>
+            <p>O caminhão recolheu os materiais e levou tudo à cooperativa. Lá, papel e papelão, plástico, vidro, metal e orgânicos foram separados para que cada grupo possa seguir para reciclagem, compostagem ou outra destinação correta.</p>
+          </article>
+          <article className="learning-report-card learning-report-card--result">
+            <small>O QUE MUDOU</small>
+            <h3>Menos poluição, mais cuidado com o rio</h3>
+            <p>No mundo simulado, a implantação do tratamento melhora o indicador de qualidade da água e muda a aparência do rio. Na vida real, é preciso analisar e monitorar o efluente: não basta a água parecer limpa para saber se está segura.</p>
+          </article>
+        </div>
+        <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que o esgoto de um banheiro e a água usada em uma fábrica não devem receber automaticamente o mesmo tratamento?</span></div>
+        <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 03</small><b>Periferia Verde: coleta comunitária, compostagem, saneamento e drenagem.</b><span>Vamos passar das soluções básicas para entender como os bairros inteiros podem trabalhar juntos.</span></div>
+        <button className="start-game-button" onClick={() => { setPortCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER PRÓXIMA REGIÃO <span>→</span></button>
       </section>
     </div>}
 

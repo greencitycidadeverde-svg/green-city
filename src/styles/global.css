@@ -737,3 +737,45 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
  .objective-map-list { gap:6px; } .objective-map-row { padding:7px 8px; }
  .world-map-tools { margin-bottom:4px;gap:5px; } .world-map-switch { min-height:30px;padding:6px 8px;font-size:7px; }
 }
+
+
+/* GREEN CITY 0.4.15 — learning reports at the end of each phase */
+.phase-complete-panel.learning-report {
+  width:min(900px,100%);max-height:min(92vh,960px);overflow-y:auto;
+  padding:clamp(20px,3vw,32px);text-align:left;scrollbar-width:thin;scrollbar-color:#6a9d70 #173526;
+}
+.learning-report .completion-medal { margin-left:0;margin-right:0; }
+.learning-report h2 { max-width:760px; }
+.learning-report > p { max-width:780px;margin:8px 0 14px; }
+.learning-report .completion-stats { justify-content:flex-start;margin:14px 0 18px; }
+.learning-report-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin-top:14px; }
+.learning-report-card {
+  min-width:0;padding:15px;border:1px solid rgba(191,224,188,.19);border-radius:12px;
+  background:linear-gradient(145deg,rgba(34,69,47,.86),rgba(17,43,31,.9));
+}
+.learning-report-card small { color:#b9ef8c;font:800 8px var(--gc-mono);letter-spacing:.09em; }
+.learning-report-card h3 { margin:7px 0 6px;color:#f1f8eb;font-size:15px;line-height:1.25; }
+.learning-report-card p { margin:0;color:#c4d9c9;font-size:11px;line-height:1.62; }
+.learning-report-card--result { border-color:rgba(164,222,148,.42);background:linear-gradient(145deg,rgba(44,89,53,.74),rgba(22,57,39,.9)); }
+.learning-question {
+  display:flex;flex-direction:column;gap:6px;margin-top:14px;padding:13px 15px;
+  border-left:3px solid #e9bd5a;border-radius:7px;background:rgba(132,98,34,.18);
+}
+.learning-question b { color:#ffdb86;font:800 8px var(--gc-mono);letter-spacing:.1em; }
+.learning-question span { color:#fff2d1;font-size:12px;line-height:1.5; }
+.learning-next {
+  display:flex;flex-direction:column;gap:5px;margin-top:12px;padding:14px;border:1px solid rgba(138,211,153,.3);
+  border-radius:11px;background:rgba(25,74,47,.35);
+}
+.learning-next small { color:#b9ef8c;font:800 8px var(--gc-mono);letter-spacing:.1em; }
+.learning-next b { color:#f0f8ed;font-size:13px;line-height:1.4; }
+.learning-next span { color:#bfd3c4;font-size:10px;line-height:1.5; }
+.learning-report .start-game-button { margin-top:16px; }
+@media(max-width:680px) {
+  .phase-complete-panel.learning-report { max-height:94vh;padding:19px 15px; }
+  .learning-report-grid { grid-template-columns:1fr;gap:8px; }
+  .learning-report-card { padding:12px; }
+  .learning-report-card h3 { font-size:14px; }
+  .learning-report-card p { font-size:10px; }
+  .learning-question span { font-size:11px; }
+}
