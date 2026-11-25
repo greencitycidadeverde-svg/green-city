@@ -52,7 +52,7 @@ const REGIONS = [
   { phase: 1, slug: 'centro-industrial', name: 'Centro Industrial', x: 13, y: 26, focus: 'Resíduos, energia e mobilidade' },
   { phase: 2, slug: 'porto', name: 'Porto', x: 34, y: 15, focus: 'Efluentes, saneamento e cooperativa' },
   { phase: 3, slug: 'periferia-verde', name: 'Periferia Verde', x: 55, y: 32, focus: 'Compostagem, coleta e drenagem' },
-  { phase: 4, slug: 'reserva-florestal', name: 'Reserva Florestal', x: 78, y: 17, focus: 'Biodiversidade e habitats' },
+  { phase: 4, slug: 'reserva-florestal', name: 'Reserva Florestal', x: 78, y: 17, focus: 'Biodiversidade, agricultura familiar e habitats' },
   { phase: 5, slug: 'zona-costeira', name: 'Zona Costeira', x: 87, y: 46, focus: 'Rios, manguezais e oceano' },
   { phase: 6, slug: 'cinturao-agricola', name: 'Cinturão Agrícola', x: 73, y: 73, focus: 'Solo e produção sustentável' },
   { phase: 7, slug: 'centro-historico', name: 'Centro Histórico', x: 48, y: 67, focus: 'Mobilidade e qualidade do ar' },
@@ -76,7 +76,7 @@ function AuthenticatedApp() {
   const [accountLoading, setAccountLoading] = useState(false);
   const [account, setAccount] = useState<AccountData | null>(null);
   const [accountError, setAccountError] = useState('');
-  const [activePhase, setActivePhase] = useState<1 | 2 | 3 | null>(null);
+  const [activePhase, setActivePhase] = useState<1 | 2 | 3 | 4 | null>(null);
   const [masterPhaseConfig, setMasterPhaseConfig] = useState<number | null>(null);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -360,7 +360,7 @@ function AuthenticatedApp() {
     setAdminBusyId('');
   };
 
-  const openGame = (phase: 1 | 2 | 3) => {
+  const openGame = (phase: 1 | 2 | 3 | 4) => {
     setActivePhase(phase);
   };
 
@@ -373,7 +373,7 @@ function AuthenticatedApp() {
 
   const regionStates = useMemo(() => REGIONS.map((region) => {
     const row = account?.phases.find((item) => item.phase_number === region.phase);
-    const playable = region.phase <= 3;
+    const playable = region.phase <= 4;
     const unlockedByCampaign = region.phase <= (account?.campaign.highest_unlocked_phase ?? 1);
     const environmentState = row?.environment_state ?? (unlockedByCampaign ? 'degraded' : 'locked');
     const status = row?.status ?? (unlockedByCampaign ? 'available' : 'locked');
@@ -393,11 +393,12 @@ function AuthenticatedApp() {
 
   const restoredCount = regionStates.filter((region) => region.colorState === 'restored').length;
   const currentProgress = account?.campaign ? Math.round((restoredCount / 10) * 100) : 0;
-  const defaultPhase: 1 | 2 | 3 | null = account && ['admin', 'master_admin'].includes(account.profile.role)
-    ? (account.campaign.current_phase >= 3 ? 3 : account.campaign.current_phase >= 2 ? 2 : 1)
-    : regionStates[2]?.canPlay ? 3
-      : regionStates[1]?.canPlay ? 2
-        : regionStates[0]?.canPlay ? 1 : null;
+  const defaultPhase: 1 | 2 | 3 | 4 | null = account && ['admin', 'master_admin'].includes(account.profile.role)
+    ? (account.campaign.current_phase >= 4 ? 4 : account.campaign.current_phase >= 3 ? 3 : account.campaign.current_phase >= 2 ? 2 : 1)
+    : regionStates[3]?.canPlay ? 4
+      : regionStates[2]?.canPlay ? 3
+        : regionStates[1]?.canPlay ? 2
+          : regionStates[0]?.canPlay ? 1 : null;
   const activeProgress = activePhase ? account?.phases.find((item) => item.phase_number === activePhase)?.objective_state ?? {} : {};
 
   if (!supabase) {
@@ -588,7 +589,7 @@ function AuthenticatedApp() {
               style={{ left: region.x + '%', top: region.y + '%' }}
               disabled={!region.canPlay && !region.canConfigure}
               onClick={() => {
-                if (region.canPlay && region.phase <= 3) openGame(region.phase as 1 | 2 | 3);
+                if (region.canPlay && region.phase <= 4) openGame(region.phase as 1 | 2 | 3 | 4);
                 else if (region.canConfigure) setMasterPhaseConfig(region.phase);
               }}
               title={region.name + ' · ' + label}
@@ -620,7 +621,7 @@ function AuthenticatedApp() {
       <div className="campaign-region-list">
         {regionStates.map((region) => <button type="button" className="campaign-region-row" key={region.phase}
           disabled={!region.canPlay && !region.canConfigure} onClick={() => {
-            if (region.canPlay && region.phase <= 3) openGame(region.phase as 1 | 2 | 3);
+            if (region.canPlay && region.phase <= 4) openGame(region.phase as 1 | 2 | 3 | 4);
             else if (region.canConfigure) setMasterPhaseConfig(region.phase);
           }}>
           <span className={'campaign-region-dot dot-' + region.colorState} />

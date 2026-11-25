@@ -34,6 +34,11 @@ const initial: GameSnapshot = {
   communitySewerTotal: 2,
   communityRainGardenBuilt: false,
   communityWaterQuality: 28,
+  forestMissionStage: 'survey', forestHabitatsInspected: 0, forestHabitatsTotal: 3,
+  forestProduceHarvested: 0, forestProduceTotal: 3, forestTruckLoaded: false,
+  forestProcessed: false, forestMarketStocked: false,
+  forestPackagingSorted: 0, forestPackagingTotal: 3, forestCooperativeDelivered: false,
+  forestSeedlingsPlanted: 0, forestSeedlingsTotal: 3, forestSpringProtected: false, forestWildlifeRecorded: false,
   cit: 0,
   collected: 0,
   total: 5,
@@ -81,7 +86,7 @@ function Metric({ label, value }: { label: string; value: number }) {
 interface GameExperienceProps {
   userId: string;
   campaignId: string;
-  initialPhase: 1 | 2 | 3;
+  initialPhase: 1 | 2 | 3 | 4;
   savedProgress: Partial<GameProgressData>;
   isMaster: boolean;
   onConfigurePhase: (phase: number) => void;
@@ -93,7 +98,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   const gameRef = useRef<GreenCityGame | null>(null);
   const [state, setState] = useState(initial);
   const developerMode = isMaster;
-  const [startingPhase, setStartingPhase] = useState<1 | 2 | 3>(initialPhase);
+  const [startingPhase, setStartingPhase] = useState<1 | 2 | 3 | 4>(initialPhase);
   const [completedPhaseMarks, setCompletedPhaseMarks] = useState<number[]>(() => {
     try {
       const stored = window.localStorage.getItem(DEVELOPER_PHASE_STORAGE_KEY);
@@ -116,6 +121,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   const [phaseCompleteSeen, setPhaseCompleteSeen] = useState(false);
   const [portCompleteSeen, setPortCompleteSeen] = useState(false);
   const [peripheryCompleteSeen, setPeripheryCompleteSeen] = useState(false);
+  const [forestCompleteSeen, setForestCompleteSeen] = useState(false);
   const [phaseCompleteOpen, setPhaseCompleteOpen] = useState(false);
   const phaseCompleteTriggeredRef = useRef(false);
 
@@ -134,7 +140,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     });
   };
 
-  const startGameAtPhase = (phase: 1 | 2 | 3) => {
+  const startGameAtPhase = (phase: 1 | 2 | 3 | 4) => {
     setStartingPhase(phase);
     setGameReady(false);
     setGameError(null);
@@ -151,6 +157,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   };
   const portCompleteTriggeredRef = useRef(false);
   const peripheryCompleteTriggeredRef = useRef(false);
+  const forestCompleteTriggeredRef = useRef(false);
 
   const isHydratingRef = useRef(true);
   const lastPersistedSnapshotRef = useRef('');
@@ -162,7 +169,9 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       ? snapshot.missionStage === 'complete'
       : snapshot.phase === 2
         ? snapshot.portMissionStage === 'complete'
-        : snapshot.peripheryMissionStage === 'complete';
+        : snapshot.phase === 3
+          ? snapshot.peripheryMissionStage === 'complete'
+          : snapshot.forestMissionStage === 'complete';
     const percent = snapshot.phase === 1
       ? complete ? 100 : snapshot.missionStage === 'collect'
         ? Math.round(snapshot.collected / snapshot.total * 30)
@@ -178,16 +187,28 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 ? 70 + Math.round(snapshot.companyWasteCollected / snapshot.companyWasteTotal * 20)
                 : snapshot.portMissionStage === 'deliver' ? 90
                   : Math.min(99, 92 + Math.round(snapshot.cooperativeSorted / snapshot.cooperativeTotal * 8))
-        : complete ? 100 : snapshot.peripheryMissionStage === 'survey'
-          ? Math.round(snapshot.communityIssuesInspected / snapshot.communityIssuesTotal * 18)
-          : snapshot.peripheryMissionStage === 'collect'
-            ? 18 + Math.round(snapshot.communityWasteCollected / snapshot.communityWasteTotal * 22)
-            : snapshot.peripheryMissionStage === 'sorting'
-              ? 42 + (snapshot.communityOrganicsSorted ? 8 : 0) + (snapshot.communityRecyclablesSorted ? 8 : 0)
-              : snapshot.peripheryMissionStage === 'compost' ? 62
-                : snapshot.peripheryMissionStage === 'sanitation'
-                  ? 65 + Math.round(snapshot.communitySewerConnections / snapshot.communitySewerTotal * 25)
-                  : 95;
+        : snapshot.phase === 3
+          ? complete ? 100 : snapshot.peripheryMissionStage === 'survey'
+            ? Math.round(snapshot.communityIssuesInspected / snapshot.communityIssuesTotal * 18)
+            : snapshot.peripheryMissionStage === 'collect'
+              ? 18 + Math.round(snapshot.communityWasteCollected / snapshot.communityWasteTotal * 22)
+              : snapshot.peripheryMissionStage === 'sorting'
+                ? 42 + (snapshot.communityOrganicsSorted ? 8 : 0) + (snapshot.communityRecyclablesSorted ? 8 : 0)
+                : snapshot.peripheryMissionStage === 'compost' ? 62
+                  : snapshot.peripheryMissionStage === 'sanitation'
+                    ? 65 + Math.round(snapshot.communitySewerConnections / snapshot.communitySewerTotal * 25)
+                    : 95
+          : complete ? 100 : snapshot.forestMissionStage === 'survey'
+            ? Math.round(snapshot.forestHabitatsInspected / snapshot.forestHabitatsTotal * 15)
+            : snapshot.forestMissionStage === 'harvest'
+              ? 15 + Math.round(snapshot.forestProduceHarvested / snapshot.forestProduceTotal * 20)
+              : snapshot.forestMissionStage === 'transport' ? 40
+                : snapshot.forestMissionStage === 'process' ? 48
+                  : snapshot.forestMissionStage === 'market' ? 56
+                    : snapshot.forestMissionStage === 'sorting'
+                      ? 60 + Math.round(snapshot.forestPackagingSorted / snapshot.forestPackagingTotal * 15)
+                      : snapshot.forestMissionStage === 'cooperative' ? 78
+                        : Math.min(99, 80 + snapshot.forestSeedlingsPlanted * 4 + (snapshot.forestSpringProtected ? 7 : 0) + (snapshot.forestWildlifeRecorded ? 5 : 0));
     const signature = JSON.stringify([snapshot.phase, snapshot.progressData, percent]);
     if (lastPersistedSnapshotRef.current === signature) return;
     lastPersistedSnapshotRef.current = signature;
@@ -244,15 +265,25 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 reflection: 'Por que efluente industrial e esgoto sanitário não recebem necessariamente o mesmo tratamento?',
               },
             }
-          : {
-              title: 'Relatório de Aprendizado — Periferia Verde',
-              content: {
-                problem: 'Descarte irregular de resíduos, necessidade de saneamento sanitário e escoamento superficial de chuva no bairro.',
-                solution: 'Investigação comunitária, separação de orgânicos e recicláveis, manejo demonstrativo da compostagem, conexões sanitárias simuladas e jardim de chuva em local apropriado.',
-                result: 'Objetivos essenciais concluídos no cenário simulado. A compostagem real exige tempo e manejo; ligações à rede dependem de tratamento; jardins de chuva exigem avaliação técnica do local.',
-                reflection: 'Por que água de chuva e esgoto sanitário devem seguir sistemas diferentes?',
-              },
-            };
+          : snapshot.phase === 3
+            ? {
+                title: 'Relatório de Aprendizado — Periferia Verde',
+                content: {
+                  problem: 'Descarte irregular de resíduos, necessidade de saneamento sanitário e escoamento superficial de chuva no bairro.',
+                  solution: 'Investigação comunitária, separação de orgânicos e recicláveis, manejo demonstrativo da compostagem, conexões sanitárias simuladas e jardim de chuva em local apropriado.',
+                  result: 'Objetivos essenciais concluídos no cenário simulado. A compostagem real exige tempo e manejo; ligações à rede dependem de tratamento; jardins de chuva exigem avaliação técnica do local.',
+                  reflection: 'Por que água de chuva e esgoto sanitário devem seguir sistemas diferentes?',
+                },
+              }
+            : {
+                title: 'Relatório de Aprendizado — Reserva Florestal',
+                content: {
+                  problem: 'Fragmentação de habitats, necessidade de restauração e impactos ambientais ao longo da cadeia de produção e consumo de alimentos.',
+                  solution: 'Diagnóstico da biodiversidade, apoio à agricultura familiar, transporte da produção, processamento e embalagem, comercialização, separação pós-consumo, entrega de recicláveis à cooperativa, compostagem dos orgânicos, proteção da nascente e plantio de mudas nativas.',
+                  result: 'O cenário demonstrou como produção, logística, indústria, comércio, consumo e conservação se conectam. A cooperativa prepara os recicláveis para encaminhamento; a transformação industrial será aprofundada na Fase 08.',
+                  reflection: 'Por que os resíduos recicláveis e orgânicos precisam de rotas diferentes, e como a produção de alimentos pode conviver com a conservação da floresta?',
+                },
+              };
         const { data: existing, error: queryError } = await client.from('learning_journal')
           .select('id').eq('campaign_id', campaignId).eq('phase_number', snapshot.phase)
           .eq('entry_type', 'learning_report').limit(1);
@@ -305,10 +336,18 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
               setPhaseCompleteOpen(true);
             }
           }
+          if (snapshot.phase === 4 && snapshot.forestMissionStage === 'complete') {
+            setDeveloperPhaseMark(4, true);
+            if (!forestCompleteTriggeredRef.current) {
+              forestCompleteTriggeredRef.current = true;
+              setPhaseCompleteOpen(true);
+            }
+          }
         });
         gameRef.current = game;
         if (startingPhase === 2) game.enterPortPhase(true);
         if (startingPhase === 3) game.enterPeripheryPhase(true);
+        if (startingPhase === 4) game.enterForestPhase(true);
         game.restoreProgress(savedProgress);
         isHydratingRef.current = false;
         setGameReady(true);
@@ -380,13 +419,23 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
               : state.portMissionStage === 'collect' ? 70 + Math.round((state.companyWasteCollected / state.companyWasteTotal) * 20)
                 : state.portMissionStage === 'deliver' ? 90
                   : Math.min(99, 92 + Math.round((state.cooperativeSorted / state.cooperativeTotal) * 8))
-      : state.peripheryMissionStage === 'complete' ? 100
-        : state.peripheryMissionStage === 'survey' ? Math.round(state.communityIssuesInspected / state.communityIssuesTotal * 18)
-          : state.peripheryMissionStage === 'collect' ? 18 + Math.round(state.communityWasteCollected / state.communityWasteTotal * 22)
-            : state.peripheryMissionStage === 'sorting' ? 42 + (state.communityOrganicsSorted ? 8 : 0) + (state.communityRecyclablesSorted ? 8 : 0)
-              : state.peripheryMissionStage === 'compost' ? 62
-                : state.peripheryMissionStage === 'sanitation' ? 65 + Math.round(state.communitySewerConnections / state.communitySewerTotal * 25)
-                  : 95;
+      : state.phase === 3
+        ? state.peripheryMissionStage === 'complete' ? 100
+          : state.peripheryMissionStage === 'survey' ? Math.round(state.communityIssuesInspected / state.communityIssuesTotal * 18)
+            : state.peripheryMissionStage === 'collect' ? 18 + Math.round(state.communityWasteCollected / state.communityWasteTotal * 22)
+              : state.peripheryMissionStage === 'sorting' ? 42 + (state.communityOrganicsSorted ? 8 : 0) + (state.communityRecyclablesSorted ? 8 : 0)
+                : state.peripheryMissionStage === 'compost' ? 62
+                  : state.peripheryMissionStage === 'sanitation' ? 65 + Math.round(state.communitySewerConnections / state.communitySewerTotal * 25)
+                    : 95
+        : state.forestMissionStage === 'complete' ? 100
+          : state.forestMissionStage === 'survey' ? Math.round(state.forestHabitatsInspected / state.forestHabitatsTotal * 15)
+            : state.forestMissionStage === 'harvest' ? 15 + Math.round(state.forestProduceHarvested / state.forestProduceTotal * 20)
+              : state.forestMissionStage === 'transport' ? 40
+                : state.forestMissionStage === 'process' ? 48
+                  : state.forestMissionStage === 'market' ? 56
+                    : state.forestMissionStage === 'sorting' ? 60 + Math.round(state.forestPackagingSorted / state.forestPackagingTotal * 15)
+                      : state.forestMissionStage === 'cooperative' ? 78
+                        : Math.min(99, 80 + state.forestSeedlingsPlanted * 4 + (state.forestSpringProtected ? 7 : 0) + (state.forestWildlifeRecorded ? 5 : 0));
 
   const phaseOneMission = {
     collect: { eyebrow: 'FASE 01 · DIAGNÓSTICO E COLETA', title: 'Comece a recuperar o bairro', description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para encaminhamento correto.', progress: `${state.collected}/${state.total} resíduos` },
@@ -416,7 +465,20 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     complete: { eyebrow: 'FASE 03 · PERIFERIA VERDE', title: 'A comunidade começou a se transformar', description: 'Você investigou os desafios, organizou a coleta, acompanhou a composteira, melhorou as ligações sanitárias e implantou um jardim de chuva no cenário simulado.', progress: 'Fase concluída' },
   }[state.peripheryMissionStage];
 
-  const mission = state.phase === 1 ? phaseOneMission : state.phase === 2 ? portMission : peripheryMission;
+
+  const forestMission = {
+    survey: { eyebrow: 'FASE 04 · BIODIVERSIDADE', title: 'Conheça a reserva e seus habitats', description: 'Explore os três pontos sinalizados. Observe fragmentos de vegetação, conectividade entre habitats e sinais da vida silvestre antes de iniciar a restauração.', progress: state.forestHabitatsInspected + '/' + state.forestHabitatsTotal + ' habitats investigados' },
+    harvest: { eyebrow: 'FASE 04 · AGRICULTURA FAMILIAR', title: 'Conheça quem produz os alimentos', description: 'Na propriedade familiar, recolha as três caixas de produtos. O cuidado com o solo, a água, a diversidade e o trabalho das famílias ajuda a tornar a produção mais sustentável.', progress: state.forestProduceHarvested + '/' + state.forestProduceTotal + ' caixas colhidas' },
+    transport: { eyebrow: 'FASE 04 · TRANSPORTE DA PRODUÇÃO', title: 'Acompanhe o caminhão até a indústria', description: state.forestTruckLoaded ? 'O caminhão está levando a produção para a agroindústria. Acompanhe a rota até a doca de recebimento.' : 'Leve as caixas colhidas ao pátio de carga e pressione E. O caminhoneiro fará o transporte até a agroindústria.', progress: state.forestTruckLoaded ? 'Carga a caminho da agroindústria' : 'Colheita concluída · caminhão pendente' },
+    process: { eyebrow: 'FASE 04 · AGROINDÚSTRIA', title: 'Entenda o processamento e a embalagem', description: 'Na indústria, os alimentos são recebidos, processados e embalados. Observe que a operação também gera resíduos e precisa de controle ambiental.', progress: 'Produção recebida · processamento pendente' },
+    market: { eyebrow: 'FASE 04 · COMÉRCIO LOCAL', title: 'Leve os produtos até o mercado', description: 'O caminhão transporta os alimentos embalados até o mercado. Receba a carga e organize os produtos para venda ao consumidor.', progress: 'Produtos processados · recebimento no mercado pendente' },
+    sorting: { eyebrow: 'FASE 04 · CONSUMO RESPONSÁVEL', title: 'Separe os resíduos depois do consumo', description: 'Separe papel/papelão e plástico limpos para a coleta seletiva. Restos de alimentos e resíduos vegetais seguem para compostagem, não para a cooperativa de recicláveis.', progress: state.forestPackagingSorted + '/' + state.forestPackagingTotal + ' fluxos separados' },
+    cooperative: { eyebrow: 'FASE 04 · COOPERATIVA', title: 'Encaminhe os recicláveis à cooperativa', description: 'A cooperativa recebe, separa e prepara os materiais recicláveis para encaminhar às indústrias. A transformação de papel, plástico, vidro e metal será aprofundada na Fase 08.', progress: state.forestCooperativeDelivered ? 'Materiais recebidos' : 'Separação concluída · entrega pendente' },
+    restore: { eyebrow: 'FASE 04 · RESTAURAÇÃO ECOLÓGICA', title: 'Proteja a floresta e acompanhe a vida', description: 'Plante três mudas nativas, proteja a nascente e registre a fauna. Restauração exige espécies adequadas, continuidade e monitoramento — não acontece apenas no dia do plantio.', progress: state.forestSeedlingsPlanted + '/' + state.forestSeedlingsTotal + ' mudas · ' + (state.forestSpringProtected ? 'nascente protegida' : 'nascente pendente') + ' · ' + (state.forestWildlifeRecorded ? 'fauna registrada' : 'monitoramento pendente') },
+    complete: { eyebrow: 'FASE 04 · RESERVA FLORESTAL', title: 'A floresta e a comunidade estão conectadas', description: 'Você investigou habitats, acompanhou a agricultura familiar, transporte, indústria, mercado, destinação de resíduos e ações de restauração da reserva.', progress: 'Fase concluída' },
+  }[state.forestMissionStage];
+
+  const mission = state.phase === 1 ? phaseOneMission : state.phase === 2 ? portMission : state.phase === 3 ? peripheryMission : forestMission;
   const interactionLabel = state.nearbyLabel.replace(/^([EF]) · /, 'TOQUE · ');
   const mobileActionLabel = state.nearbyAction === 'enter-vehicle' ? 'ENTRAR'
     : state.nearbyAction === 'exit-vehicle' ? 'SAIR'
@@ -428,7 +490,17 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             : state.nearbyAction === 'sort-community-recyclables' ? 'RECICLAR'
               : state.nearbyAction === 'turn-community-compost' ? 'REVOLVER'
                 : state.nearbyAction === 'connect-community-sewer' ? 'CONECTAR'
-                  : state.nearbyAction === 'build-rain-garden' ? 'CONSTRUIR' : 'AÇÃO';
+                  : state.nearbyAction === 'build-rain-garden' ? 'CONSTRUIR'
+                    : state.nearbyAction === 'inspect-forest-habitat' ? 'INVESTIGAR'
+                      : state.nearbyAction === 'harvest-farm-produce' ? 'COLHER'
+                        : state.nearbyAction === 'load-farm-truck' ? 'CARREGAR'
+                          : state.nearbyAction === 'process-food-products' ? 'PROCESSAR'
+                            : state.nearbyAction === 'stock-local-market' ? 'RECEBER'
+                              : state.nearbyAction === 'sort-consumer-packaging' ? 'SEPARAR'
+                                : state.nearbyAction === 'deliver-forest-cooperative' ? 'ENTREGAR'
+                                  : state.nearbyAction === 'plant-native-seedling' ? 'PLANTAR'
+                                    : state.nearbyAction === 'protect-forest-spring' ? 'PROTEGER'
+                                      : state.nearbyAction === 'record-forest-wildlife' ? 'REGISTRAR' : 'AÇÃO';
 
   return <main className="game-shell">
     <canvas ref={canvasRef} className="game-canvas" tabIndex={0} aria-label="Mundo 3D jogável de GREEN CITY" />
@@ -487,13 +559,13 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       </div>
     </div>}
 
-    <div className="vehicle-status">{state.phase === 3 ? 'PERIFERIA VERDE · EXPLORAÇÃO A PÉ' : state.phase === 2
+    <div className="vehicle-status">{state.phase === 4 ? (state.forestTruckLoaded && !state.forestMarketStocked ? 'LOGÍSTICA RURAL · CAMINHÃO DE PRODUÇÃO' : 'RESERVA FLORESTAL · EXPLORAÇÃO A PÉ') : state.phase === 3 ? 'PERIFERIA VERDE · EXPLORAÇÃO A PÉ' : state.phase === 2
       ? state.inVehicle
         ? state.portMissionStage === 'deliver' ? `CAMINHÃO · DESTINO: COOPERATIVA · ${state.vehicleSpeed} KM/H` : `CAMINHÃO DE COLETA · ${state.vehicleSpeed} KM/H`
         : state.portMissionStage === 'deliver' ? 'CARGA A BORDO · RETORNE AO CAMINHÃO' : 'CAMINHÃO DE COLETA · APROXIME-SE PARA ENTRAR'
       : state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
 
-    <div className={"minimap " + (state.phase === 2 ? "minimap-port" : state.phase === 3 ? "minimap-periphery" : "minimap-city")} aria-label="Minimapa com os objetivos da etapa atual">
+    <div className={"minimap " + (state.phase === 2 ? "minimap-port" : state.phase === 3 ? "minimap-periphery" : state.phase === 4 ? "minimap-forest" : "minimap-city")} aria-label="Minimapa com os objetivos da etapa atual">
       <div className="map-road map-road-v" />
       <div className="map-road map-road-h" />
       <div className="map-river" />
@@ -510,9 +582,9 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         }}
         title={objective.label + (objective.status === 'done' ? " · concluído" : objective.status === 'next' ? " · próximo objetivo" : " · objetivo da etapa")}
       >{objective.status === 'done' ? '✓' : index + 1}</span>)}
-      <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"}
+      {state.phase !== 4 && <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"}
         style={{ left: Math.max(8, Math.min(92, 50 + state.vehicleX * 0.75)) + "%", top: Math.max(8, Math.min(92, 50 + state.vehicleZ * 0.75)) + "%" }}
-        title={state.phase === 2 ? "Caminhão de coleta · posição atual" : "Veículo municipal · posição atual"} />
+        title={state.phase === 2 ? "Caminhão de coleta · posição atual" : "Veículo municipal · posição atual"} />}
       <span className="map-player" style={{ left: Math.max(8, Math.min(92, 50 + state.playerX * 0.75)) + "%", top: Math.max(8, Math.min(92, 50 + state.playerZ * 0.75)) + "%" }} />
       <div className="map-route-caption">
         <small>SIGA O MAPA</small>
@@ -574,14 +646,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <div>
               <div className="eyebrow">ACESSO LOCAL · MODO DE DESENVOLVIMENTO</div>
               <h3>Painel de testes da campanha</h3>
-              <p>Teste as três regiões que já possuem cenário 3D e abra o configurador pedagógico das outras sete para preparar o conteúdo fase por fase.</p>
+              <p>Teste as quatro regiões que já possuem cenário 3D e abra o configurador pedagógico das seis fases seguintes.</p>
             </div>
             <span className="dev-mode-tag">TESTE</span>
           </div>
           <div className="dev-console-grid">
             {CITY_NEIGHBORHOODS.map((neighborhood, index) => {
               const phase = index + 1;
-              const implemented = phase <= 3;
+              const implemented = phase <= 4;
               const completed = completedPhaseMarks.includes(phase);
               return <article className="dev-phase-card" key={neighborhood.id}>
                 <div className="dev-phase-meta">
@@ -592,7 +664,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 </div>
                 <h4>{neighborhood.name}</h4>
                 {implemented ? <div className="dev-phase-actions">
-                  <button type="button" onClick={() => startGameAtPhase(phase as 1 | 2 | 3)}>ABRIR FASE {String(phase).padStart(2, '0')}</button>
+                  <button type="button" onClick={() => startGameAtPhase(phase as 1 | 2 | 3 | 4)}>ABRIR FASE {String(phase).padStart(2, '0')}</button>
                   <label><input type="checkbox" checked={completed} onChange={(event) => setDeveloperPhaseMark(phase, event.currentTarget.checked)} /> Marcar como validada</label>
                 </div> : <div className="dev-phase-actions">
                   <button type="button" onClick={() => void openMasterPhaseConfig(phase)}>CONFIGURAR MÓDULO</button>
@@ -617,7 +689,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <h2>{mission.title}</h2>
         <p>Os pontos da etapa estão marcados no mapa. O amarelo indica o próximo destino; os demais pontos mostram o que já foi feito e o que ainda falta. Você continua responsável por investigar e decidir a solução ambiental.</p>
         <div className="objective-map-layout">
-          <div className={"objective-map-board " + (state.phase === 2 ? "objective-map-board--port" : state.phase === 3 ? "objective-map-board--periphery" : "objective-map-board--city")}>
+          <div className={"objective-map-board " + (state.phase === 2 ? "objective-map-board--port" : state.phase === 3 ? "objective-map-board--periphery" : state.phase === 4 ? "objective-map-board--forest" : "objective-map-board--city")}>
             <div className="objective-map-river" />
             <div className="objective-map-road objective-map-road-one" />
             <div className="objective-map-road objective-map-road-two" />
@@ -633,9 +705,9 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <span className="objective-map-player"
               style={{ left: Math.max(3, Math.min(97, 50 + state.playerX * 0.98)) + "%", top: Math.max(3, Math.min(97, 50 + state.playerZ * 0.98)) + "%" }}
               title="Você está aqui">VOCÊ</span>
-            <span className="objective-map-vehicle"
+            {state.phase !== 4 && <span className="objective-map-vehicle"
               style={{ left: Math.max(3, Math.min(97, 50 + state.vehicleX * 0.98)) + "%", top: Math.max(3, Math.min(97, 50 + state.vehicleZ * 0.98)) + "%" }}
-              title={state.phase === 2 ? "Caminhão" : "Veículo municipal"}>V</span>
+              title={state.phase === 2 ? "Caminhão" : "Veículo municipal"}>V</span>}
           </div>
           <div className="objective-map-list">
             <div className="objective-map-next"><small>PRÓXIMO DESTINO</small><strong>{state.nextObjectiveLabel}</strong></div>
@@ -671,25 +743,27 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
               const available = !completed && !current && index === state.completedNeighborhoods;
               const canEnterPort = (available && index === 1 && state.phase === 1) || (isMaster && index === 1 && state.phase !== 2);
               const canEnterPeriphery = (available && index === 2 && state.phase === 2 && state.portMissionStage === 'complete') || (isMaster && index === 2 && state.phase !== 3);
+              const canEnterForest = (available && index === 3 && state.phase === 3 && state.peripheryMissionStage === 'complete') || (isMaster && index === 3 && state.phase !== 4);
               const canMasterTest = isMaster && index === 0 && state.phase !== 1;
-              const canConfigure = isMaster && index >= 3;
-              const status = canConfigure ? 'CONFIGURAR MÓDULO' : completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : isMaster && (canEnterPort || canEnterPeriphery || canMasterTest) ? 'TESTE MASTER' : available ? 'LIBERADO' : 'BLOQUEADO';
-              const masterAccessible = canEnterPort || canEnterPeriphery || canMasterTest || canConfigure;
+              const canConfigure = isMaster && index >= 4;
+              const status = canConfigure ? 'CONFIGURAR MÓDULO' : completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : isMaster && (canEnterPort || canEnterPeriphery || canEnterForest || canMasterTest) ? 'TESTE MASTER' : available ? 'LIBERADO' : 'BLOQUEADO';
+              const masterAccessible = canEnterPort || canEnterPeriphery || canEnterForest || canMasterTest || canConfigure;
               return <button type="button"
                 className={"district-card " + (completed ? "district-complete " : "") + (current ? "district-current " : "") + ((available || masterAccessible) ? "district-available " : "") + (!completed && !current && !available && !masterAccessible ? "district-locked" : "")}
-                key={neighborhood.id} disabled={!masterAccessible && !canEnterPort && !canEnterPeriphery}
+                key={neighborhood.id} disabled={!masterAccessible && !canEnterPort && !canEnterPeriphery && !canEnterForest}
                 onClick={() => {
                   if (canConfigure) void openMasterPhaseConfig(index + 1);
                   else if (canMasterTest) startGameAtPhase(1);
                   else if (canEnterPort) startGameAtPhase(2);
                   else if (canEnterPeriphery) startGameAtPhase(3);
+                  else if (canEnterForest) startGameAtPhase(4);
                 }}>
                 <div className="district-card-top"><span>FASE {String(index + 1).padStart(2, '0')}</span><b>{status}</b></div>
                 <div className="district-map-icon">{completed ? '✓' : neighborhood.icon}</div>
                 <h3>{neighborhood.name}</h3>
                 <div className="district-theme">{neighborhood.theme}</div>
                 <p>{neighborhood.challenge}</p>
-                <small>{canConfigure ? 'Abrir configuração pedagógica no Estúdio Master · cenário 3D em construção' : masterAccessible && isMaster ? 'Acesso livre para testes da conta Master' : completed ? 'Região concluída e marcada no mapa' : current ? 'Você está nesta região' : canEnterPort ? 'Clique para entrar na Fase 02' : canEnterPeriphery ? 'Clique para entrar na Fase 03' : available ? 'Próxima região liberada · expansão seguinte' : neighborhood.unlockLabel}</small>
+                <small>{canConfigure ? 'Abrir configuração pedagógica no Estúdio Master · cenário 3D em construção' : masterAccessible && isMaster ? 'Acesso livre para testes da conta Master' : completed ? 'Região concluída e marcada no mapa' : current ? 'Você está nesta região' : canEnterPort ? 'Clique para entrar na Fase 02' : canEnterPeriphery ? 'Clique para entrar na Fase 03' : canEnterForest ? 'Clique para entrar na Fase 04' : available ? 'Próxima região liberada · expansão seguinte' : neighborhood.unlockLabel}</small>
               </button>;
             })}
           </div>
@@ -697,7 +771,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="city-map-footer">
           <span><i className="legend-dot active" /> Fase atual</span><span><i className="legend-dot available" /> Liberado</span><span><i className="legend-dot locked" /> Bloqueado</span>
         </div>
-        <p className="map-disclaimer">O mapa é uma representação fictícia da cidade. Nesta versão, Centro Industrial, Porto e Periferia Verde possuem cenários 3D jogáveis; as outras sete regiões permanecem em desenvolvimento.</p>
+        <p className="map-disclaimer">O mapa é uma representação fictícia da cidade. Nesta versão, Centro Industrial, Porto, Periferia Verde e Reserva Florestal possuem cenários 3D jogáveis; as outras seis regiões permanecem em desenvolvimento.</p>
       </section>}
     </div>}
 
@@ -800,11 +874,33 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       </section>
     </div>}
 
+
+    {state.phase === 4 && state.forestMissionStage === 'complete' && phaseCompleteOpen && !forestCompleteSeen && <div className="phase-complete-overlay">
+      <section className="phase-complete-panel learning-report">
+        <div className="completion-medal">✓</div>
+        <div className="eyebrow">CADERNO DE APRENDIZADO · FASE 04 DE 10</div>
+        <h2>A Reserva Florestal está mais protegida!</h2>
+        <p>Você investigou habitats, acompanhou a cadeia da agricultura familiar e participou da recuperação ecológica da reserva.</p>
+        <div className="completion-stats"><span>3 habitats investigados</span><span>3 caixas colhidas</span><span>1 transporte até a indústria</span><span>1 entrega à cooperativa</span><span>3 mudas plantadas</span></div>
+        <div className="learning-report-grid">
+          <article className="learning-report-card"><small>BIODIVERSIDADE</small><h3>Habitat é mais que árvores</h3><p>Animais, plantas, água, solo e relações entre espécies formam o ecossistema. Fragmentos conectados podem facilitar o deslocamento e a troca entre populações.</p></article>
+          <article className="learning-report-card"><small>AGRICULTURA FAMILIAR</small><h3>Produção local e responsabilidade</h3><p>Famílias produtoras cultivam e colhem alimentos. O cuidado com o solo, a água, a diversidade e a redução de perdas ajuda a tornar a produção mais sustentável.</p></article>
+          <article className="learning-report-card"><small>CADEIA PRODUTIVA</small><h3>Do campo ao mercado</h3><p>O caminhoneiro transporta a produção até a agroindústria. A indústria processa e embala; o mercado comercializa; e os consumidores precisam separar os resíduos após o uso.</p></article>
+          <article className="learning-report-card"><small>RESÍDUOS E COOPERATIVA</small><h3>Cada material tem uma rota</h3><p>Papel e plástico limpos seguem à cooperativa para triagem e preparação. Orgânicos seguem à compostagem. A cooperativa não é a fábrica recicladora: a transformação industrial será aprofundada na Fase 08.</p></article>
+          <article className="learning-report-card learning-report-card--result"><small>RESTAURAÇÃO E MONITORAMENTO</small><h3>Plantar é o começo do trabalho</h3><p>Proteger nascentes, recuperar vegetação ciliar e acompanhar mudas e fauna exige continuidade. O resultado ambiental precisa ser monitorado ao longo do tempo.</p></article>
+        </div>
+        <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que embalagens recicláveis e restos de alimentos precisam ser separados, e como a cadeia de produção pode proteger a floresta?</span></div>
+        <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 05</small><b>Zona Costeira: rios, manguezais e oceanos.</b><span>Vamos conectar o cuidado com a floresta à proteção das águas e dos ambientes costeiros.</span></div>
+        <button className="learning-back-button" onClick={() => { setForestCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
+        <button className="start-game-button" onClick={() => { setForestCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
+      </section>
+    </div>}
+
     {showPlan && <div className="world-map-overlay">
       <section className="world-map-panel plan-panel">
         <button className="world-map-close" onClick={() => setShowPlan(false)}>VOLTAR AO JOGO</button>
-        <div className="eyebrow">{state.phase === 1 ? 'CENTRO INDUSTRIAL' : state.phase === 2 ? 'PORTO' : 'PERIFERIA VERDE'} · GESTÃO DA CIDADE</div>
-        <h2>{state.phase === 1 ? 'Missões de recuperação do bairro' : state.phase === 2 ? 'Missões de recuperação do Porto' : 'Missões de recuperação da comunidade'}</h2>
+        <div className="eyebrow">{state.phase === 1 ? 'CENTRO INDUSTRIAL' : state.phase === 2 ? 'PORTO' : state.phase === 3 ? 'PERIFERIA VERDE' : 'RESERVA FLORESTAL'} · GESTÃO DA REGIÃO</div>
+        <h2>{state.phase === 1 ? 'Missões de recuperação do bairro' : state.phase === 2 ? 'Missões de recuperação do Porto' : state.phase === 3 ? 'Missões de recuperação da comunidade' : 'Missões da reserva e da cadeia de alimentos'}</h2>
         <p>Este painel acompanha os indicadores e objetivos da região atual. As obras e coletas acontecem no cenário, por aproximação e interação do personagem.</p>
         {state.phase === 1 ? <>
           <div className="metrics-grid">
@@ -829,7 +925,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <article className="upgrade-card"><div className="eyebrow">SANEAMENTO LOCAL</div><h3>{state.septicInstalled}/{state.septicTotal} fossas sépticas instaladas</h3><p>As fossas atendem instalações sanitárias isoladas. Elas não substituem o tratamento específico dos efluentes industriais realizado pela ETE.</p></article>
             <article className="upgrade-card"><div className="eyebrow">LOGÍSTICA DE RESÍDUOS</div><h3>{state.companyWasteCollected}/{state.companyWasteTotal} empresas atendidas</h3><p>Use o caminhão amarelo, pare junto aos pontos sinalizados e pressione E para carregar os resíduos de cada empresa.</p></article>
           </div>
-        </> : <>
+        </> : state.phase === 3 ? <>
           <div className="metrics-grid">
             <Metric label="Pontos do bairro investigados" value={Math.round(state.communityIssuesInspected / state.communityIssuesTotal * 100)} />
             <Metric label="Coleta comunitária" value={Math.round(state.communityWasteCollected / state.communityWasteTotal * 100)} />
@@ -842,11 +938,25 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <article className="upgrade-card"><div className="eyebrow">SANEAMENTO</div><h3>{state.communitySewerConnections}/{state.communitySewerTotal} moradias conectadas</h3><p>As ligações simuladas conduzem esgoto sanitário para a rede própria. O tratamento e a operação do sistema continuam necessários; isso não é a rede pluvial.</p></article>
             <article className="upgrade-card"><div className="eyebrow">DRENAGEM PLUVIAL</div><h3>{state.communityRainGardenBuilt ? 'Jardim de chuva implantado' : 'Área de escoamento a tratar'}</h3><p>Jardins de chuva podem ajudar a reter e infiltrar parte da chuva em locais tecnicamente adequados. Eles não recebem esgoto e não substituem o sistema de drenagem completo.</p></article>
           </div>
+        </> : <>
+          <div className="metrics-grid">
+            <Metric label="Habitats investigados" value={Math.round(state.forestHabitatsInspected / state.forestHabitatsTotal * 100)} />
+            <Metric label="Colheita familiar" value={Math.round(state.forestProduceHarvested / state.forestProduceTotal * 100)} />
+            <Metric label="Processamento e mercado" value={(Number(state.forestProcessed) + Number(state.forestMarketStocked)) * 50} />
+            <Metric label="Separação pós-consumo" value={Math.round(state.forestPackagingSorted / state.forestPackagingTotal * 100)} />
+            <Metric label="Restauração de habitats" value={Math.round((state.forestSeedlingsPlanted / state.forestSeedlingsTotal * 60) + (state.forestSpringProtected ? 20 : 0) + (state.forestWildlifeRecorded ? 20 : 0))} />
+          </div>
+          <div className="upgrade-grid">
+            <article className="upgrade-card"><div className="eyebrow">AGRICULTURA FAMILIAR</div><h3>{state.forestProduceHarvested}/{state.forestProduceTotal} caixas colhidas</h3><p>Famílias produtoras cultivam e colhem alimentos. O cuidado com o solo, a água e a vegetação nativa ajuda a manter a produção e os serviços do ecossistema.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">AGROINDÚSTRIA E MERCADO</div><h3>{state.forestProcessed ? 'Alimentos processados e embalados' : 'Aguardando processamento'}</h3><p>A indústria recebe a produção, processa, embala e encaminha ao comércio. Os processos industriais também precisam prevenir e destinar corretamente os resíduos gerados.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">COOPERATIVA E DESTINAÇÃO</div><h3>{state.forestCooperativeDelivered ? 'Recicláveis recebidos pela cooperativa' : 'Triagem pendente'}</h3><p>Papel e plástico limpos seguem à cooperativa para triagem e preparação. Orgânicos seguem à compostagem; rejeitos e resíduos especiais precisam de rotas próprias. A reciclagem industrial será estudada na Fase 08.</p></article>
+          </div>
         </>}
         {state.phase === 1 && !state.delivered && <div className="plan-hint">Primeiro: recolha os cinco resíduos e entregue a carga no EcoCentro.</div>}
         {state.delivered && state.solarBuildingsInstalled < 3 && <div className="plan-hint">Missão atual: instale energia solar em três prédios. A base do veículo será ativada automaticamente depois da terceira instalação.</div>}
         {state.delivered && state.solarBuildingsInstalled >= 3 && !state.electricVehicle && <div className="plan-hint">A base está ativa. Siga o marcador amarelo no minimapa, estacione completamente, desça e converta o veículo ao lado da vaga.</div>}
         {state.electricVehicle && state.solarBuildingsInstalled < state.solarBuildingsTotal && <div className="plan-hint">O veículo já é elétrico. Continue solarizando os prédios restantes para concluir a fase.</div>}
+        {state.phase === 4 && <div className="plan-hint">A cooperativa recebe, faz triagem e prepara os recicláveis. A transformação industrial desses materiais será mostrada na Fase 08. Orgânicos seguem para compostagem; rejeitos e resíduos especiais exigem destinação própria.</div>}
                 {state.nextNeighborhoodUnlocked && <div className="success-line">✓ METAS DA REGIÃO ATINGIDAS · PRÓXIMA REGIÃO LIBERADA</div>}
         <small className="economy-note">CIT é uma pontuação fictícia do protótipo, sem valor monetário ou possibilidade de saque.</small>
       </section>

@@ -1608,3 +1608,20 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
 .dev-phase-actions > p { flex-basis:100%; }
 @media(max-width:920px) { .master-studio-layout { grid-template-columns:1fr; }.master-phase-picker { position:static;grid-template-columns:repeat(2,minmax(0,1fr)); }.master-phase-picker h2,.master-phase-legend { grid-column:1/-1; } }
 @media(max-width:620px) { .master-studio-back { min-height:34px;padding:0 10px;font-size:8px; }.master-phase-picker { grid-template-columns:1fr; }.master-phase-picker h2,.master-phase-legend { grid-column:auto; }.master-phase-editor { padding:15px; }.master-editor-heading { flex-direction:column; }.master-status-select { width:100%; }.master-editor-grid { grid-template-columns:1fr; }.master-editor-field-wide { grid-column:auto; }.master-editor-actions { align-items:stretch;flex-direction:column; }.master-editor-actions button { width:100%; } }
+
+
+/* Fase 04 — identidade visual da Reserva Florestal. */
+.minimap-forest .map-road,
+.objective-map-board--forest .objective-map-road {
+  background: rgba(117, 91, 57, 0.82);
+}
+.minimap-forest .map-river,
+.objective-map-board--forest .objective-map-river {
+  background: rgba(50, 143, 159, 0.88);
+}
+.objective-map-board--forest {
+  background-color: #dce8c9;
+  background-image: radial-gradient(circle at 22% 24%, #71975c 0 7%, transparent 8%),
+    radial-gradient(circle at 76% 62%, #72975d 0 8%, transparent 9%),
+    linear-gradient(135deg, rgba(38, 91, 49, .12), rgba(85, 122, 69, .06));
+}

@@ -4,7 +4,7 @@ import {
 } from '@babylonjs/core';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import type { AbstractMesh } from '@babylonjs/core';
-import type { GameSnapshot, MapObjective, MissionStage, NearbyAction, PortMissionStage, PeripheryMissionStage, SnapshotListener } from './types';
+import type { ForestMissionStage, GameSnapshot, MapObjective, MissionStage, NearbyAction, PortMissionStage, PeripheryMissionStage, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
 const TOTAL_SOLAR_BUILDINGS = 8;
@@ -71,7 +71,7 @@ export class GreenCityGame {
   private portTruckModelHeadingOffset = 0;
   private vehicleVisualRoot?: TransformNode;
   private portTruckVisualRoot?: TransformNode;
-  private activePhase: 1 | 2 | 3 = 1;
+  private activePhase: 1 | 2 | 3 | 4 = 1;
   private portMissionStage: PortMissionStage = 'inspect';
   private readonly portOutfallPositions: PortSite[] = [{ x: 4, z: -20 }, { x: 4, z: 0 }, { x: 4, z: 20 }];
   private readonly portSepticPositions: PortSite[] = [{ x: 8, z: -31 }, { x: 8, z: 31 }];
@@ -120,6 +120,41 @@ export class GreenCityGame {
   private peripheryCompostTurned = false;
   private peripheryRainGardenBuilt = false;
   private peripheryWaterQuality = 28;
+
+  // Fase 04 — Reserva Florestal e cadeia local da agricultura familiar.
+  private readonly phaseFourMeshes: Mesh[] = [];
+  private readonly phaseFourDynamicMeshes: Mesh[] = [];
+  private readonly forestHabitatPositions: PortSite[] = [{ x: -8, z: -7 }, { x: 8, z: -31 }, { x: 34, z: -18 }];
+  private readonly forestProducePositions: PortSite[] = [{ x: -30, z: -15 }, { x: -23, z: -15 }, { x: -16, z: -15 }];
+  private readonly forestPackagingPositions: PortSite[] = [{ x: 8, z: 19 }, { x: 14, z: 19 }, { x: 20, z: 19 }];
+  private readonly forestSeedlingPositions: PortSite[] = [{ x: -34, z: -3 }, { x: -28, z: -8 }, { x: -21, z: -4 }];
+  private readonly forestTruckLoadingPosition = new Vector3(-12, 0, -22);
+  private readonly forestFactoryDeliveryPosition = new Vector3(13, 0, -25);
+  private readonly forestMarketDeliveryPosition = new Vector3(18, 0, 4);
+  private readonly forestFactoryProcessPosition = new Vector3(24, 0, -19);
+  private readonly forestMarketStockPosition = new Vector3(25, 0, 14);
+  private readonly forestCooperativeDeliveryPosition = new Vector3(-13, 0, 16);
+  private readonly forestSpringPosition = new Vector3(2, 0, -8);
+  private readonly forestWildlifePosition = new Vector3(34, 0, -20);
+  private forestMissionStage: ForestMissionStage = 'survey';
+  private readonly forestHabitatsInspected: boolean[] = [false, false, false];
+  private readonly forestProduceHarvested: boolean[] = [false, false, false];
+  private readonly forestProduceCrates: Mesh[] = [];
+  private forestTruckLoaded = false;
+  private forestTruckTraveling = false;
+  private forestTruckTarget: Vector3 | null = null;
+  private forestTruckDestination: 'factory' | 'market' | null = null;
+  private forestTruckRoot?: TransformNode;
+  private forestProcessed = false;
+  private forestMarketStocked = false;
+  private readonly forestPackagingSorted: boolean[] = [false, false, false];
+  private forestCooperativeDelivered = false;
+  private readonly forestSeedlingsPlanted: boolean[] = [false, false, false];
+  private readonly forestSeedlingMarkers: Mesh[] = [];
+  private forestSpringProtected = false;
+  private forestWildlifeRecorded = false;
+  private readonly forestHabitatMarkers: Mesh[] = [];
+  private readonly forestPackagingBins: StandardMaterial[] = [];
 
   constructor(canvas: HTMLCanvasElement, listener: SnapshotListener) {
     this.listener = listener;
@@ -182,6 +217,11 @@ export class GreenCityGame {
     this.buildPeripheryDistrict();
     this.peripheryMeshes.push(...this.scene.meshes.slice(peripheryStartIndex) as Mesh[]);
     this.peripheryMeshes.forEach((mesh) => mesh.setEnabled(false));
+    const phaseFourStartIndex = this.scene.meshes.length;
+    this.buildForestDistrict();
+    this.phaseFourMeshes.push(...this.scene.meshes.slice(phaseFourStartIndex) as Mesh[]);
+    this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.forestTruckRoot?.setEnabled(false);
     void this.loadWorldModels();
     this.bindInput(canvas);
     this.emit();
@@ -1037,6 +1077,434 @@ export class GreenCityGame {
     sign('periphery-drainage-learning-sign', 'CHUVA NAO E ESGOTO', 27, 2.4, 18, 7.8);
   }
 
+
+  /** Reserva Florestal: floresta demonstrativa, produção familiar e cadeia de alimentos. */
+  private buildForestDistrict(): void {
+    const ground = MeshBuilder.CreateGround('forest-ground', { width: 90, height: 90 }, this.scene);
+    ground.position.y = -0.08; ground.material = this.material('forest-ground-material', new Color3(0.28, 0.43, 0.27)); ground.checkCollisions = true;
+    const dirt = this.material('forest-trail-material', new Color3(0.48, 0.37, 0.24));
+    const road = MeshBuilder.CreateGround('forest-farm-road', { width: 66, height: 6.8 }, this.scene);
+    road.position.set(0, 0.025, -22.5); road.material = dirt;
+    const marketRoad = MeshBuilder.CreateGround('forest-market-road', { width: 6.5, height: 37 }, this.scene);
+    marketRoad.position.set(17, 0.03, -4); marketRoad.material = dirt;
+    const researchTrail = MeshBuilder.CreateGround('forest-research-trail', { width: 5.2, height: 54 }, this.scene);
+    researchTrail.position.set(-34, 0.025, 4); researchTrail.material = dirt;
+
+    const sign = (id: string, title: string, subtitle: string, x: number, y: number, z: number, width = 8.2): void => {
+      const board = MeshBuilder.CreateBox(id + '-board', { width, height: 1.65, depth: 0.22 }, this.scene);
+      board.position.set(x, y, z); board.material = this.material(id + '-board-material', new Color3(0.07, 0.25, 0.17));
+      const texture = new DynamicTexture(id + '-texture', { width: 1024, height: 256 }, this.scene, false);
+      const ctx = texture.getContext() as unknown as CanvasRenderingContext2D;
+      ctx.fillStyle = '#103E2B'; ctx.fillRect(0, 0, 1024, 256);
+      ctx.strokeStyle = '#F3D67C'; ctx.lineWidth = 10; ctx.strokeRect(12, 12, 1000, 232);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#F4F5E8'; ctx.font = 'bold 62px Arial'; ctx.fillText(title, 512, 99, 960);
+      ctx.fillStyle = '#D9EBCB'; ctx.font = 'bold 31px Arial'; ctx.fillText(subtitle, 512, 172, 960); texture.update();
+      const face = MeshBuilder.CreatePlane(id + '-face', { width: width - 0.24, height: 1.42 }, this.scene);
+      face.position.set(x, y, z + 0.125);
+      // Placa fixa voltada para a frente (+Z): não acompanha a câmera.
+      const mat = this.material(id + '-face-material', new Color3(1, 1, 1));
+      mat.diffuseTexture = texture; mat.emissiveColor = new Color3(0.13, 0.17, 0.12); face.material = mat;
+    };
+    const postSign = (id: string, title: string, subtitle: string, x: number, y: number, z: number, width = 8.2): void => {
+      const postMat = this.material(id + '-post-material', new Color3(0.29, 0.19, 0.11));
+      for (const dx of [-width * 0.43, width * 0.43]) {
+        const post = MeshBuilder.CreateBox(id + '-post', { width: 0.22, height: 2.75, depth: 0.22 }, this.scene);
+        post.position.set(x + dx, y - 1.28, z - 0.04); post.material = postMat;
+      }
+      sign(id, title, subtitle, x, y, z, width);
+    };
+    const building = (id: string, x: number, z: number, width: number, height: number, depth: number, facade: Color3, roof: Color3): void => {
+      const shell = MeshBuilder.CreateBox(id + '-shell', { width, height, depth }, this.scene);
+      shell.position.set(x, height / 2, z); shell.material = this.material(id + '-facade', facade); shell.checkCollisions = true;
+      const roofMesh = MeshBuilder.CreateBox(id + '-roof', { width: width + 0.7, height: 0.42, depth: depth + 0.7 }, this.scene);
+      roofMesh.position.set(x, height + 0.18, z); roofMesh.material = this.material(id + '-roof-material', roof);
+      const door = MeshBuilder.CreateBox(id + '-entry', { width: 2.2, height: 2.55, depth: 0.16 }, this.scene);
+      door.position.set(x, 1.28, z + depth / 2 + 0.1); door.material = this.material(id + '-door-material', new Color3(0.18, 0.27, 0.22));
+      for (const offset of [-width * 0.31, width * 0.31]) {
+        const window = MeshBuilder.CreateBox(id + '-window', { width: Math.min(2.5, width * 0.23), height: 1.65, depth: 0.12 }, this.scene);
+        window.position.set(x + offset, height * 0.62, z + depth / 2 + 0.09);
+        window.material = this.material(id + '-window-material', new Color3(0.17, 0.39, 0.43));
+      }
+    };
+
+    // Dossel em fragmentos, clareiras e árvores em baixa poligonagem.
+    const leafMats = [
+      this.material('forest-leaf-dark', new Color3(0.08, 0.27, 0.15)),
+      this.material('forest-leaf-mid', new Color3(0.13, 0.39, 0.19)),
+      this.material('forest-leaf-light', new Color3(0.25, 0.51, 0.23)),
+    ];
+    const trunkMat = this.material('forest-trunk', new Color3(0.28, 0.18, 0.11));
+    let treeIndex = 0;
+    for (let x = -42; x <= 42; x += 8) for (let z = -40; z <= 40; z += 8) {
+      const inFarm = x <= -14 && x >= -36 && z >= -19 && z <= -10;
+      const nearBuildings = (x < -17 && z > -34 && z < -18) || (x > 16 && z > -34 && z < -17)
+        || (x > 18 && z > -1 && z < 19) || (x < -35 && z > 24);
+      const onRoad = Math.abs(z + 22.5) < 5 || (Math.abs(x - 17) < 5 && z > -24 && z < 15);
+      const onTrail = Math.abs(x + 34) < 4 && z > -28 && z < 34;
+      if (inFarm || nearBuildings || onRoad || onTrail) continue;
+      const height = 4.1 + (treeIndex % 4) * 0.42;
+      const trunk = MeshBuilder.CreateCylinder('forest-tree-trunk-' + treeIndex, { height, diameterTop: 0.22, diameterBottom: 0.62, tessellation: 8 }, this.scene);
+      trunk.position.set(x, height / 2, z); trunk.material = trunkMat; trunk.checkCollisions = true;
+      const crown = MeshBuilder.CreateSphere('forest-tree-crown-' + treeIndex, { diameter: 3.2 + (treeIndex % 3) * 0.35, segments: 8 }, this.scene);
+      crown.position.set(x, height + 0.45, z); crown.scaling.y = 1 + (treeIndex % 2) * 0.16; crown.material = leafMats[treeIndex % 3];
+      for (const [dx, dz] of [[-0.78, 0.14], [0.72, -0.3], [0.12, 0.76]]) {
+        const cluster = MeshBuilder.CreateSphere('forest-tree-cluster-' + treeIndex, { diameter: 1.8, segments: 7 }, this.scene);
+        cluster.position.set(x + dx, height + 0.65, z + dz); cluster.material = leafMats[(treeIndex + 1) % 3];
+      }
+      treeIndex++;
+    }
+
+    // Centro de conservação e viveiro.
+    building('forest-research-base', -34, 31, 11, 4.8, 8.5, new Color3(0.72, 0.72, 0.57), new Color3(0.19, 0.3, 0.23));
+    sign('forest-research-sign', 'CENTRO DE CONSERVAÇÃO', 'Pesquisa, educação e monitoramento da reserva', -34, 6.7, 35.42, 9.4);
+    building('forest-native-nursery', -11, 29, 10, 3.6, 8, new Color3(0.59, 0.72, 0.52), new Color3(0.22, 0.38, 0.24));
+    sign('forest-nursery-sign', 'VIVEIRO DE NATIVAS', 'Mudas de espécies adequadas ao ecossistema local', -11, 5.7, 33.2, 8.8);
+    for (let row = 0; row < 3; row++) {
+      const bed = MeshBuilder.CreateBox('forest-nursery-bed-' + row, { width: 7.5, height: 0.18, depth: 1.2 }, this.scene);
+      bed.position.set(-11, 0.12, 22 + row * 2); bed.material = this.material('forest-nursery-bed-material-' + row, new Color3(0.31, 0.22, 0.13));
+      for (let col = 0; col < 6; col++) {
+        const pot = MeshBuilder.CreateCylinder('forest-nursery-pot', { height: 0.38, diameter: 0.42, tessellation: 8 }, this.scene);
+        pot.position.set(-14.1 + col * 1.22, 0.37, 22 + row * 2); pot.material = this.material('forest-nursery-pot-material', new Color3(0.43, 0.27, 0.16));
+        const sprout = MeshBuilder.CreateCylinder('forest-nursery-sprout', { height: 0.65, diameterTop: 0.05, diameterBottom: 0.14, tessellation: 6 }, this.scene);
+        sprout.position.set(-14.1 + col * 1.22, 0.82, 22 + row * 2); sprout.material = leafMats[2];
+      }
+    }
+
+    // Nascente, curso d'água e observação da fauna.
+    const creek = MeshBuilder.CreateGround('forest-creek', { width: 11, height: 53 }, this.scene);
+    creek.position.set(2, 0.02, -5); creek.material = this.material('forest-creek-water', new Color3(0.17, 0.46, 0.57));
+    const spring = MeshBuilder.CreateDisc('forest-spring-water', { radius: 3.1, tessellation: 18 }, this.scene);
+    spring.position.set(2, 0.08, -8); spring.scaling.set(1.2, 1, 0.8); spring.material = this.material('forest-spring-water-material', new Color3(0.2, 0.58, 0.67));
+    for (let i = 0; i < 12; i++) {
+      const angle = Math.PI * 2 * i / 12;
+      const rock = MeshBuilder.CreateSphere('forest-spring-rock-' + i, { diameter: 0.9, segments: 7 }, this.scene);
+      rock.position.set(2 + Math.cos(angle) * 3.4, 0.25, -8 + Math.sin(angle) * 2.7);
+      rock.scaling.set(1.1, 0.55, 0.8); rock.material = this.material('forest-spring-rock-material-' + i, new Color3(0.49, 0.48, 0.37));
+    }
+    postSign('forest-spring-sign', 'NASCENTE PROTEGIDA', 'Mata ciliar, solo e água fazem parte do mesmo sistema', 2, 2.8, -3, 8.7);
+    for (const [x, z] of [[31, -28], [35, -28], [31, -24], [35, -24]]) {
+      const post = MeshBuilder.CreateBox('forest-lookout-post', { width: 0.26, height: 8.2, depth: 0.26 }, this.scene);
+      post.position.set(x, 4.1, z); post.material = this.material('forest-lookout-post-material', new Color3(0.32, 0.24, 0.15));
+    }
+    const towerDeck = MeshBuilder.CreateBox('forest-lookout-platform', { width: 5.2, height: 0.35, depth: 5.2 }, this.scene);
+    towerDeck.position.set(33, 6.7, -26); towerDeck.material = this.material('forest-lookout-deck-material', new Color3(0.49, 0.36, 0.22));
+    const towerRoof = MeshBuilder.CreateBox('forest-lookout-roof', { width: 5.8, height: 0.3, depth: 5.8 }, this.scene);
+    towerRoof.position.set(33, 8.6, -26); towerRoof.material = this.material('forest-lookout-roof-material', new Color3(0.21, 0.31, 0.22));
+    sign('forest-wildlife-sign', 'OBSERVAÇÃO DA FAUNA', 'Registre sinais e imagens sem perturbar os animais', 33, 10.1, -22.9, 9.0);
+
+    // Três locais para diagnóstico de fragmentação e conectividade de habitats.
+    this.forestHabitatPositions.forEach((site, index) => {
+      const marker = MeshBuilder.CreateCylinder('forest-habitat-marker-' + index, { height: 0.85, diameterTop: 0.36, diameterBottom: 0.62, tessellation: 8 }, this.scene);
+      marker.position.set(site.x, 0.43, site.z); marker.material = this.material('forest-habitat-marker-material-' + index, new Color3(0.92, 0.68, 0.19));
+      this.forestHabitatMarkers.push(marker);
+      const beacon = MeshBuilder.CreateSphere('forest-habitat-beacon-' + index, { diameter: 0.36, segments: 8 }, this.scene);
+      beacon.position.set(site.x, 1.05, site.z); beacon.material = this.material('forest-habitat-beacon-material-' + index, new Color3(0.98, 0.79, 0.28));
+    });
+
+    // Propriedade de agricultura familiar e talhões de cultivo.
+    building('family-farm-house', -31, -29, 10.5, 4.4, 8.8, new Color3(0.73, 0.59, 0.39), new Color3(0.31, 0.2, 0.13));
+    sign('family-farm-sign', 'AGRICULTURA FAMILIAR', 'Produção local, trabalho da família e cuidado com o solo', -31, 6.2, -24.45, 9.6);
+    const soil = this.material('family-farm-soil', new Color3(0.37, 0.25, 0.14));
+    const crop = this.material('family-farm-crop', new Color3(0.17, 0.46, 0.2));
+    const tomato = this.material('family-farm-tomato', new Color3(0.83, 0.2, 0.12));
+    const produce = this.material('family-farm-produce', new Color3(0.93, 0.68, 0.19));
+    for (let row = 0; row < 5; row++) {
+      const field = MeshBuilder.CreateBox('family-farm-row-' + row, { width: 18, height: 0.16, depth: 1.25 }, this.scene);
+      field.position.set(-23, 0.08, -17 + row * 2); field.material = soil;
+      for (let col = 0; col < 10; col++) {
+        const x = -31 + col * 1.75;
+        const plant = MeshBuilder.CreateSphere('family-farm-plant-' + row + '-' + col, { diameter: 0.7, segments: 7 }, this.scene);
+        plant.position.set(x, 0.55, -17 + row * 2); plant.scaling.set(1, 0.65, 0.82); plant.material = crop;
+        const fruit = MeshBuilder.CreateSphere('family-farm-fruit-' + row + '-' + col, { diameter: 0.27, segments: 7 }, this.scene);
+        fruit.position.set(x + 0.16, 0.65, -17 + row * 2 + 0.18); fruit.material = (row + col) % 2 ? tomato : produce;
+      }
+    }
+    this.forestProducePositions.forEach((site, index) => {
+      const crate = MeshBuilder.CreateBox('forest-harvest-crate-' + index, { width: 2, height: 1.1, depth: 1.6 }, this.scene);
+      crate.position.set(site.x, 0.55, site.z); crate.material = this.material('forest-harvest-crate-material-' + index, new Color3(0.49, 0.31, 0.16));
+      for (let item = 0; item < 4; item++) {
+        const fruit = MeshBuilder.CreateSphere('forest-harvest-fruit-' + index + '-' + item, { diameter: 0.55, segments: 8 }, this.scene);
+        fruit.position.set(site.x - 0.48 + (item % 2) * 0.92, 1.12, site.z - 0.35 + Math.floor(item / 2) * 0.7);
+        fruit.material = item % 2 ? tomato : produce;
+      }
+      this.forestProduceCrates.push(crate);
+    });
+    postSign('family-farm-field-sign', 'ÁREA DE COLHEITA', 'Aproveitamento da produção e redução de perdas', -23, 3.1, -8.6, 8.3);
+
+    // Caminhão 3D e transporte animado da fazenda até a agroindústria e o mercado.
+    const truck = new TransformNode('forest-produce-truck-root', this.scene);
+    truck.position.copyFrom(this.forestTruckLoadingPosition); this.forestTruckRoot = truck;
+    const truckBody = this.material('forest-truck-body', new Color3(0.86, 0.67, 0.18));
+    const cab = MeshBuilder.CreateBox('forest-truck-cab', { width: 2, height: 1.75, depth: 2 }, this.scene);
+    cab.parent = truck; cab.position.set(0, 1.2, 1.55); cab.material = truckBody;
+    const glass = MeshBuilder.CreateBox('forest-truck-glass', { width: 1.55, height: 0.76, depth: 0.08 }, this.scene);
+    glass.parent = truck; glass.position.set(0, 1.52, 2.58); glass.material = this.material('forest-truck-glass-material', new Color3(0.12, 0.28, 0.34));
+    const cargo = MeshBuilder.CreateBox('forest-truck-cargo', { width: 2.45, height: 1.65, depth: 3.25 }, this.scene);
+    cargo.parent = truck; cargo.position.set(0, 1.22, -1.05); cargo.material = this.material('forest-truck-cargo-material', new Color3(0.89, 0.88, 0.77));
+    for (const side of [-1, 1]) for (const z of [-2.15, 1.65]) {
+      const wheel = MeshBuilder.CreateCylinder('forest-truck-wheel', { height: 0.26, diameter: 0.88, tessellation: 12 }, this.scene);
+      wheel.parent = truck; wheel.position.set(side * 1.22, 0.48, z); wheel.rotation.z = Math.PI / 2;
+      wheel.material = this.material('forest-truck-wheel-material', new Color3(0.06, 0.07, 0.07));
+    }
+    postSign('forest-truck-sign', 'PÁTIO DE CARGA', 'O caminhoneiro transporta a produção até a indústria', -12, 4.2, -17.6, 9.2);
+
+    // Agroindústria: galpão, silos, chaminé e doca com identidade diferente da cooperativa.
+    building('food-industry', 26, -28, 17, 8.4, 13, new Color3(0.59, 0.65, 0.64), new Color3(0.19, 0.25, 0.27));
+    const chimney = MeshBuilder.CreateCylinder('food-industry-chimney', { height: 10, diameterTop: 1.25, diameterBottom: 1.65, tessellation: 10 }, this.scene);
+    chimney.position.set(33, 12.5, -32); chimney.material = this.material('food-industry-chimney-material', new Color3(0.52, 0.55, 0.52));
+    for (const x of [20, 24]) {
+      const silo = MeshBuilder.CreateCylinder('food-industry-silo', { height: 6.5, diameter: 3, tessellation: 12 }, this.scene);
+      silo.position.set(x, 3.25, -18.6); silo.material = this.material('food-industry-silo-material', new Color3(0.73, 0.77, 0.74));
+    }
+    sign('food-industry-sign', 'AGROINDÚSTRIA', 'Recebe, processa, prepara e embala alimentos', 26, 10.4, -21.25, 9.3);
+    const intake = MeshBuilder.CreateBox('food-industry-receiving-dock', { width: 8.5, height: 0.72, depth: 3 }, this.scene);
+    intake.position.set(14, 0.36, -25); intake.material = this.material('food-industry-dock-material', new Color3(0.38, 0.42, 0.39));
+    const conveyor = MeshBuilder.CreateBox('food-industry-conveyor', { width: 8, height: 0.65, depth: 1.3 }, this.scene);
+    conveyor.position.set(28, 1, -17); conveyor.material = this.material('food-industry-conveyor-material', new Color3(0.22, 0.28, 0.26));
+    postSign('food-industry-flow-sign', 'LINHA DE PRODUÇÃO', 'Processamento e embalagem também geram resíduos', 25, 3.9, -16.05, 9.5);
+
+    // Mercado local, vitrine e exposição de alimentos.
+    building('local-market', 26, 7, 13, 4.8, 9, new Color3(0.79, 0.66, 0.43), new Color3(0.59, 0.19, 0.14));
+    const awning = MeshBuilder.CreateBox('local-market-awning', { width: 13.8, height: 0.42, depth: 1.6 }, this.scene);
+    awning.position.set(26, 3.15, 12); awning.material = this.material('local-market-awning-material', new Color3(0.83, 0.27, 0.18));
+    sign('local-market-sign', 'MERCADO LOCAL', 'Comércio aproxima a produção dos consumidores', 26, 6.65, 11.65, 8.4);
+    for (let i = 0; i < 4; i++) {
+      const shelf = MeshBuilder.CreateBox('local-market-shelf-' + i, { width: 2.2, height: 0.72, depth: 1.05 }, this.scene);
+      shelf.position.set(21.2 + i * 1.55, 0.45, 14.1); shelf.material = this.material('local-market-shelf-material-' + i, new Color3(0.42, 0.29, 0.17));
+      const goods = MeshBuilder.CreateSphere('local-market-goods-' + i, { diameter: 0.72, segments: 8 }, this.scene);
+      goods.position.set(21.2 + i * 1.55, 1.05, 14.1); goods.material = i % 2 ? tomato : produce;
+    }
+
+    // Pós-consumo: papel e plástico à coleta seletiva; orgânicos à compostagem.
+    const binColors = [new Color3(0.17, 0.41, 0.61), new Color3(0.13, 0.55, 0.35), new Color3(0.47, 0.31, 0.18)];
+    const binLabels = [
+      ['PAPEL / PAPELÃO', 'Embalagens limpas e secas'],
+      ['PLÁSTICO', 'Embalagens vazias e limpas'],
+      ['ORGÂNICOS', 'Restos de alimentos para compostagem'],
+    ];
+    this.forestPackagingPositions.forEach((site, index) => {
+      const bin = MeshBuilder.CreateBox('forest-sorting-bin-' + index, { width: 2.6, height: 1.65, depth: 2.1 }, this.scene);
+      bin.position.set(site.x, 0.83, site.z); bin.material = this.material('forest-sorting-bin-material-' + index, binColors[index]);
+      this.forestPackagingBins.push(bin.material as StandardMaterial);
+      const lid = MeshBuilder.CreateBox('forest-sorting-bin-lid-' + index, { width: 2.75, height: 0.18, depth: 2.2 }, this.scene);
+      lid.position.set(site.x, 1.72, site.z); lid.material = this.material('forest-sorting-bin-lid-material-' + index, new Color3(0.18, 0.23, 0.2));
+      postSign('forest-sorting-sign-' + index, binLabels[index][0], binLabels[index][1], site.x, 3.1, site.z + 1.15, 6.5);
+    });
+    postSign('forest-consumer-sign', 'PONTO PÓS-CONSUMO', 'Separe na origem: cada resíduo segue uma rota adequada', 14, 5, 22.5, 9.5);
+
+    // Cooperativa é galpão de recebimento e triagem, não uma fábrica recicladora.
+    building('forest-cooperative', -24, 16, 18, 6.7, 13, new Color3(0.62, 0.7, 0.56), new Color3(0.12, 0.31, 0.22));
+    sign('forest-cooperative-sign', 'COOPERATIVA DE TRIAGEM', 'Recebe, separa e prepara recicláveis para encaminhar à indústria', -24, 9, 22.75, 10.8);
+    const dock = MeshBuilder.CreateBox('forest-cooperative-dock', { width: 11, height: 0.68, depth: 3.2 }, this.scene);
+    dock.position.set(-13, 0.34, 15); dock.material = this.material('forest-cooperative-dock-material', new Color3(0.4, 0.43, 0.38));
+    for (let i = 0; i < 3; i++) {
+      const bay = MeshBuilder.CreateBox('forest-cooperative-bay-' + i, { width: 3.7, height: 1.1, depth: 3.1 }, this.scene);
+      bay.position.set(-29 + i * 4.8, 0.55, 7.3);
+      bay.material = this.material('forest-cooperative-bay-material-' + i, [new Color3(0.22, 0.43, 0.6), new Color3(0.16, 0.55, 0.36), new Color3(0.75, 0.69, 0.45)][i]);
+    }
+    const press = MeshBuilder.CreateBox('forest-cooperative-press', { width: 2.5, height: 3.2, depth: 2 }, this.scene);
+    press.position.set(-15, 1.6, 7.5); press.material = this.material('forest-cooperative-press-material', new Color3(0.48, 0.53, 0.53));
+    const bale = MeshBuilder.CreateBox('forest-cooperative-bale', { width: 2.5, height: 1.8, depth: 2 }, this.scene);
+    bale.position.set(-10.7, 0.9, 7.5); bale.material = this.material('forest-cooperative-bale-material', new Color3(0.28, 0.47, 0.34));
+    postSign('forest-compost-sign', 'COMPOSTAGEM', 'Resíduos orgânicos limpos retornam ao solo após manejo adequado', 34, 3, 24, 9);
+    const compostPad = MeshBuilder.CreateGround('forest-compost-pad', { width: 8.2, height: 6.2 }, this.scene);
+    compostPad.position.set(34, 0.035, 17.5); compostPad.material = this.material('forest-compost-pad-material', new Color3(0.38, 0.28, 0.17));
+    for (let i = 0; i < 3; i++) {
+      const compostRow = MeshBuilder.CreateBox('forest-compost-row-' + i, { width: 5.5, height: 0.7, depth: 1.2 }, this.scene);
+      compostRow.position.set(34, 0.4, 15.5 + i * 1.6); compostRow.material = this.material('forest-compost-row-material-' + i, new Color3(0.24 + i * 0.04, 0.19, 0.12));
+    }
+
+    // Personagens low-poly originais: agricultor, motorista, operário, comerciante, cooperado e biólogo.
+    const npc = (id: string, x: number, z: number, clothing: Color3, hat: Color3): void => {
+      const root = new TransformNode(id + '-root', this.scene); root.position.set(x, 0, z);
+      const body = MeshBuilder.CreateCapsule(id + '-body', { height: 1, radius: 0.34, tessellation: 8 }, this.scene);
+      body.parent = root; body.position.set(0, 1.12, 0); body.material = this.material(id + '-clothing', clothing);
+      const vest = MeshBuilder.CreateBox(id + '-vest', { width: 0.54, height: 0.74, depth: 0.23 }, this.scene);
+      vest.parent = root; vest.position.set(0, 1.18, 0.22); vest.material = this.material(id + '-vest-material', new Color3(0.91, 0.72, 0.2));
+      const head = MeshBuilder.CreateSphere(id + '-head', { diameter: 0.62, segments: 10 }, this.scene);
+      head.parent = root; head.position.set(0, 1.95, 0.04); head.material = this.material(id + '-skin', new Color3(0.68, 0.46, 0.32));
+      const hatMesh = MeshBuilder.CreateCylinder(id + '-hat', { height: 0.16, diameter: 0.82, tessellation: 10 }, this.scene);
+      hatMesh.parent = root; hatMesh.position.set(0, 2.28, 0.04); hatMesh.material = this.material(id + '-hat-material', hat);
+      for (const side of [-1, 1]) {
+        const arm = MeshBuilder.CreateCapsule(id + '-arm', { height: 0.7, radius: 0.13, tessellation: 7 }, this.scene);
+        arm.parent = root; arm.position.set(side * 0.43, 1.16, 0.02); arm.material = body.material as StandardMaterial;
+        const leg = MeshBuilder.CreateCapsule(id + '-leg', { height: 0.7, radius: 0.14, tessellation: 7 }, this.scene);
+        leg.parent = root; leg.position.set(side * 0.17, 0.43, 0); leg.material = this.material(id + '-trousers', new Color3(0.16, 0.23, 0.21));
+      }
+    };
+    npc('npc-family-farmer', -36, -27, new Color3(0.21, 0.37, 0.24), new Color3(0.66, 0.42, 0.18));
+    npc('npc-produce-driver', -10, -19, new Color3(0.17, 0.31, 0.48), new Color3(0.9, 0.68, 0.14));
+    npc('npc-food-industry-worker', 34, -19, new Color3(0.35, 0.43, 0.47), new Color3(0.89, 0.83, 0.6));
+    npc('npc-market-vendor', 32, 13, new Color3(0.52, 0.22, 0.17), new Color3(0.87, 0.76, 0.55));
+    npc('npc-cooperative-sorter', -8, 15, new Color3(0.12, 0.41, 0.3), new Color3(0.9, 0.69, 0.16));
+    npc('npc-forest-biologist', -28, 34, new Color3(0.15, 0.39, 0.32), new Color3(0.88, 0.67, 0.15));
+
+    // Fauna ilustrativa sem atribuir espécies a um bioma ainda não escolhido.
+    const birdBody = this.material('forest-bird-body', new Color3(0.19, 0.38, 0.55));
+    for (let i = 0; i < 4; i++) {
+      const bird = new TransformNode('forest-bird-root-' + i, this.scene);
+      bird.position.set(12 + i * 2.1, 4.8 + (i % 2) * 0.8, -34 + (i % 2) * 1.8);
+      const body = MeshBuilder.CreateSphere('forest-bird-body-' + i, { diameter: 0.95, segments: 8 }, this.scene);
+      body.parent = bird; body.scaling.set(1.3, 0.65, 0.7); body.material = birdBody;
+      const wing = MeshBuilder.CreateSphere('forest-bird-wing-' + i, { diameter: 0.8, segments: 7 }, this.scene);
+      wing.parent = bird; wing.position.set(0, 0.18, -0.18); wing.scaling.set(0.35, 0.17, 1.15);
+      wing.material = this.material('forest-bird-wing-material', new Color3(0.87, 0.58, 0.18));
+    }
+    const cameraPole = MeshBuilder.CreateCylinder('forest-camera-trap-pole', { height: 2.4, diameter: 0.14, tessellation: 8 }, this.scene);
+    cameraPole.position.set(34, 1.2, -17.7); cameraPole.material = this.material('forest-camera-pole-material', new Color3(0.22, 0.25, 0.19));
+    const camera = MeshBuilder.CreateBox('forest-camera-trap', { width: 0.58, height: 0.48, depth: 0.32 }, this.scene);
+    camera.position.set(34, 2.2, -17.7); camera.material = this.material('forest-camera-trap-material', new Color3(0.29, 0.32, 0.2));
+
+    this.forestSeedlingPositions.forEach((site, index) => {
+      const marker = MeshBuilder.CreateCylinder('forest-seedling-marker-' + index, { height: 0.22, diameter: 1.4, tessellation: 8 }, this.scene);
+      marker.position.set(site.x, 0.11, site.z); marker.material = this.material('forest-seedling-marker-material-' + index, new Color3(0.52, 0.34, 0.17));
+      const sprout = MeshBuilder.CreateCylinder('forest-seedling-sprout-' + index, { height: 0.8, diameterTop: 0.04, diameterBottom: 0.14, tessellation: 6 }, this.scene);
+      sprout.position.set(site.x, 0.55, site.z); sprout.material = leafMats[2];
+      this.forestSeedlingMarkers.push(marker);
+    });
+    postSign('forest-restoration-sign', 'RESTAURAÇÃO FLORESTAL', 'Use espécies nativas adequadas e acompanhe sua sobrevivência', -27, 3, 2.6, 9.6);
+  }
+
+  private getNearbyForestInteraction(): { action: NearbyAction; label: string } | null {
+    const dist = (site: PortSite | Vector3): number => Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z);
+    if (this.forestMissionStage === 'survey') {
+      const i = this.forestHabitatPositions.findIndex((site, index) => !this.forestHabitatsInspected[index] && dist(site) <= 6.5);
+      if (i >= 0) return { action: 'inspect-forest-habitat', label: 'E · INVESTIGAR HABITAT E BIODIVERSIDADE' };
+    } else if (this.forestMissionStage === 'harvest') {
+      const i = this.forestProducePositions.findIndex((site, index) => !this.forestProduceHarvested[index] && dist(site) <= 4.2);
+      if (i >= 0) return { action: 'harvest-farm-produce', label: 'E · COLHER PRODUÇÃO DA FAMÍLIA' };
+    } else if (this.forestMissionStage === 'transport' && !this.forestTruckLoaded && dist(this.forestTruckLoadingPosition) <= 7) {
+      return { action: 'load-farm-truck', label: 'E · CARREGAR A PRODUÇÃO NO CAMINHÃO' };
+    } else if (this.forestMissionStage === 'process' && !this.forestTruckTraveling && dist(this.forestFactoryProcessPosition) <= 8.5) {
+      return { action: 'process-food-products', label: 'E · PROCESSAR E EMBALAR OS ALIMENTOS' };
+    } else if (this.forestMissionStage === 'market' && !this.forestTruckTraveling && dist(this.forestMarketStockPosition) <= 8.5) {
+      return { action: 'stock-local-market', label: 'E · RECEBER E EXPOR NO MERCADO' };
+    } else if (this.forestMissionStage === 'sorting') {
+      const i = this.forestPackagingPositions.findIndex((site, index) => !this.forestPackagingSorted[index] && dist(site) <= 4.5);
+      if (i >= 0) return { action: 'sort-consumer-packaging', label: 'E · SEPARAR ' + ['PAPEL / PAPELÃO', 'PLÁSTICO', 'ORGÂNICOS'][i] };
+    } else if (this.forestMissionStage === 'cooperative' && !this.forestCooperativeDelivered && dist(this.forestCooperativeDeliveryPosition) <= 8.5) {
+      return { action: 'deliver-forest-cooperative', label: 'E · ENTREGAR RECICLÁVEIS À COOPERATIVA' };
+    } else if (this.forestMissionStage === 'restore') {
+      const seedling = this.forestSeedlingPositions.findIndex((site, index) => !this.forestSeedlingsPlanted[index] && dist(site) <= 4.8);
+      if (seedling >= 0) return { action: 'plant-native-seedling', label: 'E · PLANTAR MUDA NATIVA' };
+      if (!this.forestSpringProtected && dist(this.forestSpringPosition) <= 7.5) return { action: 'protect-forest-spring', label: 'E · PROTEGER A NASCENTE E A MATA CILIAR' };
+      if (!this.forestWildlifeRecorded && dist(this.forestWildlifePosition) <= 7.5) return { action: 'record-forest-wildlife', label: 'E · REGISTRAR A FAUNA NO MONITORAMENTO' };
+    }
+    return null;
+  }
+
+  private buildForestSeedling(index: number): void {
+    const site = this.forestSeedlingPositions[index]; if (!site) return;
+    const start = this.scene.meshes.length;
+    const trunk = MeshBuilder.CreateCylinder('forest-planted-seedling-trunk-' + index, { height: 1.35, diameterTop: 0.06, diameterBottom: 0.16, tessellation: 7 }, this.scene);
+    trunk.position.set(site.x, 0.7, site.z); trunk.material = this.material('forest-planted-seedling-trunk-material-' + index, new Color3(0.34, 0.22, 0.12));
+    const crown = MeshBuilder.CreateSphere('forest-planted-seedling-crown-' + index, { diameter: 1.15, segments: 7 }, this.scene);
+    crown.position.set(site.x, 1.45, site.z); crown.material = this.material('forest-planted-seedling-crown-material-' + index, new Color3(0.18, 0.48, 0.22));
+    this.phaseFourDynamicMeshes.push(...this.scene.meshes.slice(start) as Mesh[]);
+  }
+
+  private buildForestSpringRecovery(): void {
+    const start = this.scene.meshes.length;
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.PI * 2 * i / 8;
+      const reed = MeshBuilder.CreateCylinder('forest-spring-recovery-reed-' + i, { height: 1.15, diameterTop: 0.05, diameterBottom: 0.13, tessellation: 6 }, this.scene);
+      reed.position.set(2 + Math.cos(angle) * 4.2, 0.57, -8 + Math.sin(angle) * 3.2);
+      reed.rotation.z = Math.cos(angle) * 0.12; reed.material = this.material('forest-spring-reed-material-' + i, new Color3(0.22, 0.48, 0.24));
+    }
+    this.phaseFourDynamicMeshes.push(...this.scene.meshes.slice(start) as Mesh[]);
+  }
+
+  private checkForestCompletion(): void {
+    if (this.forestSeedlingsPlanted.every(Boolean) && this.forestSpringProtected && this.forestWildlifeRecorded) {
+      this.forestMissionStage = 'complete'; this.cit += 60;
+      this.message = 'Reserva Florestal recuperada no cenário educativo! Você conectou biodiversidade, agricultura familiar, indústria, consumo responsável, cooperativa e restauração ecológica.';
+    }
+  }
+
+  private performForestAction(action: NearbyAction): void {
+    if (action === 'inspect-forest-habitat') {
+      const i = this.forestHabitatPositions.findIndex((site, index) => !this.forestHabitatsInspected[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 6.5);
+      if (i < 0) { this.message = 'Aproxime-se de um dos fragmentos de habitat sinalizados.'; this.emit(); return; }
+      this.forestHabitatsInspected[i] = true;
+      const marker = this.forestHabitatMarkers[i]; if (marker) (marker.material as StandardMaterial).emissiveColor = new Color3(0.12, 0.28, 0.11);
+      if (this.forestHabitatsInspected.every(Boolean)) {
+        this.forestMissionStage = 'harvest';
+        this.message = 'Diagnóstico concluído. Você identificou três fragmentos de habitat. Agora conheça a agricultura familiar e colha os produtos da comunidade.';
+      } else this.message = 'Habitat registrado (' + this.forestHabitatsInspected.filter(Boolean).length + '/3). Procure os outros fragmentos.';
+      this.emit(); return;
+    }
+    if (action === 'harvest-farm-produce') {
+      const i = this.forestProducePositions.findIndex((site, index) => !this.forestProduceHarvested[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 4.2);
+      if (i < 0) { this.message = 'Aproxime-se de uma caixa de colheita na propriedade familiar.'; this.emit(); return; }
+      this.forestProduceHarvested[i] = true; this.forestProduceCrates[i]?.setEnabled(false);
+      const count = this.forestProduceHarvested.filter(Boolean).length;
+      if (count === 3) {
+        this.forestMissionStage = 'transport';
+        this.message = 'Colheita organizada! A família separou os produtos. O caminhoneiro vai coletar as caixas e levá-las à agroindústria.';
+      } else this.message = 'Caixa de produção colhida (' + count + '/3). Continue pela área de cultivo.';
+      this.emit(); return;
+    }
+    if (action === 'load-farm-truck') {
+      if (this.forestProduceHarvested.some((value) => !value) || this.forestTruckLoaded) { this.message = 'Conclua a colheita antes de carregar o caminhão.'; this.emit(); return; }
+      this.forestTruckLoaded = true; this.forestTruckTraveling = true;
+      this.forestTruckTarget = this.forestFactoryDeliveryPosition.clone(); this.forestTruckDestination = 'factory';
+      this.message = 'Carga conferida! O caminhoneiro saiu da propriedade e leva os alimentos à agroindústria. Acompanhe a chegada na doca.';
+      this.emit(); return;
+    }
+    if (action === 'process-food-products') {
+      this.forestProcessed = true; this.forestMissionStage = 'market';
+      this.forestTruckTraveling = true; this.forestTruckTarget = this.forestMarketDeliveryPosition.clone(); this.forestTruckDestination = 'market';
+      const start = this.scene.meshes.length;
+      for (let i = 0; i < 5; i++) {
+        const box = MeshBuilder.CreateBox('forest-packaged-food-' + i, { width: 0.9, height: 0.75, depth: 0.72 }, this.scene);
+        box.position.set(22 + (i % 3) * 1.5, 0.42, -16 + Math.floor(i / 3) * 1.2);
+        box.material = this.material('forest-packaged-food-material-' + i, i % 2 ? new Color3(0.88, 0.79, 0.56) : new Color3(0.82, 0.84, 0.74));
+      }
+      this.phaseFourDynamicMeshes.push(...this.scene.meshes.slice(start) as Mesh[]);
+      this.message = 'A agroindústria processou e embalou os alimentos. Agora o caminhão leva os produtos ao mercado local.';
+      this.emit(); return;
+    }
+    if (action === 'stock-local-market') {
+      this.forestMarketStocked = true; this.forestMissionStage = 'sorting';
+      this.message = 'Produtos recebidos e expostos. Após o consumo, embalagens limpas devem ser separadas; resíduos orgânicos seguem à compostagem, não à cooperativa de recicláveis.';
+      this.emit(); return;
+    }
+    if (action === 'sort-consumer-packaging') {
+      const i = this.forestPackagingPositions.findIndex((site, index) => !this.forestPackagingSorted[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 4.5);
+      if (i < 0) { this.message = 'Aproxime-se de uma baia do ponto pós-consumo.'; this.emit(); return; }
+      this.forestPackagingSorted[i] = true;
+      const bin = this.forestPackagingBins[i]; if (bin) bin.emissiveColor = new Color3(0.12, 0.2, 0.12);
+      const count = this.forestPackagingSorted.filter(Boolean).length;
+      if (count === 3) {
+        this.forestMissionStage = 'cooperative';
+        this.message = 'Separação concluída. Papel/papelão e plástico limpos seguem à cooperativa; os orgânicos vão à compostagem. A transformação industrial será aprofundada na Fase 08.';
+      } else this.message = ['Papel/papelão', 'Plástico', 'Orgânicos'][i] + ' encaminhados à rota correta (' + count + '/3).';
+      this.emit(); return;
+    }
+    if (action === 'deliver-forest-cooperative') {
+      this.forestCooperativeDelivered = true; this.forestMissionStage = 'restore';
+      this.message = 'A cooperativa recebeu os recicláveis secos para triagem e preparação. A transformação industrial dos materiais ficará para a Fase 08. Agora volte à reserva para restaurar habitats e proteger a nascente.';
+      this.emit(); return;
+    }
+    if (action === 'plant-native-seedling') {
+      const i = this.forestSeedlingPositions.findIndex((site, index) => !this.forestSeedlingsPlanted[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 4.8);
+      if (i < 0) { this.message = 'Aproxime-se de um local preparado para restauração.'; this.emit(); return; }
+      this.forestSeedlingsPlanted[i] = true; this.forestSeedlingMarkers[i]?.setEnabled(false); this.buildForestSeedling(i);
+      this.message = 'Muda nativa plantada (' + this.forestSeedlingsPlanted.filter(Boolean).length + '/3). Use espécies adequadas ao ecossistema local e acompanhe sua sobrevivência.';
+      this.checkForestCompletion(); this.emit(); return;
+    }
+    if (action === 'protect-forest-spring') {
+      this.forestSpringProtected = true; this.buildForestSpringRecovery();
+      this.message = 'Nascente protegida no cenário. A vegetação ciliar ajuda a estabilizar margens, reter sedimentos e manter habitats.';
+      this.checkForestCompletion(); this.emit(); return;
+    }
+    if (action === 'record-forest-wildlife') {
+      this.forestWildlifeRecorded = true;
+      this.message = 'Registro da fauna concluído sem perturbar os animais. O monitoramento repetido ajuda a avaliar a resposta do habitat.';
+      this.checkForestCompletion(); this.emit(); return;
+    }
+  }
+
   private buildMatureCommunityCompost(): void {
     const pile = MeshBuilder.CreateSphere('periphery-mature-compost-pile', { diameter: 1.6, segments: 8 }, this.scene);
     pile.position.set(this.peripheryCompostPosition.x, 2.25, this.peripheryCompostPosition.z);
@@ -1279,6 +1747,9 @@ export class GreenCityGame {
     this.portDynamicMeshes.forEach((mesh) => mesh.setEnabled(true));
     this.peripheryMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.peripheryDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFourDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.forestTruckRoot?.setEnabled(false);
     this.phaseOneModelRoots.forEach((root) => root.setEnabled(false));
     this.portModelRoots.forEach((root) => root.setEnabled(true));
     this.player.position.set(-25, 1, 30.5);
@@ -1306,6 +1777,9 @@ export class GreenCityGame {
     this.phaseOneDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.portMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.portDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFourDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.forestTruckRoot?.setEnabled(false);
     this.peripheryMeshes.forEach((mesh) => mesh.setEnabled(true));
     this.peripheryDynamicMeshes.forEach((mesh) => mesh.setEnabled(true));
     this.phaseOneModelRoots.forEach((root) => root.setEnabled(false));
@@ -1317,6 +1791,35 @@ export class GreenCityGame {
     this.message = forceForDevelopment
       ? 'MODO DE TESTE: Periferia Verde aberta para validação da Fase 03.'
       : 'Bem-vindo à Periferia Verde. Observe os resíduos, a água da chuva e as ligações de esgoto do bairro.';
+    this.emit();
+  }
+
+
+  /** Abre a Reserva Florestal para campanha e testes Master. */
+  enterForestPhase(forceForDevelopment = false): void {
+    if (this.activePhase === 4) { this.setMapOpen(false); return; }
+    if (!forceForDevelopment && (this.activePhase !== 3 || !this.isNextNeighborhoodUnlocked())) {
+      this.message = 'Conclua a Periferia Verde para liberar a Reserva Florestal.'; this.emit(); return;
+    }
+    this.activePhase = 4;
+    this.phaseOneMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseOneDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.portMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.portDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.peripheryMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.peripheryDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(true));
+    this.phaseFourDynamicMeshes.forEach((mesh) => mesh.setEnabled(true));
+    this.forestTruckRoot?.setEnabled(true);
+    this.phaseOneModelRoots.forEach((root) => root.setEnabled(false));
+    this.portModelRoots.forEach((root) => root.setEnabled(false));
+    this.player.position.set(-37, 1, 31); this.player.setEnabled(true);
+    this.inVehicle = false; this.vehicleSpeed = 0; this.keys.clear();
+    this.mapOpen = false; this.paused = false;
+    this.camera.setTarget(new Vector3(-34, 1.4, 31));
+    this.message = forceForDevelopment
+      ? 'MODO DE TESTE: Reserva Florestal aberta para validação da Fase 04.'
+      : 'Bem-vindo à Reserva Florestal. Investigue a biodiversidade e conheça a cadeia da agricultura familiar.';
     this.emit();
   }
 
@@ -2138,6 +2641,26 @@ export class GreenCityGame {
     this.syncVehicleModel(this.vehicleModelRoot, this.vehicle, 0.48, this.vehicleModelHeadingOffset);
     this.syncVehicleModel(this.portTruckVisualRoot, this.portTruck, 0);
     this.syncVehicleModel(this.portTruckModelRoot, this.portTruck, 0.48, this.portTruckModelHeadingOffset);
+    if (this.activePhase === 4 && this.forestTruckTraveling && this.forestTruckRoot && this.forestTruckTarget) {
+      const direction = this.forestTruckTarget.subtract(this.forestTruckRoot.position);
+      const distance = direction.length();
+      if (distance <= 0.45) {
+        this.forestTruckRoot.position.copyFrom(this.forestTruckTarget);
+        this.forestTruckTraveling = false; this.forestTruckTarget = null;
+        const destination = this.forestTruckDestination; this.forestTruckDestination = null;
+        if (destination === 'factory') {
+          this.forestMissionStage = 'process';
+          this.message = 'O caminhão chegou à doca da agroindústria. Aproxime-se da linha de produção para processar e embalar os alimentos.';
+        } else if (destination === 'market') {
+          this.forestMissionStage = 'market';
+          this.message = 'O caminhão chegou ao mercado local. Ajude a receber e organizar os produtos nas prateleiras.';
+        }
+        this.emit();
+      } else {
+        direction.normalize(); this.forestTruckRoot.position.addInPlace(direction.scale(7.2 * step));
+        this.forestTruckRoot.rotation.y = Math.atan2(direction.x, direction.z);
+      }
+    }
     this.characterAnimationTime += step * (playerMoving ? 10.5 : 1.8);
     const gait = playerMoving ? 0.58 : 0.035;
     this.playerArms.forEach((arm, index) => {
@@ -2527,6 +3050,11 @@ export class GreenCityGame {
     const now = performance.now();
     if (now - this.lastInteract < 180) return;
     this.lastInteract = now;
+    if (this.activePhase === 4) {
+      const nearby = this.getNearbyInteraction();
+      if (!nearby) { this.message = 'Aproxime-se de um ponto da reserva, da área de colheita, da agroindústria ou dos locais de destinação.'; this.emit(); return; }
+      this.performForestAction(nearby.action); return;
+    }
     if (this.activePhase === 3) {
       const nearby = this.getNearbyInteraction();
       if (!nearby) { this.message = 'Aproxime-se do ponto de investigação, coleta, compostagem, saneamento ou jardim de chuva.'; this.emit(); return; }
@@ -2586,6 +3114,7 @@ export class GreenCityGame {
   }
 
   private isNextNeighborhoodUnlocked(): boolean {
+    if (this.activePhase === 4) return this.forestMissionStage === 'complete';
     if (this.activePhase === 2) return this.portMissionStage === 'complete';
     if (this.activePhase === 3) return this.peripheryMissionStage === 'complete';
     return this.solarBuildingsInstalled >= TOTAL_SOLAR_BUILDINGS && this.electricVehicle
@@ -2639,6 +3168,7 @@ export class GreenCityGame {
     if (this.paused || this.mapOpen) return null;
     if (this.activePhase === 2) return this.getNearbyPortInteraction();
     if (this.activePhase === 3) return this.getNearbyPeripheryInteraction();
+    if (this.activePhase === 4) return this.getNearbyForestInteraction();
     if (this.inVehicle) {
       const atBase = this.isVehicleInsideBase();
       const moving = Math.abs(this.vehicleSpeed) > 0.45;
@@ -2682,6 +3212,7 @@ export class GreenCityGame {
     }
     if (this.activePhase === 2) { this.performPortAction(nearby.action); return; }
     if (this.activePhase === 3) { this.performPeripheryAction(nearby.action); return; }
+    if (this.activePhase === 4) { this.performForestAction(nearby.action); return; }
     if (nearby.action === 'enter-vehicle' || nearby.action === 'exit-vehicle') { this.toggleVehicle(); return; }
     if (nearby.action === 'install-building-solar') { this.installNearbyBuildingSolar(); return; }
     if (nearby.action === 'convert-vehicle') { this.convertVehicleAtBase(); return; }
@@ -2735,7 +3266,7 @@ export class GreenCityGame {
           x: site.x, z: site.z, done: this.portCooperativeSorted[index],
         }));
       }
-    } else {
+    } else if (this.activePhase === 3) {
       if (this.peripheryMissionStage === 'survey') {
         this.peripheryIssuePositions.forEach((site, index) => entries.push({ id: 'community-issue-' + index, label: ['Descarte irregular', 'Bueiro pluvial', 'Ligação sanitária'][index], x: site.x, z: site.z, done: this.peripheryIssueInspected.has(index) }));
       } else if (this.peripheryMissionStage === 'collect') {
@@ -2749,6 +3280,27 @@ export class GreenCityGame {
         this.peripherySewerPositions.forEach((site, index) => entries.push({ id: 'community-sewer-' + index, label: 'Ligação de esgoto da moradia ' + (index + 1), x: site.x, z: site.z, done: this.peripherySewerConnected[index] }));
       } else if (this.peripheryMissionStage === 'rain-garden') {
         entries.push({ id: 'community-rain-garden', label: 'Área para jardim de chuva', x: this.peripheryRainGardenPosition.x, z: this.peripheryRainGardenPosition.z, done: this.peripheryRainGardenBuilt });
+      }
+    } else {
+      const add = (id: string, label: string, site: PortSite | Vector3, done: boolean): void => entries.push({ id, label, x: site.x, z: site.z, done });
+      if (this.forestMissionStage === 'survey') {
+        this.forestHabitatPositions.forEach((site, i) => add('forest-habitat-' + i, 'Fragmento de habitat ' + (i + 1), site, this.forestHabitatsInspected[i]));
+      } else if (this.forestMissionStage === 'harvest') {
+        this.forestProducePositions.forEach((site, i) => add('farm-produce-' + i, 'Colheita da agricultura familiar ' + (i + 1), site, this.forestProduceHarvested[i]));
+      } else if (this.forestMissionStage === 'transport') {
+        add('farm-truck', this.forestTruckLoaded ? 'Caminhão a caminho da agroindústria' : 'Pátio de carga do produtor', this.forestTruckLoaded ? this.forestFactoryDeliveryPosition : this.forestTruckLoadingPosition, this.forestTruckLoaded && !this.forestTruckTraveling);
+      } else if (this.forestMissionStage === 'process') {
+        add('food-industry', 'Agroindústria · processamento e embalagem', this.forestFactoryProcessPosition, this.forestProcessed);
+      } else if (this.forestMissionStage === 'market') {
+        add('local-market', 'Mercado local · recebimento', this.forestMarketStockPosition, this.forestMarketStocked);
+      } else if (this.forestMissionStage === 'sorting') {
+        this.forestPackagingPositions.forEach((site, i) => add('consumer-sorting-' + i, ['Papel e papelão','Plástico','Orgânicos / compostagem'][i], site, this.forestPackagingSorted[i]));
+      } else if (this.forestMissionStage === 'cooperative') {
+        add('forest-cooperative', 'Cooperativa · recebimento de recicláveis', this.forestCooperativeDeliveryPosition, this.forestCooperativeDelivered);
+      } else if (this.forestMissionStage === 'restore') {
+        this.forestSeedlingPositions.forEach((site, i) => add('forest-seedling-' + i, 'Plantio de muda nativa ' + (i + 1), site, this.forestSeedlingsPlanted[i]));
+        add('forest-spring', 'Proteção da nascente', this.forestSpringPosition, this.forestSpringProtected);
+        add('forest-wildlife', 'Monitoramento da fauna', this.forestWildlifePosition, this.forestWildlifeRecorded);
       }
     }
 
@@ -2764,6 +3316,7 @@ export class GreenCityGame {
   restoreProgress(data: Partial<import('./types').GameProgressData>): void {
     if (data.phase === 2 && this.activePhase !== 2) this.enterPortPhase(true);
     if (data.phase === 3 && this.activePhase !== 3) this.enterPeripheryPhase(true);
+    if (data.phase === 4 && this.activePhase !== 4) this.enterForestPhase(true);
     this.cit = Math.max(0, Number(data.cit ?? this.cit));
 
     if (this.activePhase === 1) {
@@ -2836,7 +3389,7 @@ export class GreenCityGame {
       this.portWaterQuality = Math.max(0, Math.min(100, Number(data.portWaterQuality ?? this.portWaterQuality)));
       this.player.position.set(-25, 1, 30.5);
       this.message = 'Seu progresso do Porto foi restaurado.';
-    } else {
+    } else if (this.activePhase === 3) {
       this.peripheryIssueInspected.clear();
       (Array.isArray(data.communityIssuesInspected) ? data.communityIssuesInspected : []).forEach((index) => {
         if (!Number.isInteger(index) || index < 0 || index >= this.peripheryIssueMarkers.length) return;
@@ -2862,6 +3415,40 @@ export class GreenCityGame {
       this.peripheryWaterQuality = this.peripheryRainGardenBuilt ? 54 : 28;
       this.player.position.set(-35, 1, 31);
       this.message = 'Seu progresso da Periferia Verde foi restaurado.';
+    } else {
+      this.forestMissionStage = data.forestMissionStage ?? 'survey';
+      (data.forestHabitatsInspected ?? []).forEach((done, index) => {
+        this.forestHabitatsInspected[index] = done === true;
+        if (done && this.forestHabitatMarkers[index]) (this.forestHabitatMarkers[index].material as StandardMaterial).emissiveColor = new Color3(0.12, 0.28, 0.11);
+      });
+      (data.forestProduceHarvested ?? []).forEach((done, index) => {
+        this.forestProduceHarvested[index] = done === true;
+        if (done) this.forestProduceCrates[index]?.setEnabled(false);
+      });
+      this.forestTruckLoaded = data.forestTruckLoaded === true;
+      this.forestProcessed = data.forestProcessed === true;
+      this.forestMarketStocked = data.forestMarketStocked === true;
+      (data.forestPackagingSorted ?? []).forEach((done, index) => {
+        this.forestPackagingSorted[index] = done === true;
+        if (done && this.forestPackagingBins[index]) this.forestPackagingBins[index].emissiveColor = new Color3(0.12, 0.2, 0.12);
+      });
+      this.forestCooperativeDelivered = data.forestCooperativeDelivered === true;
+      (data.forestSeedlingsPlanted ?? []).forEach((done, index) => {
+        this.forestSeedlingsPlanted[index] = done === true;
+        if (done) { this.forestSeedlingMarkers[index]?.setEnabled(false); this.buildForestSeedling(index); }
+      });
+      this.forestSpringProtected = data.forestSpringProtected === true;
+      if (this.forestSpringProtected) this.buildForestSpringRecovery();
+      this.forestWildlifeRecorded = data.forestWildlifeRecorded === true;
+      if (this.forestTruckRoot) this.forestTruckRoot.position.copyFrom(
+        this.forestProcessed || this.forestMarketStocked ? this.forestMarketDeliveryPosition
+          : this.forestTruckLoaded ? this.forestFactoryDeliveryPosition : this.forestTruckLoadingPosition,
+      );
+      this.forestTruckTraveling = false; this.forestTruckTarget = null; this.forestTruckDestination = null;
+      if (this.forestProcessed && !this.forestMarketStocked) this.forestMissionStage = 'market';
+      else if (this.forestTruckLoaded && !this.forestProcessed && this.forestMissionStage === 'transport') this.forestMissionStage = 'process';
+      this.player.position.set(-37, 1, 31);
+      this.message = 'Seu progresso da Reserva Florestal foi restaurado.';
     }
     this.emit();
   }
@@ -2887,7 +3474,9 @@ export class GreenCityGame {
         ? (this.missionStage === 'complete' ? 1 : 0)
         : this.activePhase === 2
           ? (this.portMissionStage === 'complete' ? 2 : 1)
-          : (this.peripheryMissionStage === 'complete' ? 3 : 2),
+          : this.activePhase === 3
+            ? (this.peripheryMissionStage === 'complete' ? 3 : 2)
+            : (this.forestMissionStage === 'complete' ? 4 : 3),
       thirdNeighborhoodUnlocked: this.activePhase === 2 && this.portMissionStage === 'complete',
       portMissionStage: this.portMissionStage,
       outfallsInspected: this.portOutfallsInspected,
@@ -2912,6 +3501,21 @@ export class GreenCityGame {
       communitySewerTotal: this.peripherySewerConnected.length,
       communityRainGardenBuilt: this.peripheryRainGardenBuilt,
       communityWaterQuality: this.peripheryWaterQuality,
+      forestMissionStage: this.forestMissionStage,
+      forestHabitatsInspected: this.forestHabitatsInspected.filter(Boolean).length,
+      forestHabitatsTotal: this.forestHabitatsInspected.length,
+      forestProduceHarvested: this.forestProduceHarvested.filter(Boolean).length,
+      forestProduceTotal: this.forestProduceHarvested.length,
+      forestTruckLoaded: this.forestTruckLoaded,
+      forestProcessed: this.forestProcessed,
+      forestMarketStocked: this.forestMarketStocked,
+      forestPackagingSorted: this.forestPackagingSorted.filter(Boolean).length,
+      forestPackagingTotal: this.forestPackagingSorted.length,
+      forestCooperativeDelivered: this.forestCooperativeDelivered,
+      forestSeedlingsPlanted: this.forestSeedlingsPlanted.filter(Boolean).length,
+      forestSeedlingsTotal: this.forestSeedlingsPlanted.length,
+      forestSpringProtected: this.forestSpringProtected,
+      forestWildlifeRecorded: this.forestWildlifeRecorded,
       missionStage: this.missionStage,
       nextNeighborhoodUnlocked: this.isNextNeighborhoodUnlocked(),
       paused: this.paused,
@@ -2950,6 +3554,17 @@ export class GreenCityGame {
         communityCompostTurned: this.peripheryCompostTurned,
         communitySewerConnected: [...this.peripherySewerConnected],
         communityRainGardenBuilt: this.peripheryRainGardenBuilt,
+        forestMissionStage: this.forestMissionStage,
+        forestHabitatsInspected: [...this.forestHabitatsInspected],
+        forestProduceHarvested: [...this.forestProduceHarvested],
+        forestTruckLoaded: this.forestTruckLoaded,
+        forestProcessed: this.forestProcessed,
+        forestMarketStocked: this.forestMarketStocked,
+        forestPackagingSorted: [...this.forestPackagingSorted],
+        forestCooperativeDelivered: this.forestCooperativeDelivered,
+        forestSeedlingsPlanted: [...this.forestSeedlingsPlanted],
+        forestSpringProtected: this.forestSpringProtected,
+        forestWildlifeRecorded: this.forestWildlifeRecorded,
       },
     };
   }

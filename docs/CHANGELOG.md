@@ -1,3 +1,14 @@
+# Changelog
+
+## 0.4.23 — Reserva Florestal jogável (primeira implementação)
+- Adicionado cenário 3D da Fase 04 com floresta demonstrativa, trilhas, fragmentos de habitat, nascente, viveiro, mirante e estruturas de monitoramento.
+- Incluídos modelos low-poly procedurais para personagens profissionais e elementos da agricultura familiar.
+- Criada cadeia jogável: colheita familiar → caminhão → agroindústria → mercado → separação pós-consumo → cooperativa.
+- Cooperativa representada como recebimento, triagem e preparação de recicláveis; orgânicos seguem para compostagem e a transformação industrial fica para a Fase 08.
+- Adicionadas ações de restauração, proteção da nascente e monitoramento da fauna.
+- Placas educativas fixas, frontais e legíveis, identificam prédios, setores e fluxos do ecossistema.
+- Progresso granular da Fase 04 integrado ao salvamento e ao Caderno de Aprendizado, sem alterar o histórico das fases anteriores.
+
 ## [0.4.22] - 2026-11-24
 - Criado o Estúdio Master protegido no banco de dados para configurar os dez módulos pedagógicos, com salvamento de desafios, objetivos, missões, profissões, economia, conteúdo de cenário e situação editorial.
 - O mapa da campanha fica totalmente acessível para Master: fases 01 a 03 podem ser abertas para testes; fases 04 a 10 abrem o configurador e continuam identificadas como sem cenário 3D.
