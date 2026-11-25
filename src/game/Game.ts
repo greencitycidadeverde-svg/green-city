@@ -2495,7 +2495,7 @@ export class GreenCityGame {
       });
 
       const sorted = Array.isArray(data.cooperativeSorted) ? data.cooperativeSorted : [];
-      this.portCooperativeSorted.forEach((wasSorted, index) => {
+      this.portCooperativeSorted.forEach((_, index) => {
         this.portCooperativeSorted[index] = sorted[index] === true;
         if (this.portCooperativeSorted[index] && this.portCooperativeBinMaterials[index]) {
           this.portCooperativeBinMaterials[index].emissiveColor = new Color3(0.10, 0.22, 0.10);

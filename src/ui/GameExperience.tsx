@@ -138,7 +138,8 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   const lastPersistedSnapshotRef = useRef('');
   const pendingSaveRef = useRef<Promise<void>>(Promise.resolve());
   const persistSnapshot = (snapshot: GameSnapshot) => {
-    if (isHydratingRef.current || !supabase || !userId || !campaignId) return;
+    const client = supabase;
+    if (isHydratingRef.current || !client || !userId || !campaignId) return;
     const complete = snapshot.phase === 1
       ? snapshot.missionStage === 'complete'
       : snapshot.portMissionStage === 'complete';
@@ -161,7 +162,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     lastPersistedSnapshotRef.current = signature;
 
     pendingSaveRef.current = pendingSaveRef.current.then(async () => {
-      const { error } = await supabase.from('phase_progress').upsert({
+      const { error } = await client.from('phase_progress').upsert({
         campaign_id: campaignId,
         user_id: userId,
         phase_number: snapshot.phase,
@@ -176,7 +177,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       if (error) throw error;
 
       const nextPhase = Math.min(10, snapshot.phase + (complete ? 1 : 0));
-      const { error: campaignError } = await supabase.from('campaigns').update({
+      const { error: campaignError } = await client.from('campaigns').update({
         current_phase: nextPhase,
         highest_unlocked_phase: Math.max(snapshot.phase, nextPhase),
         knowledge_points: snapshot.cit,
@@ -184,7 +185,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       if (campaignError) throw campaignError;
 
       if (complete && snapshot.phase < 10) {
-        const { error: unlockError } = await supabase.from('phase_progress').update({
+        const { error: unlockError } = await client.from('phase_progress').update({
           status: 'available',
           environment_state: 'degraded',
         }).eq('campaign_id', campaignId).eq('phase_number', snapshot.phase + 1);
@@ -211,12 +212,12 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 reflection: 'Por que efluente industrial e esgoto sanitário não recebem necessariamente o mesmo tratamento?',
               },
             };
-        const { data: existing, error: queryError } = await supabase.from('learning_journal')
+        const { data: existing, error: queryError } = await client.from('learning_journal')
           .select('id').eq('campaign_id', campaignId).eq('phase_number', snapshot.phase)
           .eq('entry_type', 'learning_report').limit(1);
         if (queryError) throw queryError;
         if (!existing?.length) {
-          const { error: insertError } = await supabase.from('learning_journal').insert({
+          const { error: insertError } = await client.from('learning_journal').insert({
             campaign_id: campaignId, user_id: userId, phase_number: snapshot.phase,
             entry_type: 'learning_report', title: report.title, content: report.content,
           });

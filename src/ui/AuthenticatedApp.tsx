@@ -282,8 +282,8 @@ function AuthenticatedApp() {
   const restoredCount = regionStates.filter((region) => region.colorState === 'restored').length;
   const currentProgress = account?.campaign ? Math.round((restoredCount / 10) * 100) : 0;
   const defaultPhase: 1 | 2 | null = account?.profile.role === 'admin'
-    ? account.campaign.current_phase === 2 ? 2 : 1
-    : account.campaign.current_phase === 2 && regionStates[1]?.canPlay ? 2
+    ? (account?.campaign.current_phase === 2 ? 2 : 1)
+    : account?.campaign.current_phase === 2 && regionStates[1]?.canPlay ? 2
       : regionStates[0]?.canPlay ? 1
         : regionStates[1]?.canPlay ? 2 : null;
   const activeProgress = activePhase ? account?.phases.find((item) => item.phase_number === activePhase)?.objective_state ?? {} : {};
