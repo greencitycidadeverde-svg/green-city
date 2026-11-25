@@ -11,6 +11,7 @@ const TOTAL_SOLAR_BUILDINGS = 8;
 const SOLAR_BUILDINGS_REQUIRED_FOR_EV = 3;
 const SOLAR_BUILDING_COST = 10;
 const ELECTRIC_VEHICLE_COST = 20;
+const PORT_TRUCK_ENTRY_DISTANCE = 9.5;
 
 interface SolarBuildingRecord {
   x: number; z: number; width: number; height: number; label: string; solarInstalled: boolean;
@@ -27,6 +28,7 @@ export class GreenCityGame {
   private readonly ecoCenterPosition = new Vector3(-25, 0, 8);
   private readonly vehicleBasePosition = new Vector3(31, 0, 23.5);
   private readonly buildings: SolarBuildingRecord[] = [];
+  private readonly phaseOneDynamicMeshes: Mesh[] = [];
   private solarBuildingsInstalled = 0;
   private vehicleStationActive = false;
   private vehicleStationSignTexture?: DynamicTexture;
@@ -1001,6 +1003,8 @@ export class GreenCityGame {
     }
     this.activePhase = 2;
     this.phaseOneMeshes.forEach((mesh) => mesh.setEnabled(false));
+    // Hide dynamically generated Phase 1 solar hardware, which is not part of the initial scene snapshot.
+    this.phaseOneDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.portMeshes.forEach((mesh) => mesh.setEnabled(true));
     this.phaseOneModelRoots.forEach((root) => root.setEnabled(false));
     this.portModelRoots.forEach((root) => root.setEnabled(true));
@@ -1109,7 +1113,7 @@ export class GreenCityGame {
     }
     if (this.portMissionStage === 'collect' || this.portMissionStage === 'deliver') {
       const truckDistance = Math.hypot(this.player.position.x - this.portTruck.position.x, this.player.position.z - this.portTruck.position.z);
-      if (truckDistance <= 8.5) return { action: 'enter-vehicle', label: 'F · ENTRAR NO CAMINHÃO DE COLETA' };
+      if (truckDistance <= PORT_TRUCK_ENTRY_DISTANCE) return { action: 'enter-vehicle', label: 'F · ENTRAR NO CAMINHÃO DE COLETA' };
     }
     return null;
   }
@@ -1311,6 +1315,32 @@ export class GreenCityGame {
   private activateVehicleStation(): void {
     if (this.vehicleStationActive) return;
     this.vehicleStationActive = true;
+    const dynamicStartIndex = this.scene.meshes.length;
+    const supportMaterial = this.material('ev-base-solar-canopy-support-material', new Color3(0.32, 0.39, 0.36));
+    const baseMaterial = this.material('ev-base-solar-canopy-base-material', new Color3(0.19, 0.25, 0.22));
+
+    // Steel columns, perimeter beams and cross-rails physically support the canopy panels.
+    for (const x of [27.15, 35.0]) {
+      for (const z of [19.5, 27.5]) {
+        const post = MeshBuilder.CreateBox('ev-base-solar-canopy-post', { width: 0.18, height: 4.0, depth: 0.18 }, this.scene);
+        post.position.set(x, 2.0, z);
+        post.material = supportMaterial;
+        const foot = MeshBuilder.CreateBox('ev-base-solar-canopy-foot', { width: 0.52, height: 0.12, depth: 0.52 }, this.scene);
+        foot.position.set(x, 0.12, z);
+        foot.material = baseMaterial;
+      }
+    }
+    for (const z of [19.5, 27.5]) {
+      const beam = MeshBuilder.CreateBox('ev-base-solar-canopy-perimeter-beam', { width: 8.0, height: 0.18, depth: 0.20 }, this.scene);
+      beam.position.set(31.075, 4.02, z);
+      beam.material = supportMaterial;
+    }
+    for (const x of [28.5, 31.0, 33.5]) {
+      const rail = MeshBuilder.CreateBox('ev-base-solar-canopy-cross-rail', { width: 0.16, height: 0.16, depth: 7.7 }, this.scene);
+      rail.position.set(x, 4.10, 23.5);
+      rail.material = supportMaterial;
+    }
+
     const panelMaterial = this.material('ev-base-solar-panel-material', new Color3(0.05, 0.22, 0.42));
     const gridMaterial = this.material('ev-base-solar-grid-material', new Color3(0.42, 0.70, 0.86));
     for (const x of [28.5, 31.0, 33.5]) for (const z of [21.6, 25.4]) {
@@ -1339,12 +1369,13 @@ export class GreenCityGame {
       radius: 0.055, tessellation: 8,
     }, this.scene);
     cable.material = this.material('ev-base-charger-cable-material', new Color3(0.07, 0.10, 0.09));
+    this.phaseOneDynamicMeshes.push(...this.scene.meshes.slice(dynamicStartIndex) as Mesh[]);
   }
 
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.11`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.12`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -1934,9 +1965,10 @@ export class GreenCityGame {
     } else {
       const dx = this.player.position.x - activeVehicle.position.x;
       const dz = this.player.position.z - activeVehicle.position.z;
-      if (Math.hypot(dx, dz) > 6.5) {
+      const entryDistance = this.activePhase === 2 ? PORT_TRUCK_ENTRY_DISTANCE : 6.5;
+      if (Math.hypot(dx, dz) > entryDistance) {
         this.message = this.activePhase === 2
-          ? 'Aproxime-se do caminhão de coleta e pressione F para entrar.'
+          ? 'Chegue a até 9,5 metros do caminhão amarelo e pressione F ou toque em ENTRAR.'
           : 'Aproxime-se do veículo municipal e pressione F quando aparecer o aviso para entrar.';
         this.emit(); return;
       }
@@ -1947,9 +1979,9 @@ export class GreenCityGame {
       this.lastDriveCameraHeading = cameraHeading;
       this.inVehicle = true; this.player.setEnabled(false);
       this.message = this.activePhase === 2
-        ? 'Dirija o caminhão amarelo até os três pontos das empresas. W acelera, S freia, A/D viram. Pare para carregar cada ponto.'
+        ? 'Dirija o caminhão amarelo até as três empresas. W acelera, S dá ré e A/D viram. Pare ao lado de cada carga e pressione E ou toque em COLETAR. Depois leve tudo à cooperativa e pressione E para descarregar.'
         : this.electricVehicle
-          ? 'Veículo 100% elétrico. W acelera, S freia, A/D viram. Pare antes de sair.'
+          ? 'Veículo 100% elétrico. W acelera, S dá ré e A/D viram. Pare antes de sair.'
           : 'Missão: W acelera para frente, S dá ré e A/D viram. Dirija até a BASE DE ELETRIFICAÇÃO, estacione na vaga e pressione F para descer.';
     }
     this.keys.clear(); this.emit();
@@ -1974,6 +2006,7 @@ export class GreenCityGame {
   }
 
   private createBuildingSolarPanels(building: SolarBuildingRecord, index: number): void {
+    const dynamicStartIndex = this.scene.meshes.length;
     const panelMaterial = this.material(`building-solar-panel-material-${index}`, new Color3(0.035, 0.16, 0.34));
     panelMaterial.specularColor = new Color3(0.52, 0.68, 0.82);
     panelMaterial.specularPower = 96;
@@ -2096,6 +2129,7 @@ export class GreenCityGame {
       radius: 0.035, tessellation: 8,
     }, this.scene);
     conduit.material = this.material(`building-solar-conduit-material-${index}`, new Color3(0.40, 0.47, 0.44));
+    this.phaseOneDynamicMeshes.push(...this.scene.meshes.slice(dynamicStartIndex) as Mesh[]);
   }
   private refreshMissionStage(): void {
     if (!this.delivered) { this.missionStage = this.collected >= TOTAL_TRASH ? 'deliver' : 'collect'; return; }
