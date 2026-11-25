@@ -160,7 +160,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     if (lastPersistedSnapshotRef.current === signature) return;
     lastPersistedSnapshotRef.current = signature;
 
-    pendingSaveRef.current = (async () => {
+    pendingSaveRef.current = pendingSaveRef.current.then(async () => {
       const { error } = await supabase.from('phase_progress').upsert({
         campaign_id: campaignId,
         user_id: userId,
@@ -223,13 +223,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
           if (insertError) throw insertError;
         }
       }
-    })().catch((error: unknown) => {
+    }).catch((error: unknown) => {
       console.error('Falha ao salvar o progresso GREEN CITY:', error);
       lastPersistedSnapshotRef.current = '';
     });
   };
 
   useEffect(() => {
+    isHydratingRef.current = true;
     let cancelled = false;
     let game: GreenCityGame | null = null;
     const canvas = canvasRef.current;
