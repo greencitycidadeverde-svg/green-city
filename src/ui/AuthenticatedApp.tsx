@@ -70,7 +70,7 @@ function AuthenticatedApp() {
   const [accountLoading, setAccountLoading] = useState(false);
   const [account, setAccount] = useState<AccountData | null>(null);
   const [accountError, setAccountError] = useState('');
-  const [activePhase, setActivePhase] = useState<1 | 2 | null>(null);
+  const [activePhase, setActivePhase] = useState<1 | 2 | 3 | null>(null);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
@@ -252,7 +252,7 @@ function AuthenticatedApp() {
     setAdminBusyId('');
   };
 
-  const openGame = (phase: 1 | 2) => {
+  const openGame = (phase: 1 | 2 | 3) => {
     setActivePhase(phase);
   };
 
@@ -263,9 +263,10 @@ function AuthenticatedApp() {
 
   const regionStates = useMemo(() => REGIONS.map((region) => {
     const row = account?.phases.find((item) => item.phase_number === region.phase);
-    const playable = region.phase <= 2;
-    const environmentState = row?.environment_state ?? (region.phase === 1 ? 'degraded' : 'locked');
-    const status = row?.status ?? (region.phase === 1 ? 'available' : 'locked');
+    const playable = region.phase <= 3;
+    const unlockedByCampaign = region.phase <= (account?.campaign.highest_unlocked_phase ?? 1);
+    const environmentState = row?.environment_state ?? (unlockedByCampaign ? 'degraded' : 'locked');
+    const status = row?.status ?? (unlockedByCampaign ? 'available' : 'locked');
     const colorState = !playable
       ? 'planned'
       : environmentState === 'restored' || status === 'completed'
@@ -275,22 +276,22 @@ function AuthenticatedApp() {
           : status === 'available' || environmentState === 'degraded'
             ? 'degraded'
             : 'locked';
-    const canPlay = playable && (account?.profile.role === 'admin' || status === 'available' || status === 'in_progress');
+    const canPlay = playable && (account?.profile.role === 'admin' || status === 'available' || status === 'in_progress' || status === 'completed');
     return { ...region, row, playable, colorState, canPlay };
   }), [account]);
 
   const restoredCount = regionStates.filter((region) => region.colorState === 'restored').length;
   const currentProgress = account?.campaign ? Math.round((restoredCount / 10) * 100) : 0;
-  const defaultPhase: 1 | 2 | null = account?.profile.role === 'admin'
-    ? (account?.campaign.current_phase === 2 ? 2 : 1)
-    : account?.campaign.current_phase === 2 && regionStates[1]?.canPlay ? 2
-      : regionStates[0]?.canPlay ? 1
-        : regionStates[1]?.canPlay ? 2 : null;
+  const defaultPhase: 1 | 2 | 3 | null = account?.profile.role === 'admin'
+    ? (account?.campaign.current_phase >= 3 ? 3 : account?.campaign.current_phase >= 2 ? 2 : 1)
+    : regionStates[2]?.canPlay ? 3
+      : regionStates[1]?.canPlay ? 2
+        : regionStates[0]?.canPlay ? 1 : null;
   const activeProgress = activePhase ? account?.phases.find((item) => item.phase_number === activePhase)?.objective_state ?? {} : {};
 
   if (!supabase) {
     return <main className="auth-shell"><section className="auth-card auth-unconfigured">
-      <div className="auth-brand"><span className="auth-brand-mark">G</span><div><strong>GREEN CITY</strong><small>PLATAFORMA EDUCACIONAL</small></div></div>
+      <div className="auth-brand"><img className="auth-brand-mark" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" /><div><strong>GREEN CITY</strong><small>PLATAFORMA EDUCACIONAL</small></div></div>
       <h1>Estamos preparando sua cidade.</h1>
       <p>A configuração pública do Supabase ainda não está disponível nesta publicação. Assim que a integração for configurada, o acesso aparecerá aqui.</p>
     </section></main>;
@@ -312,7 +313,7 @@ function AuthenticatedApp() {
       <div className="auth-atmosphere"><span /><span /><span /><span /></div>
       <section className="auth-card">
         <div className="auth-brand">
-          <span className="auth-brand-mark">G</span>
+          <img className="auth-brand-mark" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" />
           <div><strong>GREEN CITY</strong><small>PLATAFORMA EDUCACIONAL</small></div>
           <span className="auth-version">AMBIENTE DE APRENDIZAGEM</span>
         </div>
@@ -378,7 +379,7 @@ function AuthenticatedApp() {
     return <main className="auth-shell">
       <div className="auth-atmosphere"><span /><span /><span /><span /></div>
       <section className="auth-card">
-        <div className="auth-brand"><span className="auth-brand-mark">G</span><div><strong>GREEN CITY</strong><small>PLATAFORMA EDUCACIONAL</small></div></div>
+        <div className="auth-brand"><img className="auth-brand-mark" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" /><div><strong>GREEN CITY</strong><small>PLATAFORMA EDUCACIONAL</small></div></div>
         <div className="auth-copy"><div className="auth-eyebrow">RECUPERAÇÃO DE ACESSO</div><h1>Escolha sua nova senha.</h1><p>Depois de salvar, você poderá entrar novamente na sua campanha.</p></div>
         <form className="auth-form" onSubmit={submitAuth}>
           <label><span>NOVA SENHA</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" required minLength={8} placeholder="Mínimo de 8 caracteres" /></label>
@@ -394,7 +395,7 @@ function AuthenticatedApp() {
 
   if (!account) {
     return <main className="auth-shell"><section className="auth-card">
-      <div className="auth-brand"><span className="auth-brand-mark">G</span><div><strong>GREEN CITY</strong><small>CONTA AUTENTICADA</small></div></div>
+      <div className="auth-brand"><img className="auth-brand-mark" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" /><div><strong>GREEN CITY</strong><small>CONTA AUTENTICADA</small></div></div>
       <h1>Não conseguimos abrir sua campanha.</h1>
       <p>{accountError || 'O perfil do usuário ainda não está disponível.'}</p>
       <div className="auth-error-actions"><button className="auth-submit" onClick={() => session.user.id && void loadAccount(session.user.id)}>TENTAR NOVAMENTE</button><button className="auth-secondary" onClick={() => void signOut()}>SAIR DA CONTA</button></div>
@@ -415,7 +416,7 @@ function AuthenticatedApp() {
   return <main className="campaign-shell">
     <header className="campaign-header">
       <div className="campaign-brand">
-        <span className="campaign-brand-mark">G</span>
+        <img className="campaign-brand-mark" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" />
         <div><strong>GREEN CITY</strong><small>PLATAFORMA DE TRANSFORMAÇÃO AMBIENTAL</small></div>
       </div>
       <div className="campaign-user">
@@ -476,7 +477,7 @@ function AuthenticatedApp() {
               className={'map-region-node map-region-' + region.colorState + (region.canPlay ? ' map-region-clickable' : '')}
               style={{ left: region.x + '%', top: region.y + '%' }}
               disabled={!region.canPlay}
-              onClick={() => region.phase <= 2 && openGame(region.phase as 1 | 2)}
+              onClick={() => region.phase <= 3 && openGame(region.phase as 1 | 2 | 3)}
               title={region.name + ' · ' + label}
             >
               <span className="map-region-number">{String(region.phase).padStart(2, '0')}</span>
@@ -505,7 +506,7 @@ function AuthenticatedApp() {
       </div>
       <div className="campaign-region-list">
         {regionStates.map((region) => <button type="button" className="campaign-region-row" key={region.phase}
-          disabled={!region.canPlay} onClick={() => region.phase <= 2 && openGame(region.phase as 1 | 2)}>
+          disabled={!region.canPlay} onClick={() => region.phase <= 3 && openGame(region.phase as 1 | 2 | 3)}>
           <span className={'campaign-region-dot dot-' + region.colorState} />
           <span className="campaign-region-number">{String(region.phase).padStart(2, '0')}</span>
           <span className="campaign-region-copy"><strong>{region.name}</strong><small>{region.focus}</small></span>

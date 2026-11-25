@@ -56,7 +56,11 @@ Cada fase retoma conhecimentos anteriores e acrescenta uma camada. Não vamos de
 
 **Missões:** mapear descarte e acúmulo de água; organizar coleta comunitária; separar orgânicos sem vidro, metais e plásticos; abastecer e acompanhar composteiras; usar composto maturado em horta; identificar necessidade de rede de esgoto ou solução sanitária local; desobstruir drenagem e implantar jardim de chuva onde adequado.
 
+**Primeiro recorte jogável:** investigar três pontos do bairro; recolher quatro pontos de resíduos; encaminhar orgânicos e recicláveis secos a fluxos diferentes; acompanhar simbolicamente o manejo da composteira; conectar duas moradias à rede sanitária simulada; e implantar um jardim de chuva no ponto indicado. O jogo deve explicar que compostagem real demanda tempo e manejo, que conexão à rede não substitui tratamento e que o jardim de chuva exige avaliação local de solo, lençol freático e contaminação. A drenagem pluvial não recebe esgoto sanitário.
+
 **Profissões:** técnico em saneamento, engenheiro civil, engenheiro sanitarista, agrônomo, técnico em compostagem, agente comunitário e gestor de resíduos.
+
+**Indicadores da simulação:** pontos investigados, coleta realizada, fluxos separados, manejo da composteira, moradias conectadas à rede sanitária e jardim de chuva implantado. O índice do cenário não representa medição ambiental real.
 
 **Economia:** custo por rota, operação da composteira, qualidade do composto, redução de transporte e benefícios para hortas. Venda de composto depende de qualidade, conformidade e demanda real.
 

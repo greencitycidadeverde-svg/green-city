@@ -43,6 +43,7 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   background: linear-gradient(145deg, #c6f49b, #73b96b); color: #11251a; font-size: 25px;
   font-weight: 800; letter-spacing: -.08em; box-shadow: 0 6px 22px rgba(136,205,111,.22);
 }
+.brand-mark-image { display:block;object-fit:contain;background:#fff;padding:1px;border:1px solid rgba(255,255,255,.35); }
 .brand strong { display: block; font-size: 15px; line-height: 1.25; letter-spacing: .14em; font-weight: 800; }
 .brand small { display: block; margin-top: 4px; color: #93ac9b; font: 8px var(--gc-mono); letter-spacing: .08em; }
 .wallet {
@@ -860,11 +861,13 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
 }
 .auth-brand { display:flex;align-items:center;gap:11px;min-width:0; }
 .auth-brand-mark,.campaign-brand-mark {
-  display:grid;place-items:center;flex:none;width:41px;height:41px;border-radius:13px;
-  color:#12321e;background:linear-gradient(145deg,#c5ef8d,#77bd6a);font:900 25px Georgia,serif;
-  box-shadow:0 5px 16px rgba(120,190,100,.23);
+  display:block;flex:none;width:66px;height:66px;padding:2px;border:1px solid rgba(197,239,141,.35);border-radius:14px;
+  object-fit:contain;background:#fff;box-shadow:0 5px 18px rgba(120,190,100,.20);
 }
 .auth-brand > div,.campaign-brand > div { display:flex;flex-direction:column;gap:3px; }
+.welcome-logo img { display:block;flex:none;width:58px;height:58px;object-fit:contain;background:#fff;border-radius:12px;padding:2px;box-shadow:0 4px 14px rgba(0,0,0,.16); }
+.welcome-logo { display:flex;align-items:center;gap:10px; }
+.welcome-logo > span { display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:#b6ed8c;color:#17422a;font-weight:950;font-size:22px; }
 .auth-brand strong,.campaign-brand strong { font-size:17px;font-weight:950;letter-spacing:.11em;color:#f4f8ef; }
 .auth-brand small,.campaign-brand small { color:#a8c3ac;font:800 8px var(--gc-mono);letter-spacing:.12em; }
 .auth-version { margin-left:auto;color:#b0c59f;font:800 7px var(--gc-mono);letter-spacing:.08em;text-align:right; }
@@ -929,7 +932,7 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   border-bottom:1px solid rgba(43,78,51,.12);
 }
 .campaign-brand { display:flex;align-items:center;gap:11px; }
-.campaign-brand-mark { width:43px;height:43px; }
+.campaign-brand-mark { width:56px;height:56px; }
 .campaign-brand strong { color:#173c29; }
 .campaign-brand small { color:#688471; }
 .campaign-user { display:flex;align-items:center;gap:10px; }
@@ -1116,6 +1119,8 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .campaign-header { align-items:center; }
   .campaign-brand small { max-width:180px;font-size:6px; }
   .campaign-brand strong { font-size:14px; }
+  .auth-brand-mark { width:54px;height:54px; }
+  .campaign-brand-mark { width:44px;height:44px; }
   .campaign-user-copy { display:none; }
   .campaign-intro h1 { font-size:26px; }
   .campaign-progress-title { align-items:flex-start;flex-direction:column;gap:5px; }
