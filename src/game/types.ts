@@ -14,6 +14,14 @@ export type NearbyAction =
   | 'deliver-cooperative'
   | 'sort-cooperative-materials';
 
+export interface MapObjective {
+  id: string;
+  label: string;
+  x: number;
+  z: number;
+  status: 'done' | 'next' | 'upcoming';
+}
+
 export interface GameSnapshot {
   phase: 1 | 2;
   completedNeighborhoods: number;
@@ -44,6 +52,8 @@ export interface GameSnapshot {
   nextNeighborhoodUnlocked: boolean;
   paused: boolean;
   mapOpen: boolean;
+  mapObjectives: MapObjective[];
+  nextObjectiveLabel: string;
   inVehicle: boolean;
   vehicleSpeed: number;
   nearbyAction: NearbyAction | null;

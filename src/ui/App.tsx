@@ -34,6 +34,8 @@ const initial: GameSnapshot = {
   nextNeighborhoodUnlocked: false,
   paused: false,
   mapOpen: false,
+  mapObjectives: [],
+  nextObjectiveLabel: 'Aguardando objetivos',
   inVehicle: false,
   vehicleSpeed: 0,
   nearbyAction: null,
@@ -60,6 +62,7 @@ export default function App() {
   const [joystick, setJoystick] = useState({ x: 0, y: 0 });
   const joystickPointerRef = useRef<number | null>(null);
   const [showPlan, setShowPlan] = useState(false);
+  const [mapTab, setMapTab] = useState<'objectives' | 'city'>('objectives');
   const [gameReady, setGameReady] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
   const [playRequested, setPlayRequested] = useState(false);
@@ -237,20 +240,35 @@ export default function App() {
         : state.portMissionStage === 'deliver' ? 'CARGA A BORDO · RETORNE AO CAMINHÃO' : 'CAMINHÃO DE COLETA · APROXIME-SE PARA ENTRAR'
       : state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
 
-    <div className="minimap" aria-label="Minimapa do bairro">
+    <div className={"minimap " + (state.phase === 2 ? "minimap-port" : "minimap-city")} aria-label="Minimapa com os objetivos da etapa atual">
       <div className="map-road map-road-v" />
       <div className="map-road map-road-h" />
       <div className="map-river" />
-      <span className="map-ecocenter" title="EcoCentro · entrega e triagem" />
+      {state.phase === 1 && <>
+        <span className="map-ecocenter" title="EcoCentro · entrega e triagem" />
+        <span className="map-base" title="Base de eletrificação" />
+      </>}
+      {state.mapObjectives.map((objective, index) => <span
+        key={objective.id}
+        className={"map-objective-marker map-objective-marker--" + objective.status}
+        style={{
+          left: Math.max(4, Math.min(96, 50 + objective.x * 0.75)) + "%",
+          top: Math.max(4, Math.min(96, 50 + objective.z * 0.75)) + "%",
+        }}
+        title={objective.label + (objective.status === 'done' ? " · concluído" : objective.status === 'next' ? " · próximo objetivo" : " · objetivo da etapa")}
+      >{objective.status === 'done' ? '✓' : index + 1}</span>)}
       <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"}
-        style={{ left: `${Math.max(8, Math.min(92, 50 + state.vehicleX * 0.75))}%`, top: `${Math.max(8, Math.min(92, 50 + state.vehicleZ * 0.75))}%` }}
-        title="Veículo municipal · posição atual" />
-      <span className="map-base" title="Base de eletrificação · destino da missão" />
-      <span className="map-player" style={{ left: `${Math.max(8, Math.min(92, 50 + state.playerX * 0.75))}%`, top: `${Math.max(8, Math.min(92, 50 + state.playerZ * 0.75))}%` }} />
+        style={{ left: Math.max(8, Math.min(92, 50 + state.vehicleX * 0.75)) + "%", top: Math.max(8, Math.min(92, 50 + state.vehicleZ * 0.75)) + "%" }}
+        title={state.phase === 2 ? "Caminhão de coleta · posição atual" : "Veículo municipal · posição atual"} />
+      <span className="map-player" style={{ left: Math.max(8, Math.min(92, 50 + state.playerX * 0.75)) + "%", top: Math.max(8, Math.min(92, 50 + state.playerZ * 0.75)) + "%" }} />
+      <div className="map-route-caption">
+        <small>SIGA O MAPA</small>
+        <strong>{state.nextObjectiveLabel}</strong>
+      </div>
     </div>
 
     <button className="plan-button" onClick={() => setShowPlan(true)}>PLANO URBANO</button>
-    <button className="map-button" onClick={() => gameRef.current?.setMapOpen(!state.mapOpen)}>M · MAPA DA CIDADE</button>
+    <button className="map-button" onClick={() => { setMapTab('objectives'); gameRef.current?.setMapOpen(!state.mapOpen); }}>M · MAPA DE OBJETIVOS</button>
     <div className="bottom-left"><span className="dot" /> SINGLE PLAYER · PROTÓTIPO WEB</div>
 
     <div className="controls">
@@ -302,8 +320,55 @@ export default function App() {
     </div>}
 
     {state.mapOpen && <div className="world-map-overlay">
-      <section className="world-map-panel city-map-panel">
-        <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>FECHAR · M</button>
+      {mapTab === 'objectives' ? <section className="world-map-panel objective-map-panel">
+        <div className="world-map-tools">
+          <button className="world-map-switch" onClick={() => setMapTab('city')}>VER MAPA GERAL DA CIDADE</button>
+          <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>FECHAR · M</button>
+        </div>
+        <div className="eyebrow">GREEN CITY · FASE 0{state.phase} · ROTA DA ETAPA</div>
+        <h2>{mission.title}</h2>
+        <p>Os pontos da etapa estão marcados no mapa. O amarelo indica o próximo destino; os demais pontos mostram o que já foi feito e o que ainda falta. Você continua responsável por investigar e decidir a solução ambiental.</p>
+        <div className="objective-map-layout">
+          <div className={"objective-map-board " + (state.phase === 2 ? "objective-map-board--port" : "objective-map-board--city")}>
+            <div className="objective-map-river" />
+            <div className="objective-map-road objective-map-road-one" />
+            <div className="objective-map-road objective-map-road-two" />
+            {state.mapObjectives.map((objective, index) => <span
+              key={objective.id}
+              className={"objective-map-pin objective-map-pin--" + objective.status}
+              style={{
+                left: Math.max(3, Math.min(97, 50 + objective.x * 0.98)) + "%",
+                top: Math.max(3, Math.min(97, 50 + objective.z * 0.98)) + "%",
+              }}
+              title={objective.label}
+            >{objective.status === 'done' ? '✓' : index + 1}</span>)}
+            <span className="objective-map-player"
+              style={{ left: Math.max(3, Math.min(97, 50 + state.playerX * 0.98)) + "%", top: Math.max(3, Math.min(97, 50 + state.playerZ * 0.98)) + "%" }}
+              title="Você está aqui">VOCÊ</span>
+            <span className="objective-map-vehicle"
+              style={{ left: Math.max(3, Math.min(97, 50 + state.vehicleX * 0.98)) + "%", top: Math.max(3, Math.min(97, 50 + state.vehicleZ * 0.98)) + "%" }}
+              title={state.phase === 2 ? "Caminhão" : "Veículo municipal"}>V</span>
+          </div>
+          <div className="objective-map-list">
+            <div className="objective-map-next"><small>PRÓXIMO DESTINO</small><strong>{state.nextObjectiveLabel}</strong></div>
+            {state.mapObjectives.length === 0
+              ? <div className="objective-map-empty">Etapa concluída. Abra o mapa geral para acompanhar a próxima região liberada.</div>
+              : state.mapObjectives.map((objective, index) => <div key={objective.id} className={"objective-map-row objective-map-row--" + objective.status}>
+                  <span>{objective.status === 'done' ? '✓' : index + 1}</span>
+                  <div><b>{objective.label}</b><small>{objective.status === 'done' ? 'CONCLUÍDO' : objective.status === 'next' ? 'PRÓXIMO PONTO' : 'PONTO DESTA ETAPA'}</small></div>
+                </div>)}
+            <div className="objective-map-legend">
+              <span><i className="objective-legend-dot objective-legend-dot--next" /> Próximo</span>
+              <span><i className="objective-legend-dot objective-legend-dot--done" /> Concluído</span>
+              <span><i className="objective-legend-dot objective-legend-dot--upcoming" /> A seguir</span>
+            </div>
+          </div>
+        </div>
+      </section> : <section className="world-map-panel city-map-panel">
+        <div className="world-map-tools">
+          <button className="world-map-switch" onClick={() => setMapTab('objectives')}>VOLTAR AOS OBJETIVOS DA ETAPA</button>
+          <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>FECHAR · M</button>
+        </div>
         <div className="eyebrow">GREEN CITY · MAPA GERAL</div>
         <h2>Uma cidade, dez regiões para recuperar</h2>
         <p>O mapa fictício mostra a campanha inteira. As regiões concluídas ficam verdes, a próxima região liberada pode ser acessada e as demais permanecem bloqueadas.</p>
@@ -319,7 +384,7 @@ export default function App() {
               const canEnterPort = available && index === 1 && state.phase === 1;
               const status = completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : available ? 'LIBERADO' : 'BLOQUEADO';
               return <button type="button"
-                className={`district-card ${completed ? 'district-complete' : ''} ${current ? 'district-current' : ''} ${available ? 'district-available' : ''} ${!completed && !current && !available ? 'district-locked' : ''}`}
+                className={"district-card " + (completed ? "district-complete " : "") + (current ? "district-current " : "") + (available ? "district-available " : "") + (!completed && !current && !available ? "district-locked" : "")}
                 key={neighborhood.id} disabled={!canEnterPort}
                 onClick={() => { if (canEnterPort) gameRef.current?.enterPortPhase(); }}>
                 <div className="district-card-top"><span>FASE {String(index + 1).padStart(2, '0')}</span><b>{status}</b></div>
@@ -333,12 +398,10 @@ export default function App() {
           </div>
         </div>
         <div className="city-map-footer">
-          <span><i className="legend-dot active" /> Fase atual</span>
-          <span><i className="legend-dot available" /> Liberado</span>
-          <span><i className="legend-dot locked" /> Bloqueado</span>
+          <span><i className="legend-dot active" /> Fase atual</span><span><i className="legend-dot available" /> Liberado</span><span><i className="legend-dot locked" /> Bloqueado</span>
         </div>
         <p className="map-disclaimer">O mapa é uma representação fictícia da cidade. Nesta versão, o Centro Industrial e o Porto possuem cenários 3D; as outras oito regiões permanecem bloqueadas enquanto são desenvolvidas.</p>
-      </section>
+      </section>}
     </div>}
 
     {state.phase === 1 && state.missionStage === 'complete' && phaseCompleteOpen && !phaseCompleteSeen && <div className="phase-complete-overlay">
@@ -348,7 +411,7 @@ export default function App() {
         <h2>FASE 01 CONCLUÍDA!</h2>
         <p>Parabéns! Você recuperou o Centro Industrial. Agora abra o mapa da cidade, veja o Porto destacado como liberado e escolha quando deseja começar a próxima missão.</p>
         <div className="completion-stats"><span>8 prédios solares</span><span>1 veículo elétrico</span><span>Região 02 liberada</span></div>
-        <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
+        <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
       </section>
     </div>}
 

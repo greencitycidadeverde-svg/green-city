@@ -4,7 +4,7 @@ import {
 } from '@babylonjs/core';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import type { AbstractMesh } from '@babylonjs/core';
-import type { GameSnapshot, MissionStage, NearbyAction, PortMissionStage, SnapshotListener } from './types';
+import type { GameSnapshot, MapObjective, MissionStage, NearbyAction, PortMissionStage, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
 const TOTAL_SOLAR_BUILDINGS = 8;
@@ -545,7 +545,6 @@ export class GreenCityGame {
 
       const labelFace = MeshBuilder.CreatePlane('eco-center-container-label-face-' + index, { width: 1.90, height: 0.96 }, this.scene);
       labelFace.position.set(x, 1.16, 11.15);
-      labelFace.billboardMode = Mesh.BILLBOARDMODE_Y;
       const labelMaterial = this.material('eco-center-container-label-material-' + index, new Color3(1, 1, 1));
       labelMaterial.diffuseTexture = labelTexture;
       labelMaterial.emissiveColor = new Color3(0.10, 0.10, 0.08);
@@ -625,7 +624,6 @@ export class GreenCityGame {
     legendTexture.update();
     const legendFace = MeshBuilder.CreatePlane('eco-center-material-legend-face', { width: 12.0, height: 1.82 }, this.scene);
     legendFace.position.set(-25, 4.25, 9.85);
-    legendFace.billboardMode = Mesh.BILLBOARDMODE_Y;
     const legendMaterial = this.material('eco-center-material-legend-face-material', new Color3(1, 1, 1));
     legendMaterial.diffuseTexture = legendTexture;
     legendMaterial.emissiveColor = new Color3(0.16, 0.20, 0.14);
@@ -654,7 +652,6 @@ export class GreenCityGame {
     instructionTexture.update();
     const instructionFace = MeshBuilder.CreatePlane('eco-center-instruction-face', { width: 2.5, height: 1.22 }, this.scene);
     instructionFace.position.set(-32.2, 2.6, 8.68);
-    instructionFace.billboardMode = Mesh.BILLBOARDMODE_Y;
     const instructionMaterial = this.material('eco-center-instruction-face-material', new Color3(1, 1, 1));
     instructionMaterial.diffuseTexture = instructionTexture;
     instructionMaterial.emissiveColor = new Color3(0.12, 0.18, 0.13);
@@ -758,7 +755,8 @@ export class GreenCityGame {
       signTexture.update();
       const face = MeshBuilder.CreatePlane(`port-warehouse-label-face-${index}`, { width: 4.9, height: 0.62 }, this.scene);
       face.position.set(-18.10, 6.2, z);
-      face.rotation.y = -Math.PI / 2;
+      // A fachada visível do armazém fica no lado +X; a placa permanece presa a essa parede.
+      face.rotation.y = Math.PI / 2;
       const faceMat = this.material(`port-warehouse-label-face-mat-${index}`, new Color3(1, 1, 1));
       faceMat.diffuseTexture = signTexture;
       faceMat.emissiveColor = new Color3(0.1, 0.13, 0.1);
@@ -925,7 +923,6 @@ export class GreenCityGame {
     signTexture.update();
     const signFace = MeshBuilder.CreatePlane('port-cooperative-sign-face', { width: 8.7, height: 1.15 }, this.scene);
     signFace.position.set(x, 5.65, z - 2.43);
-    signFace.billboardMode = Mesh.BILLBOARDMODE_Y;
     const signFaceMaterial = this.material('port-cooperative-sign-face-material', new Color3(1, 1, 1));
     signFaceMaterial.diffuseTexture = signTexture;
     signFaceMaterial.emissiveColor = new Color3(0.14, 0.19, 0.12);
@@ -963,7 +960,6 @@ export class GreenCityGame {
       labelTexture.update();
       const label = MeshBuilder.CreatePlane(`port-cooperative-bin-label-face-${index}`, { width: 2.02, height: 0.62 }, this.scene);
       label.position.set(site.x, 1.0, site.z + 0.79);
-      label.billboardMode = Mesh.BILLBOARDMODE_Y;
       const labelMaterial = this.material(`port-cooperative-bin-label-material-${index}`, new Color3(1, 1, 1));
       labelMaterial.diffuseTexture = labelTexture;
       labelMaterial.emissiveColor = new Color3(0.10, 0.10, 0.08);
@@ -2375,8 +2371,66 @@ export class GreenCityGame {
     this.interact();
   }
 
+
+  /** Pontos da etapa atual. O mapa orienta o deslocamento sem revelar a solução ambiental. */
+  private getMapObjectives(): MapObjective[] {
+    const entries: Array<{ id: string; label: string; x: number; z: number; done: boolean }> = [];
+
+    if (this.activePhase === 1) {
+      if (this.missionStage === 'collect') {
+        this.trash.forEach((item, index) => entries.push({
+          id: `trash-${index}`, label: `Resíduo ${index + 1}`,
+          x: item.position.x, z: item.position.z, done: !item.isEnabled(),
+        }));
+      } else if (this.missionStage === 'deliver') {
+        entries.push({ id: 'eco-center', label: 'EcoCentro · entrega', x: this.ecoCenterPosition.x, z: this.ecoCenterPosition.z, done: false });
+      } else if (this.missionStage === 'solar') {
+        this.buildings.forEach((building, index) => entries.push({
+          id: `solar-building-${index}`, label: building.label,
+          x: building.x, z: building.z, done: building.solarInstalled,
+        }));
+      } else if (this.missionStage === 'vehicle') {
+        entries.push({ id: 'ev-base', label: 'Base de eletrificação', x: this.vehicleBasePosition.x, z: this.vehicleBasePosition.z, done: false });
+      }
+    } else {
+      if (this.portMissionStage === 'inspect') {
+        this.portOutfallPositions.forEach((site, index) => entries.push({
+          id: `outfall-${index}`, label: `Ponto de despejo ${index + 1}`,
+          x: site.x, z: site.z, done: this.portOutfallInspected.has(index),
+        }));
+      } else if (this.portMissionStage === 'treatment') {
+        entries.push({ id: 'port-ete', label: 'Área da estação de tratamento (ETE)', x: 14, z: 0, done: false });
+      } else if (this.portMissionStage === 'septic') {
+        this.portSepticPositions.forEach((site, index) => entries.push({
+          id: `septic-${index}`, label: `Instalação sanitária ${index + 1}`,
+          x: site.x, z: site.z, done: this.portSepticInstalled[index],
+        }));
+      } else if (this.portMissionStage === 'collect') {
+        this.portCompanyPositions.forEach((site, index) => entries.push({
+          id: `company-${index}`, label: this.portCompanyNames[index],
+          x: site.x, z: site.z, done: !this.portWastePiles[index]?.isEnabled(),
+        }));
+      } else if (this.portMissionStage === 'deliver') {
+        entries.push({ id: 'port-cooperative', label: 'Cooperativa · descarga', x: this.portCooperativePosition.x, z: this.portCooperativePosition.z, done: false });
+      } else if (this.portMissionStage === 'sorting') {
+        this.portCooperativeBinPositions.forEach((site, index) => entries.push({
+          id: `sorting-${index}`, label: `Baia: ${this.portCooperativeMaterialNames[index]}`,
+          x: site.x, z: site.z, done: this.portCooperativeSorted[index],
+        }));
+      }
+    }
+
+    const nextIndex = entries.findIndex((entry) => !entry.done);
+    return entries.map((entry, index) => ({
+      id: entry.id, label: entry.label, x: entry.x, z: entry.z,
+      status: entry.done ? 'done' : index === nextIndex ? 'next' : 'upcoming',
+    }));
+  }
+
   getSnapshot(): GameSnapshot {
     const nearby = this.getNearbyInteraction();
+    const mapObjectives = this.getMapObjectives();
+    const nextObjective = mapObjectives.find((objective) => objective.status === 'next');
     return {
       cit: this.cit,
       collected: this.collected,
@@ -2409,6 +2463,8 @@ export class GreenCityGame {
       nextNeighborhoodUnlocked: this.isNextNeighborhoodUnlocked(),
       paused: this.paused,
       mapOpen: this.mapOpen,
+      mapObjectives,
+      nextObjectiveLabel: nextObjective?.label ?? 'Etapa concluída',
       inVehicle: this.inVehicle,
       vehicleSpeed: Math.round(Math.abs(this.vehicleSpeed) * 3.6),
       nearbyAction: nearby?.action ?? null,
