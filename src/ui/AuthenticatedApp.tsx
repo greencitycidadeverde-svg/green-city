@@ -5,7 +5,7 @@ import type { GameProgressData } from '../game/types';
 import { supabase } from '../lib/supabase';
 import GameExperience from './GameExperience';
 
-type AccountRole = 'admin' | 'user';
+type AccountRole = 'master_admin' | 'admin' | 'user';
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'update';
 
 type ProfileRow = {
@@ -61,9 +61,10 @@ const REGIONS = [
 ] as const;
 
 function AuthenticatedApp() {
+  const teamInviteCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('equipe') : null;
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [authMode, setAuthMode] = useState<AuthMode>('signin');
+  const [authMode, setAuthMode] = useState<AuthMode>(teamInviteCode ? 'signup' : 'signin');
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -80,6 +81,10 @@ function AuthenticatedApp() {
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [adminError, setAdminError] = useState('');
   const [adminBusyId, setAdminBusyId] = useState('');
+  const [teamInvite, setTeamInvite] = useState<{ targetAdminId: string; teamName: string; url: string } | null>(null);
+  const [teamInviteLoading, setTeamInviteLoading] = useState(false);
+  const [teamInviteCopied, setTeamInviteCopied] = useState(false);
+  const [teamNotice, setTeamNotice] = useState('');
 
   const recoveryFlow = typeof window !== 'undefined' && (
     new URLSearchParams(window.location.search).get('auth') === 'recovery'
@@ -157,8 +162,25 @@ function AuthenticatedApp() {
       return;
     }
     if (recoveryFlow) setAuthMode('update');
+    if (teamInviteCode && supabase) {
+      let cancelled = false;
+      void (async () => {
+        const { error } = await supabase.rpc('join_team_with_invite', { invite_code: teamInviteCode });
+        if (cancelled) return;
+        await loadAccount(session.user.id);
+        if (error) {
+          setTeamNotice('Não foi possível vincular esta conta à equipe: ' + error.message);
+        } else {
+          setTeamNotice('Convite aceito! Esta conta agora faz parte da equipe GREEN CITY correspondente.');
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.delete('equipe');
+          window.history.replaceState({}, document.title, nextUrl.pathname + nextUrl.search + nextUrl.hash);
+        }
+      })();
+      return () => { cancelled = true; };
+    }
     void loadAccount(session.user.id);
-  }, [session?.user.id, recoveryFlow, loadAccount]);
+  }, [session?.user.id, recoveryFlow, loadAccount, teamInviteCode]);
 
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -168,6 +190,7 @@ function AuthenticatedApp() {
     setMessage('');
     try {
       if (authMode === 'signup') {
+        if (!teamInviteCode) throw new Error('Para criar uma conta, abra primeiro o link de convite enviado pelo administrador da equipe.');
         if (password.length < 8) throw new Error('Use uma senha com pelo menos 8 caracteres.');
         if (password !== passwordConfirm) throw new Error('As senhas não coincidem.');
         const { data, error } = await supabase.auth.signUp({
@@ -175,7 +198,7 @@ function AuthenticatedApp() {
           password,
           options: {
             data: { display_name: displayName.trim() },
-            emailRedirectTo: getAuthRedirectOrigin() + '/',
+            emailRedirectTo: getAuthRedirectOrigin() + '/' + (teamInviteCode ? '?equipe=' + encodeURIComponent(teamInviteCode) : ''),
           },
         });
         if (error) throw error;
@@ -198,7 +221,7 @@ function AuthenticatedApp() {
         if (error) throw error;
       } else if (authMode === 'forgot') {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-          redirectTo: getAuthRedirectOrigin() + '/?auth=recovery',
+          redirectTo: getAuthRedirectOrigin() + '/?auth=recovery' + (teamInviteCode ? '&equipe=' + encodeURIComponent(teamInviteCode) : ''),
         });
         if (error) throw error;
         setMessage('Enviamos um link para redefinir sua senha. Confira sua caixa de entrada e a pasta de spam.');
@@ -231,7 +254,7 @@ function AuthenticatedApp() {
   };
 
   const loadAdminUsers = async () => {
-    if (!supabase || account?.profile.role !== 'admin') return;
+    if (!supabase || !['admin', 'master_admin'].includes(account?.profile.role ?? '')) return;
     setAdminUsersLoading(true);
     setAdminError('');
     const { data, error } = await supabase
@@ -243,14 +266,50 @@ function AuthenticatedApp() {
     setAdminUsersLoading(false);
   };
 
+  const loadTeamInvite = async (targetAdminId: string) => {
+    if (!supabase || !['admin', 'master_admin'].includes(account?.profile.role ?? '')) return;
+    if (account?.profile.role === 'admin' && targetAdminId !== account.profile.id) return;
+    setTeamInviteLoading(true);
+    setAdminError('');
+    setTeamInviteCopied(false);
+    const { data, error } = await supabase.rpc('admin_get_team_invite', { target_admin_id: targetAdminId });
+    if (error) {
+      setAdminError(error.message);
+      setTeamInvite(null);
+    } else {
+      const row = (Array.isArray(data) ? data[0] : data) as { team_name?: string; invite_code?: string } | null;
+      if (!row?.invite_code) {
+        setAdminError('A equipe ainda não possui um link disponível.');
+        setTeamInvite(null);
+      } else {
+        setTeamInvite({ targetAdminId, teamName: row.team_name || 'Equipe GREEN CITY', url: window.location.origin + '/?equipe=' + encodeURIComponent(row.invite_code) });
+      }
+    }
+    setTeamInviteLoading(false);
+  };
+
+  const copyTeamInvite = async () => {
+    if (!teamInvite) return;
+    try {
+      await navigator.clipboard.writeText(teamInvite.url);
+      setTeamInviteCopied(true);
+      setAdminError('');
+    } catch {
+      setAdminError('Não foi possível copiar automaticamente. Selecione e copie o endereço exibido.');
+    }
+  };
+
   useEffect(() => {
-    if (adminPanelOpen && account?.profile.role === 'admin') void loadAdminUsers();
-    // loadAdminUsers is intentionally invoked only when the protected admin panel opens.
+    if (adminPanelOpen && ['admin', 'master_admin'].includes(account?.profile.role ?? '')) {
+      void loadAdminUsers();
+      if (account?.profile.role === 'admin') void loadTeamInvite(account.profile.id);
+    }
+    // Protected data is fetched only when the team or Master panel is opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminPanelOpen, account?.profile.role]);
 
   const changeRole = async (target: AdminUser, newRole: AccountRole) => {
-    if (!supabase || account?.profile.role !== 'admin' || adminBusyId) return;
+    if (!supabase || account?.profile.role !== 'master_admin' || adminBusyId) return;
     setAdminBusyId(target.id);
     setAdminError('');
     const { error } = await supabase.rpc('admin_set_user_role', {
@@ -286,13 +345,13 @@ function AuthenticatedApp() {
           : status === 'available' || environmentState === 'degraded'
             ? 'degraded'
             : 'locked';
-    const canPlay = playable && (account?.profile.role === 'admin' || status === 'available' || status === 'in_progress' || status === 'completed');
+    const canPlay = playable && (['admin', 'master_admin'].includes(account?.profile.role ?? '') || status === 'available' || status === 'in_progress' || status === 'completed');
     return { ...region, row, playable, colorState, canPlay };
   }), [account]);
 
   const restoredCount = regionStates.filter((region) => region.colorState === 'restored').length;
   const currentProgress = account?.campaign ? Math.round((restoredCount / 10) * 100) : 0;
-  const defaultPhase: 1 | 2 | 3 | null = account?.profile.role === 'admin'
+  const defaultPhase: 1 | 2 | 3 | null = ['admin', 'master_admin'].includes(account?.profile.role ?? '')
     ? (account?.campaign.current_phase >= 3 ? 3 : account?.campaign.current_phase >= 2 ? 2 : 1)
     : regionStates[2]?.canPlay ? 3
       : regionStates[1]?.canPlay ? 2
@@ -322,21 +381,14 @@ function AuthenticatedApp() {
     return <main className="auth-shell">
       <div className="auth-atmosphere"><span /><span /><span /><span /></div>
       <section className="auth-card">
-        <div className="auth-brand">
-          <img className="auth-brand-mark" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" />
+        <div className="auth-brand auth-brand-login">
           <div><strong>GREEN CITY</strong><small>PLATAFORMA EDUCACIONAL</small></div>
           <span className="auth-version">AMBIENTE DE APRENDIZAGEM</span>
         </div>
-        <div className="auth-visual">
-          <div className="auth-visual-sun" />
-          <div className="auth-visual-hill auth-visual-hill-back" />
-          <div className="auth-visual-hill auth-visual-hill-front" />
-          <div className="auth-visual-city">
-            <i className="auth-building auth-building-one" /><i className="auth-building auth-building-two" />
-            <i className="auth-building auth-building-three" /><i className="auth-tree auth-tree-one" />
-            <i className="auth-tree auth-tree-two" /><i className="auth-solar" />
-          </div>
-          <div className="auth-visual-caption">RECUPERE · CONECTE · TRANSFORME</div>
+        <div className="auth-visual auth-visual-brand">
+          <div className="auth-visual-glow" />
+          <img className="auth-hero-logo" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" />
+          <div className="auth-visual-caption">APRENDER · AGIR · TRANSFORMAR</div>
         </div>
         <div className="auth-copy">
           <div className="auth-eyebrow">{title.eyebrow}</div>
@@ -369,7 +421,7 @@ function AuthenticatedApp() {
         </form>
         <div className="auth-links">
           {authMode === 'signin' && <>
-            <button type="button" onClick={() => { setAuthMode('signup'); setMessage(''); setErrorMessage(''); }}>Criar uma conta</button>
+            {teamInviteCode && <button type="button" onClick={() => { setAuthMode('signup'); setMessage(''); setErrorMessage(''); }}>Criar conta pelo convite da equipe</button>}
             <button type="button" onClick={() => { setAuthMode('forgot'); setMessage(''); setErrorMessage(''); }}>Esqueci minha senha</button>
           </>}
           {authMode === 'signup' && <button type="button" onClick={() => { setAuthMode('signin'); setMessage(''); setErrorMessage(''); }}>Já tenho uma conta · Entrar</button>}
@@ -418,7 +470,7 @@ function AuthenticatedApp() {
       campaignId={account.campaign.id}
       initialPhase={activePhase}
       savedProgress={activeProgress}
-      isAdmin={account.profile.role === 'admin'}
+      isAdmin={account.profile.role === 'admin' || account.profile.role === 'master_admin'}
       onExitToCampaign={returnToMap}
     />;
   }
@@ -431,11 +483,12 @@ function AuthenticatedApp() {
       </div>
       <div className="campaign-user">
         <div className="campaign-avatar">{(account.profile.display_name || account.profile.email).slice(0, 1).toUpperCase()}</div>
-        <div className="campaign-user-copy"><strong>{account.profile.display_name || 'Agente Ambiental'}</strong><small>{account.profile.role === 'admin' ? 'ADMINISTRADOR' : 'MINHA CAMPANHA'}</small></div>
+        <div className="campaign-user-copy"><strong>{account.profile.display_name || 'Agente Ambiental'}</strong><small>{account.profile.role === 'master_admin' ? 'ADMINISTRADOR MASTER' : account.profile.role === 'admin' ? 'ADMINISTRADOR DE EQUIPE' : 'MINHA CAMPANHA'}</small></div>
         <button type="button" className="campaign-signout" onClick={() => void signOut()}>SAIR</button>
       </div>
     </header>
 
+    {teamNotice && <div className="team-notice" role="status">{teamNotice}</div>}
     <section className="campaign-intro">
       <div>
         <div className="campaign-eyebrow">PAINEL DA SUA JORNADA</div>
@@ -529,21 +582,28 @@ function AuthenticatedApp() {
     <section className="campaign-footer-actions">
       <div><b>CADERNO DE APRENDIZADO</b><span>Seus registros acompanham cada fase e cada descoberta.</span></div>
       <button type="button" className="campaign-journal-button" onClick={() => setMessage('O Caderno de Aprendizado será aberto na próxima entrega do painel.')}>VER MEU CADERNO</button>
-      {account.profile.role === 'admin' && <button type="button" className="campaign-admin-button" onClick={() => setAdminPanelOpen((open) => !open)}>{adminPanelOpen ? 'FECHAR ADMINISTRAÇÃO' : 'ADMINISTRAÇÃO'}</button>}
+      {['admin', 'master_admin'].includes(account.profile.role) && <button type="button" className="campaign-admin-button" onClick={() => setAdminPanelOpen((open) => !open)}>{adminPanelOpen ? 'FECHAR PAINEL' : account.profile.role === 'master_admin' ? 'PAINEL MASTER' : 'MINHA EQUIPE'}</button>}
     </section>
 
-    {account.profile.role === 'admin' && adminPanelOpen && <section className="admin-panel">
-      <div className="admin-panel-heading"><div><div className="campaign-eyebrow">ACESSO RESTRITO · ADMINISTRADOR</div><h2>Contas GREEN CITY</h2><p>Promova usuários confiáveis a administradores. As alterações são registradas no histórico administrativo.</p></div><button type="button" onClick={() => void loadAdminUsers()}>ATUALIZAR</button></div>
+    {['admin', 'master_admin'].includes(account.profile.role) && adminPanelOpen && <section className="admin-panel">
+      <div className="admin-panel-heading">
+        <div>
+          <div className="campaign-eyebrow">{account.profile.role === 'master_admin' ? 'ACESSO MASTER · VISÃO GLOBAL' : 'ACESSO DA EQUIPE · VISÃO RESTRITA'}</div>
+          <h2>{account.profile.role === 'master_admin' ? 'Administradores e usuários GREEN CITY' : 'Minha equipe GREEN CITY'}</h2>
+          <p>{account.profile.role === 'master_admin' ? 'Consulte todas as contas, promova usuários a administradores e acompanhe as equipes da plataforma.' : 'Aqui aparecem apenas sua conta e os usuários vinculados ao seu link de equipe. Você não tem acesso às demais equipes.'}</p>
+        </div>
+        <button type="button" onClick={() => void loadAdminUsers()}>ATUALIZAR</button>
+      </div>
+      {account.profile.role === 'admin' && <div className="team-invite-help"><strong>LINK DA SUA EQUIPE</strong><span>Compartilhe este endereço com seus alunos. As novas contas que entrarem por ele serão vinculadas à sua equipe.</span><button type="button" onClick={() => void loadTeamInvite(account.profile.id)} disabled={teamInviteLoading}>{teamInviteLoading ? 'GERANDO...' : 'GERAR / ATUALIZAR LINK'}</button></div>}
+      {teamInvite && <div className="team-invite-card"><div><small>{teamInvite.teamName} · LINK DE CONVITE</small><code>{teamInvite.url}</code></div><button type="button" onClick={() => void copyTeamInvite()}>{teamInviteCopied ? 'LINK COPIADO' : 'COPIAR LINK'}</button></div>}
       {adminError && <div className="auth-feedback auth-feedback-error">{adminError}</div>}
       {adminUsersLoading ? <div className="admin-loading">Carregando contas...</div> : <div className="admin-user-list">
         {adminUsers.map((user) => <div className="admin-user-row" key={user.id}>
           <div className="admin-user-avatar">{(user.display_name || user.email).slice(0,1).toUpperCase()}</div>
           <div className="admin-user-info"><strong>{user.display_name || 'Usuário GREEN CITY'}</strong><small>{user.email}</small></div>
-          <span className={'admin-role-pill ' + (user.role === 'admin' ? 'admin-role-pill-admin' : '')}>{user.role === 'admin' ? 'ADMINISTRADOR' : 'USUÁRIO'}</span>
-          <button type="button" className="admin-role-action" disabled={adminBusyId === user.id || user.id === account.profile.id}
-            onClick={() => void changeRole(user, user.role === 'admin' ? 'user' : 'admin')}>
-            {adminBusyId === user.id ? 'AGUARDE...' : user.id === account.profile.id ? 'SUA CONTA' : user.role === 'admin' ? 'REBAIXAR' : 'TORNAR ADMIN'}
-          </button>
+          <span className={'admin-role-pill ' + (user.role !== 'user' ? 'admin-role-pill-admin' : '') + (user.role === 'master_admin' ? ' admin-role-pill-master' : '')}>{user.role === 'master_admin' ? 'MASTER' : user.role === 'admin' ? 'ADMINISTRADOR' : 'ALUNO / USUÁRIO'}</span>
+          {account.profile.role === 'master_admin' && user.role === 'admin' && <button type="button" className="admin-team-link" onClick={() => void loadTeamInvite(user.id)} disabled={teamInviteLoading}>LINK DA EQUIPE</button>}
+          {account.profile.role === 'master_admin' && user.role !== 'master_admin' && <button type="button" className="admin-role-action" disabled={adminBusyId === user.id} onClick={() => void changeRole(user, user.role === 'admin' ? 'user' : 'admin')}>{adminBusyId === user.id ? 'AGUARDE...' : user.role === 'admin' ? 'REBAIXAR' : 'TORNAR ADMIN'}</button>}
         </div>)}
       </div>}
     </section>}
