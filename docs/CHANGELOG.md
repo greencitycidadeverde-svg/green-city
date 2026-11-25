@@ -1,3 +1,5 @@
+# Changelog
+
 ## 0.4.26 — Fase 04: identificação por cores e cooperativa com nome
 - A coleta pós-consumo passou a exibir seis categorias com as cores de referência da Resolução CONAMA nº 275/2001: papel/papelão (azul), plástico (vermelho), vidro (verde), metal (amarelo), orgânicos (marrom) e rejeito geral (cinza).
 - A missão, as instruções e o mapa indicam categoria, cor e destino; orgânicos seguem à compostagem e rejeitos permanecem fora da carga da cooperativa.
