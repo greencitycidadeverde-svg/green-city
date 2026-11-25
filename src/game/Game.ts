@@ -157,7 +157,7 @@ export class GreenCityGame {
   private readonly phaseFourDynamicMeshes: Mesh[] = [];
   private readonly forestHabitatPositions: PortSite[] = [{ x: -8, z: -7 }, { x: 8, z: -31 }, { x: 34, z: -18 }];
   private readonly forestProducePositions: PortSite[] = [{ x: -30, z: -15 }, { x: -23, z: -15 }, { x: -16, z: -15 }];
-  private readonly forestPackagingPositions: PortSite[] = [{ x: 8, z: 19 }, { x: 14, z: 19 }, { x: 20, z: 19 }];
+  private readonly forestPackagingPositions: PortSite[] = [{ x: 1, z: 19 }, { x: 5.6, z: 19 }, { x: 10.2, z: 19 }, { x: 14.8, z: 19 }, { x: 19.4, z: 19 }, { x: 24, z: 19 }];
   private readonly forestSeedlingPositions: PortSite[] = [{ x: -34, z: -3 }, { x: -28, z: -8 }, { x: -21, z: -4 }];
   private readonly forestTruckLoadingPosition = new Vector3(-12, 0, -22);
   private readonly forestFactoryDeliveryPosition = new Vector3(13, 0, -25);
@@ -179,7 +179,7 @@ export class GreenCityGame {
   private forestTruckRoot?: TransformNode;
   private forestProcessed = false;
   private forestMarketStocked = false;
-  private readonly forestPackagingSorted: boolean[] = [false, false, false];
+  private readonly forestPackagingSorted: boolean[] = [false, false, false, false, false, false];
   private forestCooperativeDelivered = false;
   private readonly forestSeedlingsPlanted: boolean[] = [false, false, false];
   private readonly forestSeedlingMarkers: Mesh[] = [];
@@ -1401,37 +1401,98 @@ export class GreenCityGame {
       goods.position.set(21.2 + i * 1.55, 1.05, 14.1); goods.material = i % 2 ? tomato : produce;
     }
 
-    // Pós-consumo: papel e plástico à coleta seletiva; orgânicos à compostagem.
-    const binColors = [new Color3(0.17, 0.41, 0.61), new Color3(0.13, 0.55, 0.35), new Color3(0.47, 0.31, 0.18)];
-    const binLabels = [
-      ['PAPEL / PAPELÃO', 'Embalagens limpas e secas'],
-      ['PLÁSTICO', 'Embalagens vazias e limpas'],
-      ['ORGÂNICOS', 'Restos de alimentos para compostagem'],
+    // Pós-consumo: recipientes seguem o código de cores da Resolução CONAMA 275/2001.
+    // Os quatro recicláveis secos seguem à cooperativa; orgânicos e rejeitos têm rotas separadas.
+    const binCatalog = [
+      { label: 'PAPEL / PAPELÃO', examples: 'CAIXAS · JORNAIS LIMPOS', color: new Color3(0.09, 0.36, 0.78) },
+      { label: 'PLÁSTICO', examples: 'GARRAFAS PET · EMBALAGENS', color: new Color3(0.82, 0.12, 0.16) },
+      { label: 'VIDRO', examples: 'POTES · GARRAFAS INTEGRAS', color: new Color3(0.10, 0.49, 0.25) },
+      { label: 'METAL', examples: 'LATAS · ALUMÍNIO · AÇO', color: new Color3(0.96, 0.76, 0.08) },
+      { label: 'ORGÂNICOS', examples: 'RESTOS DE ALIMENTOS · FOLHAS', color: new Color3(0.38, 0.23, 0.14) },
+      { label: 'REJEITO GERAL', examples: 'NÃO RECICLÁVEL · MISTURADO', color: new Color3(0.42, 0.44, 0.46) },
     ];
     this.forestPackagingPositions.forEach((site, index) => {
-      const bin = MeshBuilder.CreateBox('forest-sorting-bin-' + index, { width: 2.6, height: 1.65, depth: 2.1 }, this.scene);
-      bin.position.set(site.x, 0.83, site.z); bin.material = this.material('forest-sorting-bin-material-' + index, binColors[index]);
-      this.forestPackagingBins.push(bin.material as StandardMaterial);
-      const lid = MeshBuilder.CreateBox('forest-sorting-bin-lid-' + index, { width: 2.75, height: 0.18, depth: 2.2 }, this.scene);
-      lid.position.set(site.x, 1.72, site.z); lid.material = this.material('forest-sorting-bin-lid-material-' + index, new Color3(0.18, 0.23, 0.2));
-      postSign('forest-sorting-sign-' + index, binLabels[index][0], binLabels[index][1], site.x, 3.1, site.z + 1.15, 6.5);
+      const item = binCatalog[index];
+      const bin = MeshBuilder.CreateBox('forest-sorting-bin-' + index, { width: 2.5, height: 1.65, depth: 2.05 }, this.scene);
+      bin.position.set(site.x, 0.83, site.z);
+      const binMaterial = this.material('forest-sorting-bin-material-' + index, item.color);
+      bin.material = binMaterial;
+      this.forestPackagingBins.push(binMaterial);
+      const lid = MeshBuilder.CreateBox('forest-sorting-bin-lid-' + index, { width: 2.66, height: 0.18, depth: 2.16 }, this.scene);
+      lid.position.set(site.x, 1.72, site.z); lid.material = binMaterial;
+      postSign('forest-sorting-sign-' + index, item.label, item.examples, site.x, 3.1, site.z + 1.12, 4.7);
     });
-    postSign('forest-consumer-sign', 'PONTO PÓS-CONSUMO', 'Separe na origem: cada resíduo segue uma rota adequada', 14, 5, 22.5, 9.5);
+    postSign('forest-consumer-sign', 'PONTO DE SEPARAÇÃO', 'COR + NOME + EXEMPLO · CADA RESÍDUO TEM SUA ROTA', 12.5, 5, 22.5, 12.2);
 
-    // Cooperativa é galpão de recebimento e triagem, não uma fábrica recicladora.
+    // Painel didático com o código completo de cores da CONAMA 275/2001.
+    // Resíduos especiais aparecem apenas como orientação: não são manipulados na coleta comum.
+    const colorPanelX = 31; const colorPanelZ = 34.3;
+    const colorPanel = MeshBuilder.CreateBox('forest-national-waste-color-panel', { width: 15.8, height: 8.8, depth: 0.22 }, this.scene);
+    colorPanel.position.set(colorPanelX, 4.65, colorPanelZ);
+    colorPanel.material = this.material('forest-national-waste-color-panel-material', new Color3(0.07, 0.2, 0.16));
+    const colorTexture = new DynamicTexture('forest-national-waste-color-panel-texture', { width: 1400, height: 760 }, this.scene, false);
+    const colorCtx = colorTexture.getContext() as unknown as CanvasRenderingContext2D;
+    colorCtx.fillStyle = '#F4F2E8'; colorCtx.fillRect(0, 0, 1400, 760);
+    colorCtx.fillStyle = '#123D2D'; colorCtx.fillRect(0, 0, 1400, 112);
+    colorCtx.textAlign = 'center'; colorCtx.fillStyle = '#FFFFFF'; colorCtx.font = 'bold 42px Arial';
+    colorCtx.fillText('CÓDIGO BRASILEIRO DE CORES · CONAMA 275/2001', 700, 70);
+    const nationalColorItems = [
+      ['AZUL', 'PAPEL / PAPELÃO', '#1976D2', '#FFFFFF'],
+      ['VERMELHO', 'PLÁSTICO', '#D32F2F', '#FFFFFF'],
+      ['VERDE', 'VIDRO', '#2E7D32', '#FFFFFF'],
+      ['AMARELO', 'METAL', '#FBC02D', '#1C1C1C'],
+      ['PRETO', 'MADEIRA', '#242424', '#FFFFFF'],
+      ['LARANJA', 'RESÍDUOS PERIGOSOS', '#EF6C00', '#FFFFFF'],
+      ['BRANCO', 'SERVIÇOS DE SAÚDE · MANEJO PRÓPRIO', '#FFFFFF', '#1C1C1C'],
+      ['ROXO', 'RESÍDUOS RADIOATIVOS · CONTROLE ESPECIAL', '#7B1FA2', '#FFFFFF'],
+      ['MARROM', 'RESÍDUOS ORGÂNICOS', '#795548', '#FFFFFF'],
+      ['CINZA', 'REJEITO / MISTURADO / CONTAMINADO NÃO SEPARÁVEL', '#757575', '#FFFFFF'],
+    ];
+    nationalColorItems.forEach((item, index) => {
+      const col = index < 5 ? 0 : 1;
+      const row = index % 5;
+      const x = 46 + col * 690; const y = 140 + row * 101;
+      colorCtx.fillStyle = '#FFFFFF'; colorCtx.fillRect(x, y, 650, 88);
+      colorCtx.strokeStyle = '#C8CEC8'; colorCtx.lineWidth = 2; colorCtx.strokeRect(x, y, 650, 88);
+      colorCtx.fillStyle = item[2]; colorCtx.fillRect(x + 12, y + 12, 66, 64);
+      colorCtx.fillStyle = item[3]; colorCtx.textAlign = 'center'; colorCtx.font = 'bold 20px Arial';
+      colorCtx.fillText(item[0], x + 45, y + 51);
+      colorCtx.textAlign = 'left'; colorCtx.fillStyle = '#18372B'; colorCtx.font = 'bold 24px Arial';
+      colorCtx.fillText(item[1], x + 96, y + 54, 535);
+    });
+    colorCtx.textAlign = 'center'; colorCtx.fillStyle = '#18372B'; colorCtx.font = 'bold 22px Arial';
+    colorCtx.fillText('CORES IDENTIFICAM A CATEGORIA; RÓTULOS EXPLICAM O CONTEÚDO E O RISCO.', 700, 675);
+    colorCtx.font = '19px Arial';
+    colorCtx.fillText('Saúde, químicos perigosos e radioativos exigem segregação, acondicionamento e destinação específicos.', 700, 716);
+    colorTexture.update();
+    const colorPanelFace = MeshBuilder.CreatePlane('forest-national-waste-color-panel-face', { width: 15.55, height: 8.55 }, this.scene);
+    colorPanelFace.position.set(colorPanelX, 4.65, colorPanelZ + 0.125);
+    const colorPanelFaceMat = this.material('forest-national-waste-color-panel-face-material', new Color3(1, 1, 1));
+    colorPanelFaceMat.diffuseTexture = colorTexture; colorPanelFaceMat.emissiveColor = new Color3(0.12, 0.14, 0.12);
+    colorPanelFace.material = colorPanelFaceMat;
+
+    // Cooperativa fictícia do cenário: recebe e prepara apenas recicláveis secos.
     building('forest-cooperative', -24, 16, 18, 6.7, 13, new Color3(0.62, 0.7, 0.56), new Color3(0.12, 0.31, 0.22));
-    sign('forest-cooperative-sign', 'COOPERATIVA DE TRIAGEM', 'Recebe, separa e prepara recicláveis para encaminhar à indústria', -24, 4.3, 22.75, 10.8);
+    sign('forest-cooperative-sign', 'COOPERATIVA RAÍZES DA FLORESTA', 'TRIAGEM DE PAPEL · PLÁSTICO · VIDRO · METAL', -24, 4.3, 22.75, 12.8);
     const dock = MeshBuilder.CreateBox('forest-cooperative-dock', { width: 11, height: 0.68, depth: 3.2 }, this.scene);
     dock.position.set(-13, 0.34, 15); dock.material = this.material('forest-cooperative-dock-material', new Color3(0.4, 0.43, 0.38));
-    for (let i = 0; i < 3; i++) {
-      const bay = MeshBuilder.CreateBox('forest-cooperative-bay-' + i, { width: 3.7, height: 1.1, depth: 3.1 }, this.scene);
-      bay.position.set(-29 + i * 4.8, 0.55, 7.3);
-      bay.material = this.material('forest-cooperative-bay-material-' + i, [new Color3(0.22, 0.43, 0.6), new Color3(0.16, 0.55, 0.36), new Color3(0.75, 0.69, 0.45)][i]);
-    }
+    const cooperativeBays = [
+      { x: -30, label: 'PAPEL', color: new Color3(0.09, 0.36, 0.78) },
+      { x: -25.2, label: 'PLÁSTICO', color: new Color3(0.82, 0.12, 0.16) },
+      { x: -20.4, label: 'VIDRO', color: new Color3(0.10, 0.49, 0.25) },
+      { x: -15.6, label: 'METAL', color: new Color3(0.96, 0.76, 0.08) },
+    ];
+    cooperativeBays.forEach((bayInfo, index) => {
+      const bay = MeshBuilder.CreateBox('forest-cooperative-bay-' + index, { width: 3.7, height: 1.1, depth: 3.1 }, this.scene);
+      bay.position.set(bayInfo.x, 0.55, 7.3);
+      bay.material = this.material('forest-cooperative-bay-material-' + index, bayInfo.color);
+      postSign('forest-cooperative-bay-sign-' + index, bayInfo.label, 'MATERIAL TRIADO', bayInfo.x, 2.65, 9.05, 4.45);
+    });
     const press = MeshBuilder.CreateBox('forest-cooperative-press', { width: 2.5, height: 3.2, depth: 2 }, this.scene);
-    press.position.set(-15, 1.6, 7.5); press.material = this.material('forest-cooperative-press-material', new Color3(0.48, 0.53, 0.53));
+    press.position.set(-8.2, 1.6, 7.5); press.material = this.material('forest-cooperative-press-material', new Color3(0.48, 0.53, 0.53));
     const bale = MeshBuilder.CreateBox('forest-cooperative-bale', { width: 2.5, height: 1.8, depth: 2 }, this.scene);
-    bale.position.set(-10.7, 0.9, 7.5); bale.material = this.material('forest-cooperative-bale-material', new Color3(0.28, 0.47, 0.34));
+    bale.position.set(-4.7, 0.9, 7.5); bale.material = this.material('forest-cooperative-bale-material', new Color3(0.28, 0.47, 0.34));
+    postSign('forest-cooperative-process-sign', 'TRABALHO DA COOPERATIVA', 'RECEBER · CONFERIR · TRIAR · PRENSAR · ENCAMINHAR', -6.4, 3.2, 10.1, 9.8);
     postSign('forest-compost-sign', 'COMPOSTAGEM', 'Resíduos orgânicos limpos retornam ao solo após manejo adequado', 34, 3, 24, 9);
     const compostPad = MeshBuilder.CreateGround('forest-compost-pad', { width: 8.2, height: 6.2 }, this.scene);
     compostPad.position.set(34, 0.035, 17.5); compostPad.material = this.material('forest-compost-pad-material', new Color3(0.38, 0.28, 0.17));
@@ -1508,7 +1569,7 @@ export class GreenCityGame {
       return { action: 'stock-local-market', label: 'E · RECEBER E EXPOR NO MERCADO' };
     } else if (this.forestMissionStage === 'sorting') {
       const i = this.forestPackagingPositions.findIndex((site, index) => !this.forestPackagingSorted[index] && dist(site) <= 4.5);
-      if (i >= 0) return { action: 'sort-consumer-packaging', label: 'E · SEPARAR ' + ['PAPEL / PAPELÃO', 'PLÁSTICO', 'ORGÂNICOS'][i] };
+      if (i >= 0) return { action: 'sort-consumer-packaging', label: 'E · SEPARAR ' + ['PAPEL / PAPELÃO', 'PLÁSTICO', 'VIDRO', 'METAL', 'ORGÂNICOS', 'REJEITO GERAL'][i] };
     } else if (this.forestMissionStage === 'cooperative' && !this.forestCooperativeDelivered && dist(this.forestCooperativeDeliveryPosition) <= 8.5) {
       return { action: 'deliver-forest-cooperative', label: 'E · ENTREGAR RECICLÁVEIS À COOPERATIVA' };
     } else if (this.forestMissionStage === 'restore') {
@@ -1603,15 +1664,25 @@ export class GreenCityGame {
       this.forestPackagingSorted[i] = true;
       const bin = this.forestPackagingBins[i]; if (bin) bin.emissiveColor = new Color3(0.12, 0.2, 0.12);
       const count = this.forestPackagingSorted.filter(Boolean).length;
-      if (count === 3) {
+      if (count === this.forestPackagingSorted.length) {
         this.forestMissionStage = 'cooperative';
-        this.message = 'Separação concluída. Papel/papelão e plástico limpos seguem à cooperativa; os orgânicos vão à compostagem. A transformação industrial será aprofundada na Fase 08.';
-      } else this.message = ['Papel/papelão', 'Plástico', 'Orgânicos'][i] + ' encaminhados à rota correta (' + count + '/3).';
+        this.message = 'Separação concluída! Papel, plástico, vidro e metal seguem à Cooperativa Raízes da Floresta para triagem; orgânicos vão à compostagem e rejeitos seguem à destinação municipal adequada. A cooperativa não faz a reciclagem industrial.';
+      } else {
+        const routeMessage = [
+          'Papel e papelão limpos seguem à cooperativa para triagem.',
+          'Plásticos identificados seguem à cooperativa para separação por tipo.',
+          'Vidros seguem à triagem específica; não misture cerâmica, louça ou espelhos sem orientação local.',
+          'Metais seguem à triagem e preparação para encaminhamento.',
+          'Orgânicos seguem à compostagem; não entram na cooperativa de recicláveis secos.',
+          'Rejeitos não recicláveis ou contaminados inseparáveis seguem à coleta de rejeitos, conforme o serviço local.',
+        ][i];
+        this.message = routeMessage + ' (' + count + '/' + this.forestPackagingSorted.length + ' categorias separadas).';
+      }
       this.emit(); return;
     }
     if (action === 'deliver-forest-cooperative') {
       this.forestCooperativeDelivered = true; this.forestMissionStage = 'restore';
-      this.message = 'A cooperativa recebeu os recicláveis secos para triagem e preparação. A transformação industrial dos materiais ficará para a Fase 08. Agora volte à reserva para restaurar habitats e proteger a nascente.';
+      this.message = 'A Cooperativa Raízes da Floresta recebeu papel, plástico, vidro e metal. Os cooperados conferem, separam, preparam e encaminham os materiais; a indústria recicladora faz a transformação em novos insumos/produtos. Orgânicos e rejeitos não entram nesta carga. Agora volte à reserva para restaurar habitats e proteger a nascente.';
       this.emit(); return;
     }
     if (action === 'plant-native-seedling') {
@@ -3578,7 +3649,7 @@ export class GreenCityGame {
       } else if (this.forestMissionStage === 'market') {
         add('local-market', 'Mercado local · recebimento', this.forestMarketStockPosition, this.forestMarketStocked);
       } else if (this.forestMissionStage === 'sorting') {
-        this.forestPackagingPositions.forEach((site, i) => add('consumer-sorting-' + i, ['Papel e papelão','Plástico','Orgânicos / compostagem'][i], site, this.forestPackagingSorted[i]));
+        this.forestPackagingPositions.forEach((site, i) => add('consumer-sorting-' + i, ['Papel/papelão · AZUL','Plástico · VERMELHO','Vidro · VERDE','Metal · AMARELO','Orgânicos · MARROM','Rejeito geral · CINZA'][i], site, this.forestPackagingSorted[i]));
       } else if (this.forestMissionStage === 'cooperative') {
         add('forest-cooperative', 'Cooperativa · recebimento de recicláveis', this.forestCooperativeDeliveryPosition, this.forestCooperativeDelivered);
       } else if (this.forestMissionStage === 'restore') {

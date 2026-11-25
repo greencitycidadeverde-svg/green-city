@@ -1,4 +1,10 @@
-# Changelog
+## 0.4.26 — Fase 04: identificação por cores e cooperativa com nome
+- A coleta pós-consumo passou a exibir seis categorias com as cores de referência da Resolução CONAMA nº 275/2001: papel/papelão (azul), plástico (vermelho), vidro (verde), metal (amarelo), orgânicos (marrom) e rejeito geral (cinza).
+- A missão, as instruções e o mapa indicam categoria, cor e destino; orgânicos seguem à compostagem e rejeitos permanecem fora da carga da cooperativa.
+- A cooperativa fictícia recebeu identidade própria: Cooperativa Raízes da Floresta. Sua fachada e baias identificam a triagem dos quatro recicláveis secos, separando o trabalho cooperativo da reciclagem industrial.
+- Acrescentado painel educativo com as dez cores do código CONAMA e aviso de manejo específico para resíduos de saúde, perigosos e radioativos.
+- Registrada a diretriz permanente de cores, pictogramas, classificação, rotas e segurança dos resíduos para todas as fases do GREEN CITY. O documento esclarece que incineração não é destinação universal e diferencia rejeitos, perigosos, RSS e óleos.
+- Progresso da Fase 04 usa seis categorias para novas sessões; registros anteriores são preservados e carregados sem apagar os três itens já registrados.
 
 ## 0.4.25 — Fase 03: resíduos identificáveis e compostagem didática
 - Substituídas as esferas genéricas por cinco objetos 3D identificáveis: casca de banana, restos de frutas, garrafa PET, lata de alumínio e garrafa de vidro inteira.
