@@ -779,3 +779,60 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .learning-report-card p { font-size:10px; }
   .learning-question span { font-size:11px; }
 }
+
+
+/* GREEN CITY 0.4.16 — local developer test console */
+.welcome-panel--dev {
+  width: min(1040px, 100%);
+  max-height: min(96vh, 1080px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #6a9d70 #173526;
+}
+.dev-console {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(184, 221, 174, .27);
+  border-radius: 15px;
+  background: linear-gradient(145deg, rgba(13, 39, 27, .94), rgba(8, 27, 20, .96));
+  text-align: left;
+}
+.dev-console-heading { display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px; }
+.dev-console-heading h3 { margin:6px 0 4px;font-size:17px;line-height:1.2; }
+.dev-console-heading p { margin:0;color:#bfd1c4;font-size:10px;line-height:1.5; }
+.dev-mode-tag {
+  flex:none;padding:6px 9px;border:1px solid rgba(228,181,110,.4);border-radius:8px;
+  color:#f2cb8e;background:rgba(117,79,34,.2);font:800 8px var(--gc-mono);letter-spacing:.1em;
+}
+.dev-console-grid {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+  max-height:230px;overflow-y:auto;padding:2px 5px 2px 0;scrollbar-width:thin;scrollbar-color:#6a9d70 #173526;
+}
+.dev-phase-card { min-width:0;padding:10px;border:1px solid rgba(191,224,188,.15);border-radius:10px;background:rgba(23,48,35,.72); }
+.dev-phase-meta { display:flex;justify-content:space-between;gap:8px;color:#9fb7a5;font:8px var(--gc-mono);letter-spacing:.07em; }
+.dev-phase-meta b { font:800 8px var(--gc-mono); }
+.dev-phase-meta .is-completed { color:#b7ed91; }
+.dev-phase-meta .is-available { color:#9fd0f5; }
+.dev-phase-meta .is-pending { color:#a5b0aa; }
+.dev-phase-card h4 { margin:6px 0 8px;color:#f0f7ec;font-size:12px;line-height:1.25; }
+.dev-phase-actions { display:flex;flex-wrap:wrap;align-items:center;gap:8px; }
+.dev-phase-actions button {
+  min-height:29px;padding:6px 9px;border:1px solid rgba(184,237,145,.35);border-radius:7px;
+  background:rgba(86,139,72,.22);color:#d9f4c7;font:800 8px var(--gc-mono);cursor:pointer;
+}
+.dev-phase-actions button:disabled { opacity:.4;cursor:not-allowed; }
+.dev-phase-actions label { display:flex;align-items:center;gap:5px;color:#c6d8ca;font-size:9px;cursor:pointer; }
+.dev-phase-actions input { accent-color:#9dd77e; }
+.dev-phase-card > p { margin:0;color:#9fb4a5;font-size:9px;line-height:1.45; }
+.dev-console-note { margin:10px 0 0;color:#aabeb0;font-size:9px;line-height:1.5; }
+.dev-menu-toggle {
+  min-height:38px;padding:8px 11px;border:1px solid rgba(184,237,145,.32);border-radius:9px;
+  background:rgba(24,55,37,.72);color:#d7f1c8;font:800 8px var(--gc-mono);letter-spacing:.06em;cursor:pointer;
+}
+@media(max-width:680px) {
+  .welcome-panel--dev { max-height:95vh;padding:18px 14px; }
+  .dev-console { padding:11px;margin-top:13px; }
+  .dev-console-grid { max-height:220px;grid-template-columns:1fr; }
+  .dev-console-heading h3 { font-size:15px; }
+  .dev-menu-toggle { min-height:34px;padding:7px;font-size:7px; }
+}

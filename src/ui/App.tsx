@@ -4,6 +4,8 @@ import type { GreenCityGame } from '../game/Game';
 import { CITY_NEIGHBORHOODS } from '../game/neighborhoods';
 import type { GameSnapshot } from '../game/types';
 
+const DEVELOPER_PHASE_STORAGE_KEY = 'green-city-developer-phase-checklist-v1';
+
 const initial: GameSnapshot = {
   phase: 1,
   completedNeighborhoods: 0,
@@ -58,6 +60,19 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GreenCityGame | null>(null);
   const [state, setState] = useState(initial);
+  const developerMode = new URLSearchParams(window.location.search).get('modo') === 'desenvolvimento';
+  const [startingPhase, setStartingPhase] = useState<1 | 2>(1);
+  const [completedPhaseMarks, setCompletedPhaseMarks] = useState<number[]>(() => {
+    try {
+      const stored = window.localStorage.getItem(DEVELOPER_PHASE_STORAGE_KEY);
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed)
+        ? [...new Set(parsed.filter((value): value is number => Number.isInteger(value) && value >= 1 && value <= 10))].sort((a, b) => a - b)
+        : [];
+    } catch {
+      return [];
+    }
+  });
   const [showHelp, setShowHelp] = useState(true);
   const [joystick, setJoystick] = useState({ x: 0, y: 0 });
   const joystickPointerRef = useRef<number | null>(null);
@@ -70,6 +85,37 @@ export default function App() {
   const [portCompleteSeen, setPortCompleteSeen] = useState(false);
   const [phaseCompleteOpen, setPhaseCompleteOpen] = useState(false);
   const phaseCompleteTriggeredRef = useRef(false);
+
+  const setDeveloperPhaseMark = (phase: number, completed: boolean) => {
+    setCompletedPhaseMarks((current) => {
+      const next = (completed
+        ? [...new Set([...current, phase])]
+        : current.filter((item) => item !== phase)
+      ).sort((a, b) => a - b);
+      try {
+        window.localStorage.setItem(DEVELOPER_PHASE_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // O checklist continua funcionando em memória se o navegador bloquear o armazenamento local.
+      }
+      return next;
+    });
+  };
+
+  const startGameAtPhase = (phase: 1 | 2) => {
+    setStartingPhase(phase);
+    setGameReady(false);
+    setGameError(null);
+    setShowHelp(false);
+    setPlayRequested(true);
+  };
+
+  const reopenDeveloperPanel = () => {
+    setPlayRequested(false);
+    setGameReady(false);
+    setGameError(null);
+    setPhaseCompleteOpen(false);
+    setShowHelp(true);
+  };
   const portCompleteTriggeredRef = useRef(false);
 
   useEffect(() => {
@@ -83,17 +129,24 @@ export default function App() {
         if (cancelled) return;
         game = new Game(canvas, (snapshot) => {
           setState(snapshot);
-          if (snapshot.phase === 1 && snapshot.missionStage === 'complete' && !phaseCompleteTriggeredRef.current) {
-            phaseCompleteTriggeredRef.current = true;
-            setPhaseCompleteOpen(true);
+          if (snapshot.phase === 1 && snapshot.missionStage === 'complete') {
+            setDeveloperPhaseMark(1, true);
+            if (!phaseCompleteTriggeredRef.current) {
+              phaseCompleteTriggeredRef.current = true;
+              setPhaseCompleteOpen(true);
+            }
           }
-          if (snapshot.phase === 2 && snapshot.portMissionStage === 'complete' && !portCompleteTriggeredRef.current) {
-            portCompleteTriggeredRef.current = true;
-            setPhaseCompleteOpen(true);
+          if (snapshot.phase === 2 && snapshot.portMissionStage === 'complete') {
+            setDeveloperPhaseMark(2, true);
+            if (!portCompleteTriggeredRef.current) {
+              portCompleteTriggeredRef.current = true;
+              setPhaseCompleteOpen(true);
+            }
           }
         });
         gameRef.current = game;
         setGameReady(true);
+        if (startingPhase === 2) game.enterPortPhase(true);
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -106,7 +159,7 @@ export default function App() {
       game?.dispose();
       gameRef.current = null;
     };
-  }, [playRequested]);
+  }, [playRequested, startingPhase]);
 
   const moveJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (joystickPointerRef.current !== event.pointerId) return;
@@ -194,6 +247,7 @@ export default function App() {
         <span className="brand-mark">G</span>
         <div><strong>GREEN CITY</strong><small>CIDADE SUSTENTÁVEL · FASE 0{state.phase}/10</small></div>
       </div>
+      {developerMode && gameReady && <button type="button" className="dev-menu-toggle" onClick={reopenDeveloperPanel}>PAINEL DE TESTE</button>}
       <div className="wallet"><span>CIT SIMULADOS</span><strong>◆ {state.cit.toString().padStart(3, '0')}</strong></div>
     </header>
 
@@ -289,7 +343,7 @@ export default function App() {
     </div>
 
     {showHelp && <div className="welcome-overlay">
-      <div className="welcome-panel welcome-hero">
+      <div className={"welcome-panel welcome-hero" + (developerMode ? " welcome-panel--dev" : "")}>
         <div className="welcome-topline">
           <div className="welcome-logo"><span>G</span><div><b>GREEN CITY</b><small>JOGO DE TRANSFORMAÇÃO AMBIENTAL</small></div></div>
           <span className="phase-pill">FASE 01 DE 10 · CENTRO INDUSTRIAL</span>
@@ -320,7 +374,38 @@ export default function App() {
           <div className="objective-tile objective-recycle"><span>02</span><b>RECUPERAR</b><small>Organize resíduos e infraestrutura</small></div>
           <div className="objective-tile objective-energy"><span>03</span><b>MODERNIZAR</b><small>Use energia limpa e mobilidade elétrica</small></div>
         </div>
-        <button className="start-game-button" onClick={() => { setShowHelp(false); setPlayRequested(true); }}>JOGAR FASE 01 <span>▶</span></button>
+        <button className="start-game-button" onClick={() => startGameAtPhase(1)}>JOGAR FASE 01 <span>▶</span></button>
+        {developerMode && <section className="dev-console" aria-label="Painel de testes do desenvolvedor">
+          <div className="dev-console-heading">
+            <div>
+              <div className="eyebrow">ACESSO LOCAL · MODO DE DESENVOLVIMENTO</div>
+              <h3>Painel de testes da campanha</h3>
+              <p>Abra diretamente as regiões que já possuem cenário jogável e marque as fases que você já validou.</p>
+            </div>
+            <span className="dev-mode-tag">TESTE</span>
+          </div>
+          <div className="dev-console-grid">
+            {CITY_NEIGHBORHOODS.map((neighborhood, index) => {
+              const phase = index + 1;
+              const implemented = phase <= 2;
+              const completed = completedPhaseMarks.includes(phase);
+              return <article className="dev-phase-card" key={neighborhood.id}>
+                <div className="dev-phase-meta">
+                  <span>FASE {String(phase).padStart(2, '0')}</span>
+                  <b className={completed ? 'is-completed' : implemented ? 'is-available' : 'is-pending'}>
+                    {completed ? 'VALIDADA' : implemented ? 'DISPONÍVEL' : 'PLANEJADA'}
+                  </b>
+                </div>
+                <h4>{neighborhood.name}</h4>
+                {implemented ? <div className="dev-phase-actions">
+                  <button type="button" onClick={() => startGameAtPhase(phase as 1 | 2)}>ABRIR FASE {String(phase).padStart(2, '0')}</button>
+                  <label><input type="checkbox" checked={completed} onChange={(event) => setDeveloperPhaseMark(phase, event.currentTarget.checked)} /> Marcar como validada</label>
+                </div> : <p>O conteúdo desta região ainda está em planejamento e não pode ser aberto no jogo.</p>}
+              </article>;
+            })}
+          </div>
+          <p className="dev-console-note">O checklist fica salvo somente neste navegador. Este atalho não é um login nem uma autenticação segura; use-o para testes do protótipo e não como controle de acesso de produção.</p>
+        </section>}
         <div className="welcome-foot"><span className="desktop-only">WASD · MOVIMENTAR</span><span className="desktop-only">E · INTERAGIR</span><span className="desktop-only">M · MAPA DA CIDADE</span><span className="mobile-only">JOYSTICK · MOVER</span><span className="mobile-only">TOQUE · AÇÃO</span><span className="mobile-only">ARRASTE · CÂMERA · PINÇA · ZOOM</span><span>SEM INSTALAÇÃO · JOGA NO NAVEGADOR</span></div>
       </div>
     </div>}

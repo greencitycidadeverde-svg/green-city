@@ -990,9 +990,9 @@ export class GreenCityGame {
     guideFace.material = guideMaterial;
   }
 
-  enterPortPhase(): void {
+  enterPortPhase(forceForDevelopment = false): void {
     if (this.activePhase === 2) { this.setMapOpen(false); return; }
-    if (!this.isNextNeighborhoodUnlocked()) {
+    if (!forceForDevelopment && !this.isNextNeighborhoodUnlocked()) {
       this.message = 'Conclua todas as metas do Centro Industrial para liberar o Porto.';
       this.emit();
       return;
@@ -1012,7 +1012,9 @@ export class GreenCityGame {
     this.mapOpen = false;
     this.paused = false;
     this.camera.setTarget(new Vector3(-25, 1.2, 30.5));
-    this.message = 'Bem-vindo ao Porto. Inspecione os três pontos de despejo antes de escolher a solução de tratamento.';
+    this.message = forceForDevelopment
+      ? 'MODO DE TESTE: Porto aberto diretamente para validação da Fase 02.'
+      : 'Bem-vindo ao Porto. Inspecione os três pontos de despejo antes de escolher a solução de tratamento.';
     this.emit();
   }
 
