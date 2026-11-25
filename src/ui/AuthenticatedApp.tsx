@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { GameProgressData } from '../game/types';
 import { supabase } from '../lib/supabase';
 import GameExperience from './GameExperience';
+import MasterPhaseStudio from './MasterPhaseStudio';
 
 type AccountRole = 'master_admin' | 'admin' | 'user';
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'update';
@@ -76,6 +77,7 @@ function AuthenticatedApp() {
   const [account, setAccount] = useState<AccountData | null>(null);
   const [accountError, setAccountError] = useState('');
   const [activePhase, setActivePhase] = useState<1 | 2 | 3 | null>(null);
+  const [masterPhaseConfig, setMasterPhaseConfig] = useState<number | null>(null);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
@@ -367,6 +369,8 @@ function AuthenticatedApp() {
     if (session?.user.id) await loadAccount(session.user.id);
   };
 
+  const isMasterAccount = account?.profile.role === 'master_admin';
+
   const regionStates = useMemo(() => REGIONS.map((region) => {
     const row = account?.phases.find((item) => item.phase_number === region.phase);
     const playable = region.phase <= 3;
@@ -383,7 +387,8 @@ function AuthenticatedApp() {
             ? 'degraded'
             : 'locked';
     const canPlay = playable && (['admin', 'master_admin'].includes(account?.profile.role ?? '') || status === 'available' || status === 'in_progress' || status === 'completed');
-    return { ...region, row, playable, colorState, canPlay };
+    const canConfigure = isMasterAccount && !playable;
+    return { ...region, row, playable, colorState, canPlay, canConfigure };
   }), [account]);
 
   const restoredCount = regionStates.filter((region) => region.colorState === 'restored').length;
@@ -507,9 +512,14 @@ function AuthenticatedApp() {
       campaignId={account.campaign.id}
       initialPhase={activePhase}
       savedProgress={activeProgress}
-      isAdmin={account.profile.role === 'admin' || account.profile.role === 'master_admin'}
+      isMaster={account.profile.role === 'master_admin'}
+      onConfigurePhase={(phase) => setMasterPhaseConfig(phase)}
       onExitToCampaign={returnToMap}
     />;
+  }
+
+  if (masterPhaseConfig !== null && account.profile.role === 'master_admin') {
+    return <MasterPhaseStudio key={masterPhaseConfig} initialPhase={masterPhaseConfig} onBack={() => setMasterPhaseConfig(null)} />;
   }
 
   return <main className="campaign-shell">
@@ -576,13 +586,16 @@ function AuthenticatedApp() {
               key={region.phase}
               className={'map-region-node map-region-' + region.colorState + (region.canPlay ? ' map-region-clickable' : '')}
               style={{ left: region.x + '%', top: region.y + '%' }}
-              disabled={!region.canPlay}
-              onClick={() => region.phase <= 3 && openGame(region.phase as 1 | 2 | 3)}
+              disabled={!region.canPlay && !region.canConfigure}
+              onClick={() => {
+                if (region.canPlay && region.phase <= 3) openGame(region.phase as 1 | 2 | 3);
+                else if (region.canConfigure) setMasterPhaseConfig(region.phase);
+              }}
               title={region.name + ' · ' + label}
             >
               <span className="map-region-number">{String(region.phase).padStart(2, '0')}</span>
               <strong>{region.name}</strong>
-              <small>{label}</small>
+              <small>{region.canConfigure ? 'CONFIGURAR MÓDULO' : label}</small>
             </button>;
           })}
           <div className="map-board-label"><span>CIDADE MODELO · 10 REGIÕES</span><strong>GREEN CITY</strong><small>MAPA DA CAMPANHA INDIVIDUAL</small></div>
@@ -606,11 +619,14 @@ function AuthenticatedApp() {
       </div>
       <div className="campaign-region-list">
         {regionStates.map((region) => <button type="button" className="campaign-region-row" key={region.phase}
-          disabled={!region.canPlay} onClick={() => region.phase <= 3 && openGame(region.phase as 1 | 2 | 3)}>
+          disabled={!region.canPlay && !region.canConfigure} onClick={() => {
+            if (region.canPlay && region.phase <= 3) openGame(region.phase as 1 | 2 | 3);
+            else if (region.canConfigure) setMasterPhaseConfig(region.phase);
+          }}>
           <span className={'campaign-region-dot dot-' + region.colorState} />
           <span className="campaign-region-number">{String(region.phase).padStart(2, '0')}</span>
           <span className="campaign-region-copy"><strong>{region.name}</strong><small>{region.focus}</small></span>
-          <span className="campaign-region-state">{region.colorState === 'restored' ? 'RECUPERADA' : region.colorState === 'restoring' ? 'EM RECUPERAÇÃO' : region.colorState === 'degraded' ? 'DEGRADADA' : 'EM DESENVOLVIMENTO'}</span>
+          <span className="campaign-region-state">{region.canConfigure ? 'CONFIGURAR MÓDULO' : region.colorState === 'restored' ? 'RECUPERADA' : region.colorState === 'restoring' ? 'EM RECUPERAÇÃO' : region.colorState === 'degraded' ? 'DEGRADADA' : 'EM DESENVOLVIMENTO'}</span>
           <span className="campaign-region-arrow">{region.canPlay ? '→' : '·'}</span>
         </button>)}
       </div>
@@ -632,8 +648,9 @@ function AuthenticatedApp() {
         <div>
           <div className="campaign-eyebrow">{account.profile.role === 'master_admin' ? 'ACESSO MASTER · VISÃO GLOBAL' : 'ACESSO DA EQUIPE · VISÃO RESTRITA'}</div>
           <h2>{account.profile.role === 'master_admin' ? 'Administradores e usuários GREEN CITY' : 'Minha equipe GREEN CITY'}</h2>
-          <p>{account.profile.role === 'master_admin' ? 'Consulte todas as contas, promova usuários a administradores e acompanhe as equipes da plataforma.' : 'Aqui aparecem apenas sua conta e os usuários vinculados ao seu link de equipe. Você não tem acesso às demais equipes.'}</p>
+          <p>{account.profile.role === 'master_admin' ? 'Consulte todas as contas, promova usuários a administradores, acompanhe equipes e configure o conteúdo pedagógico das dez fases.' : 'Aqui aparecem apenas sua conta e os usuários vinculados ao seu link de equipe. Você não tem acesso às demais equipes.'}</p>
         </div>
+        {account.profile.role === 'master_admin' && <button type="button" className="master-studio-launch" onClick={() => setMasterPhaseConfig(1)}>CONFIGURAR AS 10 FASES</button>}
         <button type="button" onClick={() => void loadAdminUsers()}>ATUALIZAR</button>
       </div>
       {account.profile.role === 'admin' && <div className="team-invite-help"><strong>LINK DA SUA EQUIPE</strong><span>Compartilhe este endereço com seus alunos. As novas contas que entrarem por ele serão vinculadas à sua equipe.</span><button type="button" onClick={() => void loadTeamInvite(account.profile.id)} disabled={teamInviteLoading}>{teamInviteLoading ? 'GERANDO...' : 'GERAR / ATUALIZAR LINK'}</button></div>}

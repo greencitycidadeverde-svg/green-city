@@ -1,3 +1,9 @@
+## [0.4.22] - 2026-11-24
+- Criado o Estúdio Master protegido no banco de dados para configurar os dez módulos pedagógicos, com salvamento de desafios, objetivos, missões, profissões, economia, conteúdo de cenário e situação editorial.
+- O mapa da campanha fica totalmente acessível para Master: fases 01 a 03 podem ser abertas para testes; fases 04 a 10 abrem o configurador e continuam identificadas como sem cenário 3D.
+- O modo de desenvolvimento do jogo passou a depender da conta Master autenticada, removendo a antiga ativação por parâmetro de URL.
+- Adicionados caminhos explícitos de retorno ao jogo, ao mapa da cidade e ao painel Master nos mapas, planos, pausa, ajuda e relatórios de conclusão.
+
 ## [0.4.21] - 2026-11-24
 - Redesenhada a campanha com linguagem visual de aventura infantil: paleta mais viva, tipografia arredondada, cartões acolhedores, ícones ilustrados das dez regiões e microanimações.
 - Reestilizados os mapas, menus, indicadores e painéis pedagógicos do cenário 3D para melhorar legibilidade e afinidade com o público infantil, preservando os conteúdos técnicos.

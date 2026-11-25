@@ -83,15 +83,16 @@ interface GameExperienceProps {
   campaignId: string;
   initialPhase: 1 | 2 | 3;
   savedProgress: Partial<GameProgressData>;
-  isAdmin: boolean;
+  isMaster: boolean;
+  onConfigurePhase: (phase: number) => void;
   onExitToCampaign: () => void;
 }
 
-export default function GameExperience({ userId, campaignId, initialPhase, savedProgress, isAdmin, onExitToCampaign }: GameExperienceProps) {
+export default function GameExperience({ userId, campaignId, initialPhase, savedProgress, isMaster, onConfigurePhase, onExitToCampaign }: GameExperienceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GreenCityGame | null>(null);
   const [state, setState] = useState(initial);
-  const developerMode = isAdmin && new URLSearchParams(window.location.search).get('modo') === 'desenvolvimento';
+  const developerMode = isMaster;
   const [startingPhase, setStartingPhase] = useState<1 | 2 | 3>(initialPhase);
   const [completedPhaseMarks, setCompletedPhaseMarks] = useState<number[]>(() => {
     try {
@@ -332,6 +333,12 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     onExitToCampaign();
   };
 
+  const openMasterPhaseConfig = async (phase: number) => {
+    if (!isMaster || phase <= 3 || phase > 10) return;
+    await handleReturnToCampaign();
+    onConfigurePhase(phase);
+  };
+
   const moveJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (joystickPointerRef.current !== event.pointerId) return;
     event.preventDefault();
@@ -431,7 +438,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <img className="brand-mark brand-mark-image" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" />
         <div><strong>GREEN CITY</strong><small>CIDADE SUSTENTÁVEL · FASE 0{state.phase}/10</small></div>
       </div>
-      <button type="button" className="campaign-return-button" onClick={() => void handleReturnToCampaign()}>MAPA DA CIDADE</button>
+      <button type="button" className="campaign-return-button" onClick={() => void handleReturnToCampaign()}>VOLTAR AO MAPA DA CIDADE</button>
       {developerMode && gameReady && <button type="button" className="dev-menu-toggle" onClick={reopenDeveloperPanel}>PAINEL DE TESTE</button>}
       <div className="wallet"><span>CIT SIMULADOS</span><strong>◆ {state.cit.toString().padStart(3, '0')}</strong></div>
     </header>
@@ -530,6 +537,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
 
     {showHelp && <div className="welcome-overlay">
       <div className={"welcome-panel welcome-hero" + (developerMode ? " welcome-panel--dev" : "")}>
+        <button type="button" className="world-map-close welcome-back" onClick={() => setShowHelp(false)}>VOLTAR AO JOGO</button>
         <div className="welcome-topline">
           <div className="welcome-logo"><img src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" /><div><b>GREEN CITY</b><small>JOGO DE TRANSFORMAÇÃO AMBIENTAL</small></div></div>
           <span className="phase-pill">FASE {String(startingPhase).padStart(2, "0")} DE 10 · {CITY_NEIGHBORHOODS[startingPhase - 1].name.toUpperCase()}</span>
@@ -566,7 +574,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <div>
               <div className="eyebrow">ACESSO LOCAL · MODO DE DESENVOLVIMENTO</div>
               <h3>Painel de testes da campanha</h3>
-              <p>Abra diretamente as regiões que já possuem cenário jogável e marque as fases que você já validou.</p>
+              <p>Teste as três regiões que já possuem cenário 3D e abra o configurador pedagógico das outras sete para preparar o conteúdo fase por fase.</p>
             </div>
             <span className="dev-mode-tag">TESTE</span>
           </div>
@@ -586,11 +594,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 {implemented ? <div className="dev-phase-actions">
                   <button type="button" onClick={() => startGameAtPhase(phase as 1 | 2 | 3)}>ABRIR FASE {String(phase).padStart(2, '0')}</button>
                   <label><input type="checkbox" checked={completed} onChange={(event) => setDeveloperPhaseMark(phase, event.currentTarget.checked)} /> Marcar como validada</label>
-                </div> : <p>O conteúdo desta região ainda está em planejamento e não pode ser aberto no jogo.</p>}
+                </div> : <div className="dev-phase-actions">
+                  <button type="button" onClick={() => void openMasterPhaseConfig(phase)}>CONFIGURAR MÓDULO</button>
+                  <p>Conteúdo editável no Estúdio Master; cenário 3D ainda em construção.</p>
+                </div>}
               </article>;
             })}
           </div>
-          <p className="dev-console-note">O checklist fica salvo somente neste navegador. Este atalho não é um login nem uma autenticação segura; use-o para testes do protótipo e não como controle de acesso de produção.</p>
+          <p className="dev-console-note">Este painel aparece somente para a conta Master autenticada. O progresso do checklist de testes fica neste navegador; as configurações pedagógicas das dez fases são salvas no banco. Aprovar o conteúdo não significa que o cenário 3D esteja implementado.</p>
         </section>}
         <div className="welcome-foot"><span className="desktop-only">WASD · MOVIMENTAR</span><span className="desktop-only">E · INTERAGIR</span><span className="desktop-only">M · MAPA DA CIDADE</span><span className="mobile-only">JOYSTICK · MOVER</span><span className="mobile-only">TOQUE · AÇÃO</span><span className="mobile-only">ARRASTE · CÂMERA · PINÇA · ZOOM</span><span>SEM INSTALAÇÃO · JOGA NO NAVEGADOR</span></div>
       </div>
@@ -600,7 +611,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       {mapTab === 'objectives' ? <section className="world-map-panel objective-map-panel">
         <div className="world-map-tools">
           <button className="world-map-switch" onClick={() => setMapTab('city')}>VER MAPA GERAL DA CIDADE</button>
-          <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>FECHAR · M</button>
+          <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>VOLTAR AO JOGO</button>
         </div>
         <div className="eyebrow">GREEN CITY · FASE 0{state.phase} · ROTA DA ETAPA</div>
         <h2>{mission.title}</h2>
@@ -644,7 +655,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       </section> : <section className="world-map-panel city-map-panel">
         <div className="world-map-tools">
           <button className="world-map-switch" onClick={() => setMapTab('objectives')}>VOLTAR AOS OBJETIVOS DA ETAPA</button>
-          <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>FECHAR · M</button>
+          <button className="world-map-close" onClick={() => gameRef.current?.setMapOpen(false)}>VOLTAR AO JOGO</button>
         </div>
         <div className="eyebrow">GREEN CITY · MAPA GERAL</div>
         <h2>Uma cidade, dez regiões para recuperar</h2>
@@ -658,19 +669,27 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
               const completed = index < state.completedNeighborhoods;
               const current = !completed && index === state.phase - 1;
               const available = !completed && !current && index === state.completedNeighborhoods;
-              const canEnterPort = available && index === 1 && state.phase === 1;
-              const canEnterPeriphery = available && index === 2 && state.phase === 2 && state.portMissionStage === 'complete';
-              const status = completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : available ? 'LIBERADO' : 'BLOQUEADO';
+              const canEnterPort = (available && index === 1 && state.phase === 1) || (isMaster && index === 1 && state.phase !== 2);
+              const canEnterPeriphery = (available && index === 2 && state.phase === 2 && state.portMissionStage === 'complete') || (isMaster && index === 2 && state.phase !== 3);
+              const canMasterTest = isMaster && index === 0 && state.phase !== 1;
+              const canConfigure = isMaster && index >= 3;
+              const status = canConfigure ? 'CONFIGURAR MÓDULO' : completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : isMaster && (canEnterPort || canEnterPeriphery || canMasterTest) ? 'TESTE MASTER' : available ? 'LIBERADO' : 'BLOQUEADO';
+              const masterAccessible = canEnterPort || canEnterPeriphery || canMasterTest || canConfigure;
               return <button type="button"
-                className={"district-card " + (completed ? "district-complete " : "") + (current ? "district-current " : "") + (available ? "district-available " : "") + (!completed && !current && !available ? "district-locked" : "")}
-                key={neighborhood.id} disabled={!canEnterPort && !canEnterPeriphery}
-                onClick={() => { if (canEnterPort) gameRef.current?.enterPortPhase(); if (canEnterPeriphery) gameRef.current?.enterPeripheryPhase(); }}>
+                className={"district-card " + (completed ? "district-complete " : "") + (current ? "district-current " : "") + ((available || masterAccessible) ? "district-available " : "") + (!completed && !current && !available && !masterAccessible ? "district-locked" : "")}
+                key={neighborhood.id} disabled={!masterAccessible && !canEnterPort && !canEnterPeriphery}
+                onClick={() => {
+                  if (canConfigure) void openMasterPhaseConfig(index + 1);
+                  else if (canMasterTest) startGameAtPhase(1);
+                  else if (canEnterPort) startGameAtPhase(2);
+                  else if (canEnterPeriphery) startGameAtPhase(3);
+                }}>
                 <div className="district-card-top"><span>FASE {String(index + 1).padStart(2, '0')}</span><b>{status}</b></div>
-                <div className="district-map-icon">{completed ? '✓' : available ? '🔓' : neighborhood.icon}</div>
+                <div className="district-map-icon">{completed ? '✓' : neighborhood.icon}</div>
                 <h3>{neighborhood.name}</h3>
                 <div className="district-theme">{neighborhood.theme}</div>
                 <p>{neighborhood.challenge}</p>
-                <small>{completed ? 'Região concluída e marcada no mapa' : current ? 'Você está nesta região' : canEnterPort ? 'Clique para entrar na Fase 02' : canEnterPeriphery ? 'Clique para entrar na Fase 03' : available ? 'Próxima região liberada · expansão seguinte' : neighborhood.unlockLabel}</small>
+                <small>{canConfigure ? 'Abrir configuração pedagógica no Estúdio Master · cenário 3D em construção' : masterAccessible && isMaster ? 'Acesso livre para testes da conta Master' : completed ? 'Região concluída e marcada no mapa' : current ? 'Você está nesta região' : canEnterPort ? 'Clique para entrar na Fase 02' : canEnterPeriphery ? 'Clique para entrar na Fase 03' : available ? 'Próxima região liberada · expansão seguinte' : neighborhood.unlockLabel}</small>
               </button>;
             })}
           </div>
@@ -713,6 +732,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         </div>
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que uma garrafa plástica não deve ser jogada junto com restos de comida e folhas?</span></div>
         <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 02</small><b>Porto: água, saneamento e responsabilidade das empresas.</b><span>Agora vamos aprender que efluentes e resíduos precisam de tratamentos diferentes.</span></div>
+        <button className="learning-back-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
         <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
       </section>
     </div>}
@@ -753,6 +773,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         </div>
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que o esgoto de um banheiro e a água usada em uma fábrica não devem receber automaticamente o mesmo tratamento?</span></div>
         <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 03</small><b>Periferia Verde: coleta comunitária, compostagem, saneamento e drenagem.</b><span>Vamos passar das soluções básicas para entender como os bairros inteiros podem trabalhar juntos.</span></div>
+        <button className="learning-back-button" onClick={() => { setPortCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
         <button className="start-game-button" onClick={() => { setPortCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER PRÓXIMA REGIÃO <span>→</span></button>
       </section>
     </div>}
@@ -774,13 +795,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         </div>
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que a água da chuva que escorre pelas ruas não deve ser misturada com o esgoto dos banheiros?</span></div>
         <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 04</small><b>Reserva Florestal: biodiversidade, habitats e corredores ecológicos.</b><span>Agora vamos compreender como plantas, animais e ambientes naturais dependem uns dos outros.</span></div>
+        <button className="learning-back-button" onClick={() => { setPeripheryCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
         <button className="start-game-button" onClick={() => { setPeripheryCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
       </section>
     </div>}
 
     {showPlan && <div className="world-map-overlay">
       <section className="world-map-panel plan-panel">
-        <button className="world-map-close" onClick={() => setShowPlan(false)}>FECHAR</button>
+        <button className="world-map-close" onClick={() => setShowPlan(false)}>VOLTAR AO JOGO</button>
         <div className="eyebrow">{state.phase === 1 ? 'CENTRO INDUSTRIAL' : state.phase === 2 ? 'PORTO' : 'PERIFERIA VERDE'} · GESTÃO DA CIDADE</div>
         <h2>{state.phase === 1 ? 'Missões de recuperação do bairro' : state.phase === 2 ? 'Missões de recuperação do Porto' : 'Missões de recuperação da comunidade'}</h2>
         <p>Este painel acompanha os indicadores e objetivos da região atual. As obras e coletas acontecem no cenário, por aproximação e interação do personagem.</p>
@@ -834,6 +856,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       <div className="welcome-panel">
         <div className="eyebrow">PAUSA</div><h2>A cidade espera.</h2>
         <button onClick={() => gameRef.current?.setPaused(false)}>CONTINUAR <span>→</span></button>
+        <button className="pause-back-button" onClick={() => void handleReturnToCampaign()}>VOLTAR AO MAPA DA CIDADE</button>
       </div>
     </div>}
     <button className="help-button" onClick={() => setShowHelp(!showHelp)} aria-label="Ajuda">?</button>
