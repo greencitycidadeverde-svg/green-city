@@ -84,6 +84,8 @@ function AuthenticatedApp() {
   const [teamInvite, setTeamInvite] = useState<{ targetAdminId: string; teamName: string; url: string } | null>(null);
   const [teamInviteLoading, setTeamInviteLoading] = useState(false);
   const [teamInviteCopied, setTeamInviteCopied] = useState(false);
+  const [studentTeamInvite, setStudentTeamInvite] = useState<{ teamName: string; url: string } | null>(null);
+  const [studentShareMessage, setStudentShareMessage] = useState('');
   const [teamNotice, setTeamNotice] = useState('');
 
   const recoveryFlow = typeof window !== 'undefined' && (
@@ -147,6 +149,18 @@ function AuthenticatedApp() {
         campaign: campaign as CampaignRow,
         phases: (phases ?? []) as PhaseRow[],
       });
+      setStudentTeamInvite(null);
+      setStudentShareMessage('');
+      if ((profile as ProfileRow).role === 'user') {
+        const { data: inviteData, error: inviteError } = await supabase.rpc('get_my_team_invite');
+        const inviteRow = (Array.isArray(inviteData) ? inviteData[0] : inviteData) as { team_name?: string; invite_code?: string } | null;
+        if (!inviteError && inviteRow?.invite_code) {
+          setStudentTeamInvite({
+            teamName: inviteRow.team_name || 'Equipe GREEN CITY',
+            url: window.location.origin + '/?equipe=' + encodeURIComponent(inviteRow.invite_code),
+          });
+        }
+      }
     } catch (error) {
       setAccountError(error instanceof Error ? error.message : 'Não foi possível carregar sua campanha.');
       setAccount(null);
@@ -190,7 +204,6 @@ function AuthenticatedApp() {
     setMessage('');
     try {
       if (authMode === 'signup') {
-        if (!teamInviteCode) throw new Error('Para criar uma conta, abra primeiro o link de convite enviado pelo administrador da equipe.');
         if (password.length < 8) throw new Error('Use uma senha com pelo menos 8 caracteres.');
         if (password !== passwordConfirm) throw new Error('As senhas não coincidem.');
         const { data, error } = await supabase.auth.signUp({
@@ -288,6 +301,30 @@ function AuthenticatedApp() {
     setTeamInviteLoading(false);
   };
 
+  const shareInviteLink = async (url: string, teamName: string, audience: 'admin' | 'student') => {
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: 'Convite para ' + teamName + ' · GREEN CITY',
+          text: 'Entre na equipe ' + teamName + ' no jogo educativo GREEN CITY:',
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+      if (audience === 'admin') {
+        setTeamInviteCopied(true);
+        setAdminError('');
+      } else {
+        setStudentShareMessage('Link da equipe copiado ou compartilhado. Envie para seus colegas.');
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (audience === 'admin') setAdminError('Não foi possível compartilhar automaticamente. Copie o endereço exibido.');
+      else setStudentShareMessage('Não foi possível compartilhar automaticamente. Copie o endereço exibido.');
+    }
+  };
+
   const copyTeamInvite = async () => {
     if (!teamInvite) return;
     try {
@@ -373,7 +410,7 @@ function AuthenticatedApp() {
   if (!session) {
     const titles: Record<AuthMode, { eyebrow: string; title: string; helper: string }> = {
       signin: { eyebrow: 'BEM-VINDO DE VOLTA', title: 'Sua cidade espera por você.', helper: 'Entre para continuar a transformação do seu mapa ambiental.' },
-      signup: { eyebrow: 'NOVA JORNADA', title: 'Crie sua conta GREEN CITY.', helper: 'Seu progresso e suas descobertas ficarão guardados na sua própria campanha.' },
+      signup: { eyebrow: teamInviteCode ? 'CONVITE DE EQUIPE' : 'NOVA JORNADA', title: 'Crie sua conta GREEN CITY.', helper: teamInviteCode ? 'Seu cadastro será vinculado à equipe que enviou este convite.' : 'Crie sua conta. Se entrar por um link de equipe, seu cadastro será vinculado automaticamente; sem convite, sua conta ficará aguardando vínculo.' },
       forgot: { eyebrow: 'RECUPERAR ACESSO', title: 'Vamos recuperar sua conta.', helper: 'Informe o e-mail cadastrado para receber um link de redefinição de senha.' },
       update: { eyebrow: 'NOVA SENHA', title: 'Atualize sua senha.', helper: 'Escolha uma senha segura para voltar à sua campanha.' },
     };
@@ -421,7 +458,7 @@ function AuthenticatedApp() {
         </form>
         <div className="auth-links">
           {authMode === 'signin' && <>
-            {teamInviteCode && <button type="button" onClick={() => { setAuthMode('signup'); setMessage(''); setErrorMessage(''); }}>Criar conta pelo convite da equipe</button>}
+            <button type="button" onClick={() => { setAuthMode('signup'); setMessage(''); setErrorMessage(''); }}>{teamInviteCode ? 'CRIAR CONTA PELO CONVITE' : 'CRIAR UMA CONTA'}</button>
             <button type="button" onClick={() => { setAuthMode('forgot'); setMessage(''); setErrorMessage(''); }}>Esqueci minha senha</button>
           </>}
           {authMode === 'signup' && <button type="button" onClick={() => { setAuthMode('signin'); setMessage(''); setErrorMessage(''); }}>Já tenho uma conta · Entrar</button>}
@@ -582,8 +619,13 @@ function AuthenticatedApp() {
     <section className="campaign-footer-actions">
       <div><b>CADERNO DE APRENDIZADO</b><span>Seus registros acompanham cada fase e cada descoberta.</span></div>
       <button type="button" className="campaign-journal-button" onClick={() => setMessage('O Caderno de Aprendizado será aberto na próxima entrega do painel.')}>VER MEU CADERNO</button>
+      {studentTeamInvite && account.profile.role === 'user' && <button type="button" className="campaign-share-button" onClick={() => void shareInviteLink(studentTeamInvite.url, studentTeamInvite.teamName, 'student')}>COMPARTILHAR LINK DA EQUIPE</button>}
       {['admin', 'master_admin'].includes(account.profile.role) && <button type="button" className="campaign-admin-button" onClick={() => setAdminPanelOpen((open) => !open)}>{adminPanelOpen ? 'FECHAR PAINEL' : account.profile.role === 'master_admin' ? 'PAINEL MASTER' : 'MINHA EQUIPE'}</button>}
     </section>
+    {studentTeamInvite && account.profile.role === 'user' && <div className="student-team-share">
+      <div><strong>{studentTeamInvite.teamName}</strong><span>Você está vinculado a esta equipe. Compartilhe o convite para que seus colegas entrem no mesmo grupo.</span><code>{studentTeamInvite.url}</code>{studentShareMessage && <small>{studentShareMessage}</small>}</div>
+      <button type="button" onClick={() => void shareInviteLink(studentTeamInvite.url, studentTeamInvite.teamName, 'student')}>COMPARTILHAR CONVITE</button>
+    </div>}
 
     {['admin', 'master_admin'].includes(account.profile.role) && adminPanelOpen && <section className="admin-panel">
       <div className="admin-panel-heading">
@@ -595,7 +637,13 @@ function AuthenticatedApp() {
         <button type="button" onClick={() => void loadAdminUsers()}>ATUALIZAR</button>
       </div>
       {account.profile.role === 'admin' && <div className="team-invite-help"><strong>LINK DA SUA EQUIPE</strong><span>Compartilhe este endereço com seus alunos. As novas contas que entrarem por ele serão vinculadas à sua equipe.</span><button type="button" onClick={() => void loadTeamInvite(account.profile.id)} disabled={teamInviteLoading}>{teamInviteLoading ? 'GERANDO...' : 'GERAR / ATUALIZAR LINK'}</button></div>}
-      {teamInvite && <div className="team-invite-card"><div><small>{teamInvite.teamName} · LINK DE CONVITE</small><code>{teamInvite.url}</code></div><button type="button" onClick={() => void copyTeamInvite()}>{teamInviteCopied ? 'LINK COPIADO' : 'COPIAR LINK'}</button></div>}
+      {teamInvite && <div className="team-invite-card">
+        <div><small>{teamInvite.teamName} · LINK DE CONVITE</small><code>{teamInvite.url}</code></div>
+        <div className="team-invite-actions">
+          <button type="button" onClick={() => void shareInviteLink(teamInvite.url, teamInvite.teamName, 'admin')}>COMPARTILHAR</button>
+          <button type="button" onClick={() => void copyTeamInvite()}>{teamInviteCopied ? 'LINK COPIADO' : 'COPIAR LINK'}</button>
+        </div>
+      </div>}
       {adminError && <div className="auth-feedback auth-feedback-error">{adminError}</div>}
       {adminUsersLoading ? <div className="admin-loading">Carregando contas...</div> : <div className="admin-user-list">
         {adminUsers.map((user) => <div className="admin-user-row" key={user.id}>

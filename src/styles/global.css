@@ -1194,3 +1194,32 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .team-invite-card { align-items:stretch;flex-direction:column; }
   .team-invite-card button { width:100%; }
 }
+
+
+/* GREEN CITY 0.4.20 — compartilhamento de convites da equipe */
+.team-invite-card { flex-wrap:wrap; }
+.team-invite-actions { display:flex;gap:7px; }
+.team-invite-actions button,.campaign-share-button,.student-team-share button {
+  min-height:32px;padding:0 11px;border:1px solid rgba(61,117,68,.24);
+  border-radius:7px;background:#e8f2e2;color:#376d46;
+  font:900 7px var(--gc-mono);letter-spacing:.05em;cursor:pointer;
+}
+.team-invite-actions button:first-child,.campaign-share-button,.student-team-share button {
+  background:#285e3b;color:#f2f8ec;border-color:#285e3b;
+}
+.student-team-share {
+  max-width:1440px;margin:12px auto 0;padding:14px 16px;border:1px solid rgba(70,119,69,.18);
+  border-radius:11px;background:rgba(255,255,255,.68);display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.student-team-share > div { display:flex;flex:1;min-width:0;flex-direction:column;gap:5px; }
+.student-team-share strong { color:#315a3c;font-size:11px; }
+.student-team-share span { color:#708a73;font-size:9px;line-height:1.45; }
+.student-team-share code { color:#456b4b;font:9px var(--gc-mono);overflow-wrap:anywhere;user-select:text; }
+.student-team-share small { color:#3e7a4a;font-size:9px; }
+.student-team-share button { flex:none;padding:0 14px;min-height:36px; }
+@media(max-width:520px) {
+  .team-invite-card { align-items:stretch;flex-direction:column; }
+  .team-invite-actions { flex-direction:column; }
+  .team-invite-actions button,.campaign-share-button,.student-team-share button { width:100%; }
+  .student-team-share { align-items:stretch;flex-direction:column; }
+}
