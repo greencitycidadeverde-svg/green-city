@@ -1344,7 +1344,7 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.10`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.11`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -1483,7 +1483,7 @@ export class GreenCityGame {
     try {
       const car = await this.importModel('carro_eletrico.glb.gz');
       this.vehicleVisualRoot?.setEnabled(false);
-      this.vehicleModelHeadingOffset = this.getImportedModelHeadingOffset(car.root);
+      this.vehicleModelHeadingOffset = this.getImportedModelHeadingOffset(car.root) + Math.PI;
       const carHeadingRoot = new TransformNode('municipal-car-heading-pivot', this.scene);
       carHeadingRoot.position.set(this.vehicle.position.x, 0, this.vehicle.position.z);
       car.root.parent = carHeadingRoot;
@@ -1504,7 +1504,7 @@ export class GreenCityGame {
     try {
       const truck = await this.importModel('caminhao_coleta.glb.gz');
       this.portTruckVisualRoot?.setEnabled(false);
-      this.portTruckModelHeadingOffset = this.getImportedModelHeadingOffset(truck.root);
+      this.portTruckModelHeadingOffset = this.getImportedModelHeadingOffset(truck.root) + Math.PI;
       const truckHeadingRoot = new TransformNode('port-truck-heading-pivot', this.scene);
       truckHeadingRoot.position.set(this.portTruck.position.x, 0.04, this.portTruck.position.z);
       truck.root.parent = truckHeadingRoot;
@@ -1737,14 +1737,15 @@ export class GreenCityGame {
       }
       this.lastDriveCameraHeading = cameraHeading;
 
-      const accelerateInput = Math.max(this.keys.has('w') ? 1 : 0, Math.max(0, -this.mobileMoveY));
-      const brakeInput = Math.max(this.keys.has('s') ? 1 : 0, Math.max(0, this.mobileMoveY));
+      const driveInput = Math.max(-1, Math.min(1,
+        (this.keys.has('w') ? 1 : 0) - (this.keys.has('s') ? 1 : 0) - this.mobileMoveY,
+      ));
       const maximumSpeed = this.activePhase === 2 ? 10 : 15;
-      if (accelerateInput > 0.08) this.vehicleSpeed = Math.min(maximumSpeed, this.vehicleSpeed + 8.5 * accelerateInput * step);
-      else if (brakeInput > 0.08) this.vehicleSpeed = this.vehicleSpeed > 0
-        ? Math.max(0, this.vehicleSpeed - 18 * brakeInput * step)
-        : Math.min(0, this.vehicleSpeed + 18 * brakeInput * step);
-      else this.vehicleSpeed *= Math.max(0, 1 - 2.2 * step);
+      const targetSpeed = driveInput * maximumSpeed;
+      const acceleration = driveInput === 0 ? 5.5 : 10.5;
+      const speedDelta = targetSpeed - this.vehicleSpeed;
+      const maxSpeedChange = acceleration * step;
+      this.vehicleSpeed += Math.max(-maxSpeedChange, Math.min(maxSpeedChange, speedDelta));
       const steering = Math.max(-1, Math.min(1,
         (this.keys.has('d') ? 1 : 0) - (this.keys.has('a') ? 1 : 0) + this.mobileMoveX,
       ));
@@ -1841,7 +1842,7 @@ export class GreenCityGame {
     }
     const car = MeshBuilder.CreateBox('municipal-service-vehicle-collider', { width: 2.1, height: 0.72, depth: 3.8 }, this.scene);
     car.position.set(5.1, 0.48, 23.5);
-    car.rotation.y = Math.PI / 2;
+    car.rotation.y = 0;
     car.checkCollisions = true;
     car.visibility = 0;
     const visualRoot = new TransformNode('municipal-vehicle-visual-root', this.scene);
@@ -1949,7 +1950,7 @@ export class GreenCityGame {
         ? 'Dirija o caminhão amarelo até os três pontos das empresas. W acelera, S freia, A/D viram. Pare para carregar cada ponto.'
         : this.electricVehicle
           ? 'Veículo 100% elétrico. W acelera, S freia, A/D viram. Pare antes de sair.'
-          : 'Missão: dirija até a BASE DE ELETRIFICAÇÃO. Siga pela via de serviço à direita, pare na vaga e pressione F para descer.';
+          : 'Missão: W acelera para frente, S dá ré e A/D viram. Dirija até a BASE DE ELETRIFICAÇÃO, estacione na vaga e pressione F para descer.';
     }
     this.keys.clear(); this.emit();
   }
