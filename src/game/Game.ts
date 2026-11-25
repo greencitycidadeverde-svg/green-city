@@ -4,7 +4,7 @@ import {
 } from '@babylonjs/core';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import type { AbstractMesh } from '@babylonjs/core';
-import type { ForestMissionStage, GameSnapshot, MapObjective, MissionStage, NearbyAction, PortMissionStage, PeripheryMissionStage, SnapshotListener } from './types';
+import type { ForestMissionStage, GameSnapshot, LearningNotice, MapObjective, MissionStage, NearbyAction, PortMissionStage, PeripheryMissionStage, SnapshotListener } from './types';
 
 const TOTAL_TRASH = 5;
 const TOTAL_SOLAR_BUILDINGS = 8;
@@ -12,6 +12,29 @@ const SOLAR_BUILDINGS_REQUIRED_FOR_EV = 3;
 const SOLAR_BUILDING_COST = 10;
 const ELECTRIC_VEHICLE_COST = 20;
 const PORT_TRUCK_ENTRY_DISTANCE = 9.5;
+
+const PERIPHERY_WASTE_CATALOG = [
+  { name: 'Casca de banana', kind: 'organic', category: 'RESÍDUO ORGÂNICO', icon: '🍌',
+    description: 'A casca de banana é resto de alimento. Ela se decompõe pela ação de microrganismos e outros organismos do processo de compostagem.',
+    destination: 'COMPOSTEIRA — junto com outros resíduos orgânicos e materiais secos, como folhas secas. Não coloque plástico, vidro ou metal aqui.',
+    afterwards: 'Com manejo, umidade e entrada de ar, o material se transforma aos poucos. Depois da maturação, o composto pode melhorar o solo dos canteiros.' },
+  { name: 'Restos de frutas e folhas', kind: 'organic', category: 'RESÍDUO ORGÂNICO', icon: '🍎',
+    description: 'Sobras de frutas e folhas de plantas são matéria orgânica. Podem ser aproveitadas na compostagem quando estão separadas de embalagens e outros materiais impróprios.',
+    destination: 'COMPOSTEIRA — misture com folhas secas e outros materiais vegetais. Evite colocar embalagens, vidro, metal ou produtos químicos.',
+    afterwards: 'Os decompositores transformam a mistura ao longo do tempo. Só o composto maturado e adequado deve ser aplicado no solo para cultivar hortaliças e flores.' },
+  { name: 'Garrafa PET', kind: 'recyclable', category: 'RECICLÁVEL · PLÁSTICO', icon: '🧴',
+    description: 'Esta garrafa é uma embalagem plástica PET. Está vazia; quando possível, deve estar limpa e seca para não contaminar os outros materiais.',
+    destination: 'COLETA SELETIVA — recipiente azul para recicláveis secos. Depois, o sistema local encaminha o material à triagem e aos recicladores que o recebem.',
+    afterwards: 'Na triagem, o plástico é separado por tipo e qualidade. A coleta não significa que a garrafa já foi reciclada: ainda existem transporte, beneficiamento e transformação industrial.' },
+  { name: 'Lata de alumínio', kind: 'recyclable', category: 'RECICLÁVEL · METAL', icon: '🥫',
+    description: 'Esta lata é feita de alumínio, um metal que pode retornar à cadeia produtiva quando coletado e encaminhado corretamente.',
+    destination: 'COLETA SELETIVA — recipiente azul para recicláveis secos. Mantenha a lata vazia e não misture com restos de comida na composteira.',
+    afterwards: 'Na triagem, o metal é separado dos demais materiais e segue para quem faz o beneficiamento e a reciclagem. O jogo representa a coleta, não uma reciclagem instantânea.' },
+  { name: 'Garrafa de vidro inteira', kind: 'recyclable', category: 'RECICLÁVEL · VIDRO', icon: '🍾',
+    description: 'Esta é uma garrafa de vidro inteira, não quebrada. Vidro não se decompõe como restos de comida e precisa seguir uma rota de recebimento própria.',
+    destination: 'COLETA SELETIVA — recipiente azul nesta atividade. No mundo real, siga as orientações do serviço local e nunca manipule vidro quebrado sem proteção.',
+    afterwards: 'O vidro é separado e encaminhado aos operadores que o recebem para triagem e beneficiamento. Não deve ser jogado na composteira.' },
+] as const;
 
 interface SolarBuildingRecord {
   x: number; z: number; width: number; height: number; label: string; solarInstalled: boolean;
@@ -102,9 +125,9 @@ export class GreenCityGame {
   private portWaterQuality = 24;
   private peripheryMissionStage: PeripheryMissionStage = 'survey';
   private readonly peripheryIssuePositions: PortSite[] = [{ x: -9, z: -17 }, { x: 10, z: 8 }, { x: 30, z: -12 }];
-  private readonly peripheryWastePositions: PortSite[] = [{ x: -9, z: -4 }, { x: -3, z: 6 }, { x: 5, z: -8 }, { x: 11, z: 3 }];
+  private readonly peripheryWastePositions: PortSite[] = [{ x: -9, z: -4 }, { x: -3, z: 6 }, { x: 5, z: -8 }, { x: 11, z: 3 }, { x: -17, z: -10 }];
   private readonly peripherySewerPositions: PortSite[] = [{ x: 15, z: -17 }, { x: 15, z: 8 }];
-  private readonly peripheryCompostPosition = new Vector3(-25, 0, -18);
+  private readonly peripheryCompostPosition = new Vector3(-29, 0, 20);
   private readonly peripheryOrganicDropPosition = new Vector3(-29, 0, 20);
   private readonly peripheryRecyclingDropPosition = new Vector3(-17, 0, 20);
   private readonly peripheryRainGardenPosition = new Vector3(15, 0, -30);
@@ -113,13 +136,21 @@ export class GreenCityGame {
   private readonly peripheryIssueMarkers: Mesh[] = [];
   private readonly peripheryWastePiles: Mesh[] = [];
   private readonly peripheryIssueInspected = new Set<number>();
-  private readonly peripheryWasteCollected: boolean[] = [false, false, false, false];
+  private peripheryWasteTotal = PERIPHERY_WASTE_CATALOG.length;
+  private peripheryRecyclableTotal = 3;
+  private readonly peripheryWasteCollected: boolean[] = [false, false, false, false, false];
+  private readonly peripheryOrganicDeposited: boolean[] = [false, false];
+  private readonly peripheryRecyclableDeposited: boolean[] = [false, false, false];
+  private readonly peripheryOrganicDepositMeshes: Mesh[] = [];
+  private readonly peripheryRecyclableDepositMeshes: Mesh[] = [];
   private readonly peripherySewerConnected: boolean[] = [false, false];
   private peripheryOrganicsSorted = false;
   private peripheryRecyclablesSorted = false;
   private peripheryCompostTurned = false;
   private peripheryRainGardenBuilt = false;
   private peripheryWaterQuality = 28;
+  private learningNotice: LearningNotice | null = null;
+  private learningNoticeSequence = 0;
 
   // Fase 04 — Reserva Florestal e cadeia local da agricultura familiar.
   private readonly phaseFourMeshes: Mesh[] = [];
@@ -997,14 +1028,19 @@ export class GreenCityGame {
     const communityRoof = MeshBuilder.CreateBox('periphery-community-roof', { width: 13.6, height: 0.4, depth: 9.6 }, this.scene);
     communityRoof.position.set(-22, 5.8, 2); communityRoof.material = this.material('periphery-community-roof-material', new Color3(0.18, 0.35, 0.27));
 
-    const sign = (name: string, label: string, x: number, y: number, z: number, width = 5.4): void => {
-      const board = MeshBuilder.CreateBox(name + '-board', { width, height: 1.15, depth: 0.18 }, this.scene);
+    const sign = (name: string, label: string, x: number, y: number, z: number, width = 5.4, subtitle?: string): void => {
+      const board = MeshBuilder.CreateBox(name + '-board', { width, height: subtitle ? 1.5 : 1.15, depth: 0.18 }, this.scene);
       board.position.set(x, y, z); board.material = this.material(name + '-board-material', new Color3(0.08, 0.29, 0.20));
-      const texture = new DynamicTexture(name + '-texture', { width: 768, height: 180 }, this.scene, false);
+      const textureWidth = subtitle ? 1536 : 1024;
+      const textureHeight = subtitle ? 256 : 180;
+      const texture = new DynamicTexture(name + '-texture', { width: textureWidth, height: textureHeight }, this.scene, false);
       const ctx = texture.getContext() as unknown as CanvasRenderingContext2D;
-      ctx.fillStyle = '#10412D'; ctx.fillRect(0, 0, 768, 180);
-      ctx.fillStyle = '#EAF5DE'; ctx.font = 'bold 46px Arial'; ctx.textAlign = 'center'; ctx.fillText(label, 384, 110, 720); texture.update();
-      const face = MeshBuilder.CreatePlane(name + '-face', { width: width - 0.25, height: 0.95 }, this.scene);
+      ctx.fillStyle = '#10412D'; ctx.fillRect(0, 0, textureWidth, textureHeight);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#EAF5DE'; ctx.font = 'bold 46px Arial';
+      ctx.fillText(label, textureWidth / 2, subtitle ? 100 : 122, textureWidth - 48);
+      if (subtitle) { ctx.fillStyle = '#D2EDC9'; ctx.font = 'bold 31px Arial'; ctx.fillText(subtitle, textureWidth / 2, 194, textureWidth - 48); }
+      texture.update();
+      const face = MeshBuilder.CreatePlane(name + '-face', { width: width - 0.25, height: subtitle ? 1.28 : 0.95 }, this.scene);
       face.position.set(x, y, z + 0.105);
       const faceMaterial = this.material(name + '-face-material', new Color3(1, 1, 1));
       faceMaterial.diffuseTexture = texture; faceMaterial.emissiveColor = new Color3(0.10, 0.15, 0.10); face.material = faceMaterial;
@@ -1025,28 +1061,89 @@ export class GreenCityGame {
     rainChannel.material = this.material('periphery-rainwater-channel-material', new Color3(0.25, 0.54, 0.70));
     sign('periphery-storm-sign', 'DRENAGEM PLUVIAL', 16, 2.0, 10, 6.4);
 
-    const organic = MeshBuilder.CreateBox('periphery-organic-dropoff', { width: 4.4, height: 1.9, depth: 3.2 }, this.scene);
-    organic.position.set(this.peripheryOrganicDropPosition.x, 0.95, this.peripheryOrganicDropPosition.z); organic.material = this.material('periphery-organic-dropoff-material', new Color3(0.39, 0.27, 0.16));
-    const organicLid = MeshBuilder.CreateBox('periphery-organic-dropoff-lid', { width: 4.5, height: 0.16, depth: 3.3 }, this.scene);
-    organicLid.position.set(this.peripheryOrganicDropPosition.x, 1.98, this.peripheryOrganicDropPosition.z); organicLid.material = this.material('periphery-organic-dropoff-lid-material', new Color3(0.25, 0.48, 0.28));
-    sign('periphery-organic-sign', 'ORGANICOS', -29, 3.2, 22.4, 5.2);
-
-    const recycling = MeshBuilder.CreateBox('periphery-recycling-dropoff', { width: 4.4, height: 1.9, depth: 3.2 }, this.scene);
-    recycling.position.set(this.peripheryRecyclingDropPosition.x, 0.95, this.peripheryRecyclingDropPosition.z); recycling.material = this.material('periphery-recycling-dropoff-material', new Color3(0.14, 0.39, 0.58));
-    const recyclingLid = MeshBuilder.CreateBox('periphery-recycling-dropoff-lid', { width: 4.5, height: 0.16, depth: 3.3 }, this.scene);
-    recyclingLid.position.set(this.peripheryRecyclingDropPosition.x, 1.98, this.peripheryRecyclingDropPosition.z); recyclingLid.material = this.material('periphery-recycling-dropoff-lid-material', new Color3(0.12, 0.29, 0.48));
-    sign('periphery-recycling-sign', 'RECICLAVEIS', -17, 3.2, 22.4, 5.3);
-
-    const composter = MeshBuilder.CreateBox('periphery-composter-body', { width: 6.5, height: 2.2, depth: 4.0 }, this.scene);
-    composter.position.set(this.peripheryCompostPosition.x, 1.1, this.peripheryCompostPosition.z); composter.material = this.material('periphery-composter-body-material', new Color3(0.43, 0.29, 0.17));
-    const lid = MeshBuilder.CreateBox('periphery-composter-lid', { width: 6.7, height: 0.22, depth: 4.2 }, this.scene);
-    lid.position.set(this.peripheryCompostPosition.x, 2.31, this.peripheryCompostPosition.z); lid.material = this.material('periphery-composter-lid-material', new Color3(0.22, 0.40, 0.24));
-    sign('periphery-compost-sign', 'COMPOSTAGEM', -25, 3.5, -15.5, 6);
-    for (let layer = 0; layer < 3; layer++) {
-      const materialLayer = MeshBuilder.CreateBox('periphery-compost-layer-' + layer, { width: 5.4, height: 0.33, depth: 3.1 }, this.scene);
-      materialLayer.position.set(-25, 0.55 + layer * 0.42, -18);
-      materialLayer.material = this.material('periphery-compost-layer-material-' + layer, layer === 1 ? new Color3(0.22, 0.31, 0.17) : new Color3(0.36, 0.25, 0.14));
+    // COMPOSTEIRA ABERTA: o jogador enxerga o material orgânico dentro dela.
+    const wood = this.material('periphery-composter-wood', new Color3(0.39, 0.25, 0.14));
+    const compostSoil = this.material('periphery-composter-soil', new Color3(0.22, 0.16, 0.10));
+    const compostLeaves = this.material('periphery-composter-leaves', new Color3(0.30, 0.37, 0.18));
+    const cx = this.peripheryCompostPosition.x; const cz = this.peripheryCompostPosition.z;
+    const compostFloor = MeshBuilder.CreateBox('periphery-composter-floor', { width: 6.4, height: 0.24, depth: 3.8 }, this.scene);
+    compostFloor.position.set(cx, 0.18, cz); compostFloor.material = wood;
+    const compostBack = MeshBuilder.CreateBox('periphery-composter-back', { width: 6.4, height: 2.05, depth: 0.24 }, this.scene);
+    compostBack.position.set(cx, 1.16, cz - 1.8); compostBack.material = wood;
+    for (const side of [-1, 1]) {
+      const wall = MeshBuilder.CreateBox('periphery-composter-side-' + side, { width: 0.24, height: 2.05, depth: 3.8 }, this.scene);
+      wall.position.set(cx + side * 3.08, 1.16, cz); wall.material = wood;
     }
+    const compostFront = MeshBuilder.CreateBox('periphery-composter-front', { width: 6.4, height: 0.72, depth: 0.24 }, this.scene);
+    compostFront.position.set(cx, 0.53, cz + 1.8); compostFront.material = wood;
+    const compostBase = MeshBuilder.CreateBox('periphery-composter-base-material', { width: 5.8, height: 0.28, depth: 3.2 }, this.scene);
+    compostBase.position.set(cx, 0.42, cz); compostBase.material = compostSoil;
+    for (let row = 0; row < 3; row++) {
+      const layer = MeshBuilder.CreateBox('periphery-compost-visible-layer-' + row, { width: 5.6, height: 0.22, depth: 2.9 }, this.scene);
+      layer.position.set(cx, 0.62 + row * 0.24, cz - 0.65 + row * 0.38);
+      layer.material = row === 1 ? compostLeaves : compostSoil;
+    }
+    for (let i = 0; i < 8; i++) {
+      const leaf = MeshBuilder.CreateSphere('periphery-compost-dry-leaf-' + i, { diameter: 0.42, segments: 6 }, this.scene);
+      leaf.position.set(cx - 2.2 + (i % 4) * 1.35, 1.28, cz - 0.9 + Math.floor(i / 4) * 1.35);
+      leaf.scaling.set(1.2, 0.18, 0.55); leaf.material = compostLeaves;
+    }
+    sign('periphery-organic-sign', 'COMPOSTEIRA', cx, 3.2, cz + 2.15, 8.4, 'ORGÂNICOS + FOLHAS SECAS → COMPOSTO');
+
+    // Recicláveis secos em recipiente azul aberto e separado da composteira.
+    const recycleBlue = this.material('periphery-recycling-dropoff-material', new Color3(0.12, 0.36, 0.57));
+    const rx = this.peripheryRecyclingDropPosition.x; const rz = this.peripheryRecyclingDropPosition.z;
+    const recycleFloor = MeshBuilder.CreateBox('periphery-recycling-floor', { width: 4.4, height: 0.2, depth: 3.2 }, this.scene);
+    recycleFloor.position.set(rx, 0.15, rz); recycleFloor.material = recycleBlue;
+    const recycleBack = MeshBuilder.CreateBox('periphery-recycling-back', { width: 4.4, height: 1.85, depth: 0.18 }, this.scene);
+    recycleBack.position.set(rx, 1.08, rz - 1.5); recycleBack.material = recycleBlue;
+    for (const side of [-1, 1]) {
+      const wall = MeshBuilder.CreateBox('periphery-recycling-side-' + side, { width: 0.18, height: 1.85, depth: 3.2 }, this.scene);
+      wall.position.set(rx + side * 2.12, 1.08, rz); wall.material = recycleBlue;
+    }
+    const recycleFront = MeshBuilder.CreateBox('periphery-recycling-front', { width: 4.4, height: 0.6, depth: 0.18 }, this.scene);
+    recycleFront.position.set(rx, 0.42, rz + 1.5); recycleFront.material = recycleBlue;
+    sign('periphery-recycling-sign', 'RECICLÁVEIS SECOS', rx, 3.1, rz + 1.72, 7.4, 'PLÁSTICO · METAL · VIDRO');
+
+    // Canteiros próximos mostram que o composto maturado retorna ao cultivo.
+    const gardenBedPositions = [{ x: -36, z: 10 }, { x: -22, z: 10 }];
+    gardenBedPositions.forEach((site, index) => {
+      const border = MeshBuilder.CreateBox('periphery-compost-garden-bed-' + index, { width: 6.2, height: 0.46, depth: 3.7 }, this.scene);
+      border.position.set(site.x, 0.23, site.z);
+      border.material = this.material('periphery-compost-garden-border-' + index, new Color3(0.43, 0.28, 0.16));
+      const soilPatch = MeshBuilder.CreateGround('periphery-compost-garden-soil-' + index, { width: 5.7, height: 3.2 }, this.scene);
+      soilPatch.position.set(site.x, 0.47, site.z);
+      soilPatch.material = this.material('periphery-compost-garden-soil-material-' + index, new Color3(0.25, 0.17, 0.10));
+      if (index === 0) {
+        // Mudas e uma hortaliça visíveis desde o início: o canteiro é o destino do composto maturado.
+        for (let plantIndex = 0; plantIndex < 4; plantIndex++) {
+          const x = site.x - 1.85 + plantIndex * 1.2;
+          const stem = MeshBuilder.CreateCylinder('periphery-compost-initial-vegetable-stem-' + plantIndex, { height: 0.62, diameterTop: 0.05, diameterBottom: 0.10, tessellation: 6 }, this.scene);
+          stem.position.set(x, 0.82, site.z - 0.1); stem.material = this.material('periphery-compost-initial-vegetable-stem-material', new Color3(0.18, 0.39, 0.17));
+          const leaf = MeshBuilder.CreateSphere('periphery-compost-initial-vegetable-leaf-' + plantIndex, { diameter: 0.62, segments: 7 }, this.scene);
+          leaf.position.set(x, 1.12, site.z + 0.08); leaf.scaling.set(1.0, 0.22, 0.55);
+          leaf.material = this.material('periphery-compost-initial-vegetable-leaf-material', new Color3(0.18, 0.48, 0.20));
+          const fruit = MeshBuilder.CreateSphere('periphery-compost-initial-fruit-' + plantIndex, { diameter: 0.26, segments: 7 }, this.scene);
+          fruit.position.set(x + 0.12, 0.94, site.z + 0.35);
+          fruit.material = this.material('periphery-compost-initial-fruit-material', new Color3(0.80, 0.22, 0.13));
+        }
+      } else {
+        // Flores ajudam a mostrar outros usos do solo melhorado pelo composto maturado.
+        for (let flowerIndex = 0; flowerIndex < 3; flowerIndex++) {
+          const x = site.x - 1.5 + flowerIndex * 1.5;
+          const stem = MeshBuilder.CreateCylinder('periphery-compost-initial-flower-stem-' + flowerIndex, { height: 0.72, diameter: 0.07, tessellation: 6 }, this.scene);
+          stem.position.set(x, 0.88, site.z); stem.material = this.material('periphery-compost-initial-flower-stem-material', new Color3(0.17, 0.43, 0.17));
+          for (let petal = 0; petal < 5; petal++) {
+            const angle = Math.PI * 2 * petal / 5;
+            const bloom = MeshBuilder.CreateSphere('periphery-compost-initial-flower-petal-' + flowerIndex + '-' + petal, { diameter: 0.23, segments: 6 }, this.scene);
+            bloom.position.set(x + Math.cos(angle) * 0.17, 1.28, site.z + Math.sin(angle) * 0.17);
+            bloom.material = this.material('periphery-compost-initial-flower-petal-material-' + flowerIndex, flowerIndex % 2 ? new Color3(0.89, 0.63, 0.19) : new Color3(0.78, 0.40, 0.67));
+          }
+        }
+      }
+    });
+    sign('periphery-vegetable-garden-sign', 'CANTEIRO DE HORTALIÇAS', -36, 3.0, 12.05, 7.7, 'COMPOSTO MADURO AJUDA A MELHORAR O SOLO');
+    sign('periphery-flower-garden-sign', 'FLORES E PLANTAS', -22, 3.0, 12.05, 7.0, 'NUTRIENTES RETORNAM AO SOLO');
 
     const wetArea = MeshBuilder.CreateGround('periphery-wet-area', { width: 11, height: 8 }, this.scene);
     wetArea.position.set(this.peripheryRainGardenPosition.x, 0.015, this.peripheryRainGardenPosition.z); wetArea.material = this.material('periphery-wet-area-material', new Color3(0.39, 0.43, 0.37));
@@ -1067,9 +1164,7 @@ export class GreenCityGame {
       beacon.position.set(site.x, 1.18, site.z); beacon.material = this.material('periphery-issue-beacon-material-' + index, new Color3(0.98, 0.77, 0.25));
     });
     this.peripheryWastePositions.forEach((site, index) => {
-      const pile = MeshBuilder.CreateSphere('periphery-community-waste-' + index, { diameter: 1, segments: 7 }, this.scene);
-      pile.position.set(site.x, 0.55, site.z); pile.scaling.set(1.25, 0.65, 1);
-      pile.material = this.material('periphery-community-waste-material-' + index, index < 2 ? new Color3(0.42, 0.31, 0.18) : new Color3(0.22, 0.38, 0.49));
+      const pile = this.createPeripheryWasteModel(index, site, 'periphery-community-waste');
       this.peripheryWastePiles.push(pile);
     });
     this.peripherySewerPositions.forEach((site, index) => {
@@ -1544,10 +1639,41 @@ export class GreenCityGame {
   }
 
   private buildMatureCommunityCompost(): void {
-    const pile = MeshBuilder.CreateSphere('periphery-mature-compost-pile', { diameter: 1.6, segments: 8 }, this.scene);
-    pile.position.set(this.peripheryCompostPosition.x, 2.25, this.peripheryCompostPosition.z);
-    pile.scaling.set(1.7, 0.55, 1.05); pile.material = this.material('periphery-mature-compost-material', new Color3(0.20, 0.15, 0.09));
+    const pile = MeshBuilder.CreateSphere('periphery-mature-compost-pile', { diameter: 2.3, segments: 9 }, this.scene);
+    pile.position.set(this.peripheryCompostPosition.x, 1.18, this.peripheryCompostPosition.z - 0.35);
+    pile.scaling.set(1.75, 0.48, 0.95); pile.material = this.material('periphery-mature-compost-material', new Color3(0.15, 0.11, 0.07));
     this.peripheryDynamicMeshes.push(pile);
+    for (let i = 0; i < 5; i++) {
+      const x = -37.9 + i * 0.95; const z = 10 + (i % 2) * 0.72;
+      const stem = MeshBuilder.CreateCylinder('periphery-compost-garden-stem-' + i, { height: 0.72, diameterTop: 0.05, diameterBottom: 0.10, tessellation: 6 }, this.scene);
+      stem.position.set(x, 0.85, z); stem.material = this.material('periphery-compost-garden-stem-material-' + i, new Color3(0.18, 0.39, 0.17));
+      this.peripheryDynamicMeshes.push(stem);
+      for (let leaf = 0; leaf < 3; leaf++) {
+        const foliage = MeshBuilder.CreateSphere('periphery-compost-garden-leaf-' + i + '-' + leaf, { diameter: 0.68, segments: 7 }, this.scene);
+        foliage.position.set(x + (leaf - 1) * 0.22, 1.0 + (leaf % 2) * 0.12, z + 0.12);
+        foliage.scaling.set(1, 0.24, 0.55); foliage.material = this.material('periphery-compost-garden-leaf-material-' + i, new Color3(0.18, 0.48, 0.20));
+        this.peripheryDynamicMeshes.push(foliage);
+      }
+      const fruit = MeshBuilder.CreateSphere('periphery-compost-garden-tomato-' + i, { diameter: 0.28, segments: 7 }, this.scene);
+      fruit.position.set(x + 0.1, 0.93, z + 0.34); fruit.material = this.material('periphery-compost-garden-tomato-material-' + i, new Color3(0.80, 0.22, 0.13));
+      this.peripheryDynamicMeshes.push(fruit);
+    }
+    for (let i = 0; i < 4; i++) {
+      const x = -23.9 + i * 1.25; const z = 9.4 + (i % 2) * 0.9;
+      const stem = MeshBuilder.CreateCylinder('periphery-compost-flower-stem-' + i, { height: 0.9, diameter: 0.08, tessellation: 6 }, this.scene);
+      stem.position.set(x, 0.95, z); stem.material = this.material('periphery-compost-flower-stem-material-' + i, new Color3(0.17, 0.43, 0.17));
+      this.peripheryDynamicMeshes.push(stem);
+      for (let petal = 0; petal < 5; petal++) {
+        const angle = Math.PI * 2 * petal / 5;
+        const bloom = MeshBuilder.CreateSphere('periphery-compost-flower-petal-' + i + '-' + petal, { diameter: 0.26, segments: 6 }, this.scene);
+        bloom.position.set(x + Math.cos(angle) * 0.20, 1.45, z + Math.sin(angle) * 0.20);
+        bloom.material = this.material('periphery-compost-flower-petal-material-' + i, i % 2 ? new Color3(0.89, 0.63, 0.19) : new Color3(0.78, 0.40, 0.67));
+        this.peripheryDynamicMeshes.push(bloom);
+      }
+      const center = MeshBuilder.CreateSphere('periphery-compost-flower-center-' + i, { diameter: 0.22, segments: 6 }, this.scene);
+      center.position.set(x, 1.46, z); center.material = this.material('periphery-compost-flower-center-material-' + i, new Color3(0.91, 0.75, 0.23));
+      this.peripheryDynamicMeshes.push(center);
+    }
   }
 
   private buildCommunitySewerConnection(index: number): void {
@@ -1577,24 +1703,31 @@ export class GreenCityGame {
   }
 
   private getNearbyPeripheryInteraction(): { action: NearbyAction; label: string } | null {
+    if (this.learningNotice) return null;
     if (this.peripheryMissionStage === 'survey') {
-      if (this.peripheryIssuePositions.some((site, index) => !this.peripheryIssueInspected.has(index) && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 6.2)) {
+      if (this.peripheryIssuePositions.some((site, index) => !this.peripheryIssueInspected.has(index)
+        && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 6.2)) {
         return { action: 'inspect-neighborhood-issue', label: 'E · INVESTIGAR PONTO DO BAIRRO' };
       }
     }
     if (this.peripheryMissionStage === 'collect') {
-      if (this.peripheryWastePiles.some((pile, index) => !this.peripheryWasteCollected[index] && pile.isEnabled() && Math.hypot(this.player.position.x - pile.position.x, this.player.position.z - pile.position.z) <= 3.8)) {
-        return { action: 'collect-community-waste', label: 'E · RECOLHER RESÍDUO COMUNITÁRIO' };
-      }
+      const index = this.peripheryWastePiles.findIndex((pile, itemIndex) => !this.peripheryWasteCollected[itemIndex]
+        && pile.isEnabled() && Math.hypot(this.player.position.x - pile.position.x, this.player.position.z - pile.position.z) <= 3.8);
+      if (index >= 0) return { action: 'collect-community-waste', label: 'E · RECOLHER ' + PERIPHERY_WASTE_CATALOG[index].name.toUpperCase() };
     }
     if (this.peripheryMissionStage === 'sorting') {
-      const organicDistance = Math.hypot(this.player.position.x - this.peripheryOrganicDropPosition.x, this.player.position.z - this.peripheryOrganicDropPosition.z);
+      const organicDistance = Math.hypot(this.player.position.x - this.peripheryCompostPosition.x, this.player.position.z - this.peripheryCompostPosition.z);
       const dryDistance = Math.hypot(this.player.position.x - this.peripheryRecyclingDropPosition.x, this.player.position.z - this.peripheryRecyclingDropPosition.z);
-      if (!this.peripheryOrganicsSorted && organicDistance <= 6.3) return { action: 'sort-community-organics', label: 'E · SEPARAR ORGÂNICOS NA COMPOSTAGEM' };
-      if (!this.peripheryRecyclablesSorted && dryDistance <= 6.3) return { action: 'sort-community-recyclables', label: 'E · ENCAMINHAR RECICLÁVEIS' };
+      const organicIndex = PERIPHERY_WASTE_CATALOG.findIndex((item, index) => item.kind === 'organic'
+        && this.peripheryWasteCollected[index] && !this.peripheryOrganicDeposited[PERIPHERY_WASTE_CATALOG.slice(0, index).filter((entry) => entry.kind === 'organic').length]);
+      const recyclableIndex = PERIPHERY_WASTE_CATALOG.findIndex((item, index) => item.kind === 'recyclable'
+        && index < 2 + this.peripheryRecyclableTotal
+        && this.peripheryWasteCollected[index] && !this.peripheryRecyclableDeposited[PERIPHERY_WASTE_CATALOG.slice(0, index).filter((entry) => entry.kind === 'recyclable').length]);
+      if (organicIndex >= 0 && organicDistance <= 6.3) return { action: 'sort-community-organics', label: 'E · COLOCAR ' + PERIPHERY_WASTE_CATALOG[organicIndex].name.toUpperCase() + ' NA COMPOSTEIRA' };
+      if (recyclableIndex >= 0 && dryDistance <= 6.3) return { action: 'sort-community-recyclables', label: 'E · COLOCAR ' + PERIPHERY_WASTE_CATALOG[recyclableIndex].name.toUpperCase() + ' NA COLETA SELETIVA' };
     }
     if (this.peripheryMissionStage === 'compost' && Math.hypot(this.player.position.x - this.peripheryCompostPosition.x, this.player.position.z - this.peripheryCompostPosition.z) <= 7) {
-      return { action: 'turn-community-compost', label: 'E · ACOMPANHAR A COMPOSTAGEM' };
+      return { action: 'turn-community-compost', label: 'E · AREJAR A COMPOSTEIRA E VER O COMPOSTO' };
     }
     if (this.peripheryMissionStage === 'sanitation' && this.peripherySewerPositions.some((site, index) => !this.peripherySewerConnected[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 6.3)) {
       return { action: 'connect-community-sewer', label: 'E · CONECTAR ESGOTO À REDE' };
@@ -1604,7 +1737,6 @@ export class GreenCityGame {
     }
     return null;
   }
-
   private performPeripheryAction(action: NearbyAction): void {
     if (action === 'inspect-neighborhood-issue') {
       const index = this.peripheryIssuePositions.findIndex((site, itemIndex) => !this.peripheryIssueInspected.has(itemIndex) && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 6.2);
@@ -1614,42 +1746,71 @@ export class GreenCityGame {
       if (marker) marker.material = this.material('periphery-issue-inspected-' + index, new Color3(0.18, 0.61, 0.42));
       if (this.peripheryIssueInspected.size === this.peripheryIssuePositions.length) {
         this.peripheryMissionStage = 'collect';
-        this.message = 'Diagnóstico concluído. Recolha os quatro pontos de resíduos e observe que orgânicos e recicláveis precisam seguir caminhos diferentes.';
+        this.message = 'Diagnóstico concluído. Recolha cinco objetos: duas sobras de alimentos e três embalagens recicláveis. Cada item vai mostrar seu tipo e destino.';
       } else this.message = 'Ponto investigado (' + this.peripheryIssueInspected.size + '/3). Procure os outros marcadores amarelos.';
       this.emit(); return;
     }
     if (action === 'collect-community-waste') {
       const index = this.peripheryWastePiles.findIndex((pile, itemIndex) => !this.peripheryWasteCollected[itemIndex] && pile.isEnabled()
         && Math.hypot(this.player.position.x - pile.position.x, this.player.position.z - pile.position.z) <= 3.8);
-      if (index < 0) { this.message = 'Aproxime-se de um resíduo comunitário para recolhê-lo.'; this.emit(); return; }
+      if (index < 0) { this.message = 'Aproxime-se de um dos objetos de resíduo para identificá-lo e recolhê-lo.'; this.emit(); return; }
       this.peripheryWasteCollected[index] = true; this.peripheryWastePiles[index].setEnabled(false);
-      const count = this.peripheryWasteCollected.filter(Boolean).length;
-      if (count === this.peripheryWastePiles.length) {
+      const item = PERIPHERY_WASTE_CATALOG[index]; const count = this.peripheryWasteCollected.filter(Boolean).length;
+      this.message = item.name + ' recolhido. É ' + item.category.toLowerCase() + '. Confira a explicação e leve ao destino indicado.';
+      this.showLearningNotice(item.category, item.icon + ' Você recolheu: ' + item.name, item.description, item.destination, item.afterwards);
+      if (count === this.peripheryWasteTotal) {
         this.peripheryMissionStage = 'sorting';
-        this.message = 'Coleta concluída. Leve os orgânicos ao ponto marrom e os recicláveis secos ao ponto azul. Não misture vidro, plástico e metal com restos de alimentos na composteira.';
-      } else this.message = 'Resíduo recolhido (' + count + '/4). Continue pela comunidade.';
+        this.message = 'Os cinco objetos foram recolhidos. Agora coloque as duas sobras de alimento na composteira e os três recicláveis no recipiente azul, um por vez.';
+      }
       this.emit(); return;
     }
     if (action === 'sort-community-organics') {
-      this.peripheryOrganicsSorted = true;
-      this.message = this.peripheryRecyclablesSorted
-        ? 'Os fluxos foram separados. Agora acompanhe a composteira: os orgânicos precisam de mistura, umidade e aeração ao longo do tempo.'
-        : 'Orgânicos encaminhados à compostagem. Agora encaminhe os recicláveis secos ao ponto azul.';
+      const index = PERIPHERY_WASTE_CATALOG.findIndex((item, itemIndex) => item.kind === 'organic' && this.peripheryWasteCollected[itemIndex]
+        && !this.peripheryOrganicDeposited[PERIPHERY_WASTE_CATALOG.slice(0, itemIndex).filter((entry) => entry.kind === 'organic').length]);
+      if (index < 0) { this.message = 'Não há outro resíduo orgânico recolhido aguardando a composteira.'; this.emit(); return; }
+      const slot = PERIPHERY_WASTE_CATALOG.slice(0, index).filter((item) => item.kind === 'organic').length;
+      this.peripheryOrganicDeposited[slot] = true;
+      const site = { x: this.peripheryCompostPosition.x - 1.55 + slot * 2.9, z: this.peripheryCompostPosition.z - 0.45 };
+      const deposited = this.createPeripheryWasteModel(index, site, 'periphery-organic-deposited', 1.12);
+      this.peripheryOrganicDepositMeshes.push(deposited); this.peripheryDynamicMeshes.push(deposited);
+      this.peripheryOrganicsSorted = this.peripheryOrganicDeposited.every(Boolean);
+      const item = PERIPHERY_WASTE_CATALOG[index];
+      this.message = item.name + ' colocado na composteira. A mistura precisa de materiais secos, umidade, oxigênio e tempo para virar composto maturado.';
+      this.showLearningNotice('DESTINO CORRETO · COMPOSTEIRA', item.icon + ' ' + item.name + ' entrou na composteira',
+        'Você colocou um resíduo orgânico no local correto. Ele não deve ser jogado diretamente no canteiro nem misturado com plástico, metal ou vidro. Na composteira, restos de alimento são misturados com materiais secos, como folhas e podas.',
+        'COMPOSTEIRA — a mistura recebe ar e umidade em quantidade adequada. Microrganismos e outros decompositores transformam a matéria orgânica gradualmente.',
+        'Depois de um período de decomposição e maturação, o composto pode ser usado para melhorar o solo dos canteiros de hortaliças, flores e outras plantas. O composto precisa estar maturado antes de ir para o plantio.');
       if (this.peripheryOrganicsSorted && this.peripheryRecyclablesSorted) this.peripheryMissionStage = 'compost';
       this.emit(); return;
     }
     if (action === 'sort-community-recyclables') {
-      this.peripheryRecyclablesSorted = true;
-      this.message = this.peripheryOrganicsSorted
-        ? 'Os fluxos foram separados. Agora acompanhe a composteira: os orgânicos precisam de mistura, umidade e aeração ao longo do tempo.'
-        : 'Recicláveis secos encaminhados. Agora leve os orgânicos ao ponto marrom.';
+      const index = PERIPHERY_WASTE_CATALOG.findIndex((item, itemIndex) => item.kind === 'recyclable' && itemIndex < 2 + this.peripheryRecyclableTotal && this.peripheryWasteCollected[itemIndex]
+        && !this.peripheryRecyclableDeposited[PERIPHERY_WASTE_CATALOG.slice(0, itemIndex).filter((entry) => entry.kind === 'recyclable').length]);
+      if (index < 0) { this.message = 'Não há outro reciclável recolhido aguardando a coleta seletiva.'; this.emit(); return; }
+      const slot = PERIPHERY_WASTE_CATALOG.slice(0, index).filter((item) => item.kind === 'recyclable').length;
+      this.peripheryRecyclableDeposited[slot] = true;
+      const site = { x: this.peripheryRecyclingDropPosition.x - 1.25 + slot * 1.2, z: this.peripheryRecyclingDropPosition.z - 0.35 };
+      const deposited = this.createPeripheryWasteModel(index, site, 'periphery-recyclable-deposited', 0.45);
+      deposited.scaling.setAll(0.72); this.peripheryRecyclableDepositMeshes.push(deposited); this.peripheryDynamicMeshes.push(deposited);
+      this.peripheryRecyclablesSorted = this.peripheryRecyclableDeposited.every(Boolean);
+      const item = PERIPHERY_WASTE_CATALOG[index];
+      this.message = item.name + ' encaminhado à coleta seletiva. Recicláveis secos seguem para triagem e encaminhamento; não vão para a composteira.';
+      this.showLearningNotice('DESTINO CORRETO · COLETA SELETIVA', item.icon + ' ' + item.name + ' foi separado',
+        'Você identificou um material reciclável. Manter o item vazio, limpo e seco ajuda a evitar contaminação dos demais materiais. Vidro deve estar inteiro; não recolha nem manipule cacos.',
+        'RECICLÁVEIS SECOS — o recipiente azul representa a coleta seletiva. Depois, o serviço local encaminha os materiais à triagem, onde plástico, metal e vidro são separados por tipo.',
+        'A cooperativa pode receber e preparar materiais conforme sua estrutura e o sistema local. A reciclagem ainda depende do transporte, beneficiamento e da indústria que efetivamente transforma o material.');
       if (this.peripheryOrganicsSorted && this.peripheryRecyclablesSorted) this.peripheryMissionStage = 'compost';
       this.emit(); return;
     }
     if (action === 'turn-community-compost') {
       if (this.peripheryCompostTurned) { this.message = 'A etapa simulada de compostagem já foi acompanhada.'; this.emit(); return; }
-      this.peripheryCompostTurned = true; this.buildMatureCommunityCompost(); this.peripheryMissionStage = 'sanitation'; this.cit += 25;
-      this.message = 'A compostagem foi acompanhada no cenário. No mundo real, a maturação leva tempo e depende do equilíbrio dos materiais, umidade, aeração e manejo. Agora verifique as ligações sanitárias das moradias.';
+      this.peripheryCompostTurned = true; this.buildMatureCommunityCompost();
+      this.peripheryMissionStage = 'sanitation'; this.cit += 25;
+      this.message = 'A composteira foi arejada e o cenário mostra o composto maturado sendo levado aos canteiros. No mundo real, a transformação leva tempo e exige acompanhamento.';
+      this.showLearningNotice('COMPOSTAGEM · CICLO DO ORGÂNICO', 'O composto retorna ao solo e ajuda novas plantas',
+        'Restos de frutas e cascas não viram adubo na mesma hora. Eles passam por decomposição dentro da composteira, com mistura de materiais úmidos e secos, oxigênio e umidade controlada.',
+        'COMPOSTO MATURADO — quando o processo termina e o material está adequado, ele pode ser aplicado ao solo como composto orgânico. Não use resíduos frescos diretamente nas raízes das plantas.',
+        'No canteiro ao lado, o composto ajuda a melhorar a estrutura do solo e devolver nutrientes. As plantas crescem, produzem folhas, flores e alimentos, e novos restos vegetais podem voltar ao ciclo.');
       this.emit(); return;
     }
     if (action === 'connect-community-sewer') {
@@ -1674,7 +1835,6 @@ export class GreenCityGame {
     }
     this.message = 'Aproxime-se do próximo objetivo indicado na missão.'; this.emit();
   }
-
   /** Cooperativa onde o jogador descarrega e separa os cinco grupos de materiais. */
   private buildPortCooperative(): void {
     const { x, z } = this.portCooperativePosition;
@@ -1903,6 +2063,87 @@ export class GreenCityGame {
       if (distance < bestDistance) { best = index; bestDistance = distance; }
     });
     return best;
+  }
+
+
+  private createPeripheryWasteModel(index: number, site: PortSite, prefix: string, baseY = 0): Mesh {
+    const root = MeshBuilder.CreateBox(prefix + '-root-' + index, { width: 0.02, height: 0.02, depth: 0.02 }, this.scene);
+    const invisible = this.material(prefix + '-root-material-' + index, new Color3(1, 1, 1));
+    invisible.alpha = 0; root.material = invisible; root.position.set(site.x, 0, site.z); root.isPickable = false;
+    const part = (name: string, mesh: Mesh, material: StandardMaterial): Mesh => {
+      mesh.name = prefix + '-' + name + '-' + index; mesh.parent = root; mesh.material = material; return mesh;
+    };
+    const yellow = this.material(prefix + '-banana-yellow-' + index, new Color3(0.91, 0.72, 0.20));
+    const flesh = this.material(prefix + '-fruit-flesh-' + index, new Color3(0.73, 0.31, 0.14));
+    const green = this.material(prefix + '-leaf-green-' + index, new Color3(0.20, 0.45, 0.19));
+    const brown = this.material(prefix + '-scrap-brown-' + index, new Color3(0.34, 0.22, 0.12));
+    const plastic = this.material(prefix + '-pet-material-' + index, new Color3(0.16, 0.61, 0.75)); plastic.alpha = 0.72;
+    const metal = this.material(prefix + '-aluminum-material-' + index, new Color3(0.70, 0.75, 0.76));
+    const glass = this.material(prefix + '-glass-material-' + index, new Color3(0.20, 0.51, 0.38)); glass.alpha = 0.62;
+    const cap = this.material(prefix + '-cap-material-' + index, new Color3(0.10, 0.31, 0.49));
+    if (index === 0) {
+      // Casca de banana formada por três tiras curvas.
+      for (let piece = 0; piece < 3; piece++) {
+        const strip = part('banana-peel-strip-' + piece, MeshBuilder.CreateSphere('banana-strip', { diameter: 0.78, segments: 8 }), yellow);
+        strip.position.set(-0.26 + piece * 0.26, baseY + 0.22 + (piece === 1 ? 0.08 : 0), piece === 1 ? 0.08 : -0.05);
+        strip.scaling.set(0.72, 0.13, 0.25); strip.rotation.z = piece === 0 ? -0.22 : piece === 2 ? 0.22 : 0;
+      }
+      const stem = part('banana-stem', MeshBuilder.CreateCylinder('banana-stem', { height: 0.24, diameter: 0.12, tessellation: 6 }), brown);
+      stem.position.set(-0.55, baseY + 0.24, -0.02); stem.rotation.z = Math.PI / 2;
+      for (const x of [-0.59, 0.52]) {
+        const tip = part('banana-tip', MeshBuilder.CreateSphere('banana-tip', { diameter: 0.16, segments: 6 }), brown);
+        tip.position.set(x, baseY + 0.22, 0);
+      }
+    } else if (index === 1) {
+      // Restos de frutas e folhas, com peças de cores distintas.
+      for (let piece = 0; piece < 3; piece++) {
+        const scrap = part('fruit-scrap-' + piece, MeshBuilder.CreateSphere('fruit-scrap', { diameter: 0.58, segments: 8 }), piece === 1 ? green : flesh);
+        scrap.position.set(-0.32 + piece * 0.31, baseY + 0.20 + (piece % 2) * 0.08, piece === 2 ? 0.16 : -0.10);
+        scrap.scaling.set(0.82, 0.20, 0.55); scrap.rotation.z = (piece - 1) * 0.28;
+      }
+      const leaf = part('fruit-scrap-leaf', MeshBuilder.CreateSphere('fruit-leaf', { diameter: 0.38, segments: 7 }), green);
+      leaf.position.set(0.32, baseY + 0.27, 0.18); leaf.scaling.set(1.2, 0.10, 0.45);
+    } else if (index === 2) {
+      // Garrafa PET com corpo, ombro, gargalo e tampa.
+      const body = part('pet-bottle-body', MeshBuilder.CreateCylinder('pet-body', { height: 0.95, diameter: 0.42, tessellation: 12 }), plastic);
+      body.position.set(0, baseY + 0.52, 0);
+      const shoulder = part('pet-bottle-shoulder', MeshBuilder.CreateSphere('pet-shoulder', { diameter: 0.42, segments: 10 }), plastic);
+      shoulder.position.set(0, baseY + 1.00, 0); shoulder.scaling.set(1, 0.42, 1);
+      const neck = part('pet-bottle-neck', MeshBuilder.CreateCylinder('pet-neck', { height: 0.25, diameter: 0.18, tessellation: 10 }), plastic);
+      neck.position.set(0, baseY + 1.13, 0);
+      const lid = part('pet-bottle-cap', MeshBuilder.CreateCylinder('pet-cap', { height: 0.13, diameter: 0.22, tessellation: 10 }), cap);
+      lid.position.set(0, baseY + 1.31, 0);
+    } else if (index === 3) {
+      // Lata de alumínio com borda superior visível.
+      const body = part('aluminum-can-body', MeshBuilder.CreateCylinder('can-body', { height: 0.88, diameter: 0.58, tessellation: 14 }), metal);
+      body.position.set(0, baseY + 0.46, 0);
+      const top = part('aluminum-can-top', MeshBuilder.CreateCylinder('can-top', { height: 0.06, diameter: 0.56, tessellation: 14 }), this.material(prefix + '-can-top-' + index, new Color3(0.83, 0.85, 0.84)));
+      top.position.set(0, baseY + 0.92, 0);
+      const rim = part('aluminum-can-rim', MeshBuilder.CreateTorus('can-rim', { diameter: 0.5, thickness: 0.055, tessellation: 14 }), metal);
+      rim.position.set(0, baseY + 0.94, 0);
+    } else {
+      // Garrafa de vidro inteira, sem representar cacos como item coletável.
+      const body = part('glass-bottle-body', MeshBuilder.CreateCylinder('glass-body', { height: 0.78, diameter: 0.52, tessellation: 14 }), glass);
+      body.position.set(0, baseY + 0.41, 0);
+      const shoulder = part('glass-bottle-shoulder', MeshBuilder.CreateSphere('glass-shoulder', { diameter: 0.52, segments: 10 }), glass);
+      shoulder.position.set(0, baseY + 0.80, 0); shoulder.scaling.set(1, 0.42, 1);
+      const neck = part('glass-bottle-neck', MeshBuilder.CreateCylinder('glass-neck', { height: 0.31, diameter: 0.22, tessellation: 10 }), glass);
+      neck.position.set(0, baseY + 1.03, 0);
+      const lip = part('glass-bottle-lip', MeshBuilder.CreateCylinder('glass-lip', { height: 0.09, diameter: 0.27, tessellation: 10 }), glass);
+      lip.position.set(0, baseY + 1.22, 0);
+    }
+    return root;
+  }
+
+  private showLearningNotice(eyebrow: string, title: string, description: string, destination: string, afterwards: string): void {
+    this.learningNoticeSequence += 1;
+    this.learningNotice = { id: this.learningNoticeSequence, eyebrow, title, description, destination, afterwards };
+  }
+
+  dismissLearningNotice(): void {
+    if (!this.learningNotice) return;
+    this.learningNotice = null;
+    this.emit();
   }
 
   private getNearbyPortInteraction(): { action: NearbyAction; label: string } | null {
@@ -2598,6 +2839,10 @@ export class GreenCityGame {
   }
 
   private update(dt: number): void {
+    if (this.learningNotice) {
+      this.keys.clear(); this.mobileMoveX = 0; this.mobileMoveY = 0;
+      return;
+    }
     const step = Math.min(dt, 0.05);
     let playerMoving = false;
     if (this.inVehicle) {
@@ -3203,7 +3448,7 @@ export class GreenCityGame {
   }
 
   private getNearbyInteraction(): { action: NearbyAction; label: string } | null {
-    if (this.paused || this.mapOpen) return null;
+    if (this.paused || this.mapOpen || this.learningNotice) return null;
     if (this.activePhase === 2) return this.getNearbyPortInteraction();
     if (this.activePhase === 3) return this.getNearbyPeripheryInteraction();
     if (this.activePhase === 4) return this.getNearbyForestInteraction();
@@ -3240,6 +3485,7 @@ export class GreenCityGame {
   }
 
   performNearbyAction(): void {
+    if (this.learningNotice) return;
     const nearby = this.getNearbyInteraction();
     if (!nearby) {
       this.message = this.activePhase === 2
@@ -3308,10 +3554,10 @@ export class GreenCityGame {
       if (this.peripheryMissionStage === 'survey') {
         this.peripheryIssuePositions.forEach((site, index) => entries.push({ id: 'community-issue-' + index, label: ['Descarte irregular', 'Bueiro pluvial', 'Ligação sanitária'][index], x: site.x, z: site.z, done: this.peripheryIssueInspected.has(index) }));
       } else if (this.peripheryMissionStage === 'collect') {
-        this.peripheryWastePositions.forEach((site, index) => entries.push({ id: 'community-waste-' + index, label: 'Resíduo comunitário ' + (index + 1), x: site.x, z: site.z, done: this.peripheryWasteCollected[index] }));
+        this.peripheryWastePositions.slice(0, this.peripheryWasteTotal).forEach((site, index) => entries.push({ id: 'community-waste-' + index, label: PERIPHERY_WASTE_CATALOG[index].name, x: site.x, z: site.z, done: this.peripheryWasteCollected[index] }));
       } else if (this.peripheryMissionStage === 'sorting') {
-        entries.push({ id: 'community-organics', label: 'Ponto de orgânicos / composteira', x: this.peripheryOrganicDropPosition.x, z: this.peripheryOrganicDropPosition.z, done: this.peripheryOrganicsSorted });
-        entries.push({ id: 'community-recycling', label: 'Ponto de recicláveis secos', x: this.peripheryRecyclingDropPosition.x, z: this.peripheryRecyclingDropPosition.z, done: this.peripheryRecyclablesSorted });
+        entries.push({ id: 'community-organics', label: 'Composteira · ' + this.peripheryOrganicDeposited.filter(Boolean).length + '/2 resíduos orgânicos', x: this.peripheryOrganicDropPosition.x, z: this.peripheryOrganicDropPosition.z, done: this.peripheryOrganicsSorted });
+        entries.push({ id: 'community-recycling', label: 'Coleta seletiva · ' + this.peripheryRecyclableDeposited.filter(Boolean).length + '/' + this.peripheryRecyclableTotal + ' recicláveis', x: this.peripheryRecyclingDropPosition.x, z: this.peripheryRecyclingDropPosition.z, done: this.peripheryRecyclablesSorted });
       } else if (this.peripheryMissionStage === 'compost') {
         entries.push({ id: 'community-compost', label: 'Composteira comunitária', x: this.peripheryCompostPosition.x, z: this.peripheryCompostPosition.z, done: this.peripheryCompostTurned });
       } else if (this.peripheryMissionStage === 'sanitation') {
@@ -3436,12 +3682,46 @@ export class GreenCityGame {
         const marker = this.peripheryIssueMarkers[index];
         if (marker) marker.material = this.material('periphery-issue-restored-' + index, new Color3(0.18, 0.61, 0.42));
       });
+      const savedWaste = Array.isArray(data.communityWasteCollected) ? data.communityWasteCollected : [];
+      // Older saves had four generic piles (two organic and two recyclable).
+      this.peripheryWasteTotal = savedWaste.length === 4 ? 4 : PERIPHERY_WASTE_CATALOG.length;
+      this.peripheryRecyclableTotal = this.peripheryWasteTotal === 4 ? 2 : 3;
       this.peripheryWasteCollected.forEach((_, index) => {
-        this.peripheryWasteCollected[index] = data.communityWasteCollected?.[index] === true;
-        this.peripheryWastePiles[index]?.setEnabled(!this.peripheryWasteCollected[index]);
+        const isAvailableInSavedVersion = index < this.peripheryWasteTotal;
+        this.peripheryWasteCollected[index] = isAvailableInSavedVersion && savedWaste[index] === true;
+        this.peripheryWastePiles[index]?.setEnabled(isAvailableInSavedVersion && !this.peripheryWasteCollected[index]);
       });
-      this.peripheryOrganicsSorted = data.communityOrganicsSorted === true;
-      this.peripheryRecyclablesSorted = data.communityRecyclablesSorted === true;
+      this.peripheryOrganicDeposited.forEach((_, index) => {
+        this.peripheryOrganicDeposited[index] = Array.isArray(data.communityOrganicDeposited)
+          ? data.communityOrganicDeposited[index] === true : data.communityOrganicsSorted === true;
+      });
+      this.peripheryRecyclableDeposited.forEach((_, index) => {
+        this.peripheryRecyclableDeposited[index] = Array.isArray(data.communityRecyclableDeposited)
+          ? data.communityRecyclableDeposited[index] === true
+          : index < this.peripheryRecyclableTotal && data.communityRecyclablesSorted === true;
+      });
+      this.peripheryOrganicsSorted = this.peripheryOrganicDeposited.every(Boolean);
+      this.peripheryRecyclablesSorted = this.peripheryRecyclableDeposited.slice(0, this.peripheryRecyclableTotal).every(Boolean);
+      this.peripheryOrganicDeposited.forEach((done, slot) => {
+        if (!done) return;
+        const wasteIndex = PERIPHERY_WASTE_CATALOG.findIndex((item, index) => item.kind === 'organic'
+          && PERIPHERY_WASTE_CATALOG.slice(0, index).filter((entry) => entry.kind === 'organic').length === slot);
+        if (wasteIndex >= 0) {
+          const site = { x: this.peripheryCompostPosition.x - 1.55 + slot * 2.9, z: this.peripheryCompostPosition.z - 0.45 };
+          const model = this.createPeripheryWasteModel(wasteIndex, site, 'periphery-organic-restored', 1.12);
+          this.peripheryOrganicDepositMeshes.push(model); this.peripheryDynamicMeshes.push(model);
+        }
+      });
+      this.peripheryRecyclableDeposited.forEach((done, slot) => {
+        if (!done) return;
+        const wasteIndex = PERIPHERY_WASTE_CATALOG.findIndex((item, index) => item.kind === 'recyclable'
+          && PERIPHERY_WASTE_CATALOG.slice(0, index).filter((entry) => entry.kind === 'recyclable').length === slot);
+        if (wasteIndex >= 0) {
+          const site = { x: this.peripheryRecyclingDropPosition.x - 1.25 + slot * 1.2, z: this.peripheryRecyclingDropPosition.z - 0.35 };
+          const model = this.createPeripheryWasteModel(wasteIndex, site, 'periphery-recyclable-restored', 0.45);
+          model.scaling.setAll(0.72); this.peripheryRecyclableDepositMeshes.push(model); this.peripheryDynamicMeshes.push(model);
+        }
+      });
       this.peripheryCompostTurned = data.communityCompostTurned === true;
       if (this.peripheryCompostTurned) this.buildMatureCommunityCompost();
       this.peripherySewerConnected.forEach((_, index) => {
@@ -3533,7 +3813,12 @@ export class GreenCityGame {
       communityIssuesInspected: this.peripheryIssueInspected.size,
       communityIssuesTotal: this.peripheryIssuePositions.length,
       communityWasteCollected: this.peripheryWasteCollected.filter(Boolean).length,
-      communityWasteTotal: this.peripheryWastePiles.length,
+      communityWasteTotal: this.peripheryWasteTotal,
+      communityOrganicDeposited: this.peripheryOrganicDeposited.filter(Boolean).length,
+      communityOrganicTotal: this.peripheryOrganicDeposited.length,
+      communityRecyclableDeposited: this.peripheryRecyclableDeposited.filter(Boolean).length,
+      communityRecyclableTotal: this.peripheryRecyclableTotal,
+      learningNotice: this.learningNotice,
       communityOrganicsSorted: this.peripheryOrganicsSorted,
       communityRecyclablesSorted: this.peripheryRecyclablesSorted,
       communityCompostTurned: this.peripheryCompostTurned,
@@ -3589,7 +3874,9 @@ export class GreenCityGame {
         portWaterQuality: this.portWaterQuality,
         peripheryMissionStage: this.peripheryMissionStage,
         communityIssuesInspected: [...this.peripheryIssueInspected],
-        communityWasteCollected: [...this.peripheryWasteCollected],
+        communityWasteCollected: this.peripheryWasteCollected.slice(0, this.peripheryWasteTotal),
+        communityOrganicDeposited: [...this.peripheryOrganicDeposited],
+        communityRecyclableDeposited: [...this.peripheryRecyclableDeposited],
         communityOrganicsSorted: this.peripheryOrganicsSorted,
         communityRecyclablesSorted: this.peripheryRecyclablesSorted,
         communityCompostTurned: this.peripheryCompostTurned,

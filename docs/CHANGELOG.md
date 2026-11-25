@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.25 — Fase 03: resíduos identificáveis e compostagem didática
+- Substituídas as esferas genéricas por cinco objetos 3D identificáveis: casca de banana, restos de frutas, garrafa PET, lata de alumínio e garrafa de vidro inteira.
+- A coleta apresenta a classificação de cada item e explica seu destino individual.
+- A separação deposita cada objeto, um por vez, na composteira aberta ou na coleta seletiva; os materiais permanecem visíveis no recipiente.
+- Refeito o ponto orgânico como uma composteira aberta, identificada na placa com o fluxo "orgânicos + folhas secas → composto".
+- Canteiros de hortaliças e flores demonstram o uso do composto maturado após a etapa de manejo.
+- Cartões educativos explicam decomposição, materiais secos, umidade, aeração, maturação e retorno do composto ao solo.
+- Progresso granular dos itens depositados é salvo, com compatibilidade para registros antigos da Fase 03.
+
 ## 0.4.24 — Reserva Florestal: orientação visual e prevenção
 - Reposicionadas as placas principais para a altura das fachadas, com faces fixas voltadas para a frente dos edifícios, sem billboard/câmera.
 - Acrescentado corredor ecológico visível com vegetação conectando trechos de habitat.

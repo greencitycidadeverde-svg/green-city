@@ -26,6 +26,15 @@ export type NearbyAction =
   | 'stock-local-market' | 'sort-consumer-packaging' | 'deliver-forest-cooperative'
   | 'plant-native-seedling' | 'protect-forest-spring' | 'record-forest-wildlife' | 'inspect-forest-fire-prevention';
 
+export interface LearningNotice {
+  id: number;
+  eyebrow: string;
+  title: string;
+  description: string;
+  destination: string;
+  afterwards: string;
+}
+
 export interface MapObjective {
   id: string;
   label: string;
@@ -52,6 +61,8 @@ export interface GameProgressData {
   peripheryMissionStage: PeripheryMissionStage;
   communityIssuesInspected: number[];
   communityWasteCollected: boolean[];
+  communityOrganicDeposited?: boolean[];
+  communityRecyclableDeposited?: boolean[];
   communityOrganicsSorted: boolean;
   communityRecyclablesSorted: boolean;
   communityCompostTurned: boolean;
@@ -91,6 +102,11 @@ export interface GameSnapshot {
   communityIssuesTotal: number;
   communityWasteCollected: number;
   communityWasteTotal: number;
+  communityOrganicDeposited: number;
+  communityOrganicTotal: number;
+  communityRecyclableDeposited: number;
+  communityRecyclableTotal: number;
+  learningNotice: LearningNotice | null;
   communityOrganicsSorted: boolean;
   communityRecyclablesSorted: boolean;
   communityCompostTurned: boolean;

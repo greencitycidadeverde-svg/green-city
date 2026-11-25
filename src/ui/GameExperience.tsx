@@ -26,7 +26,12 @@ const initial: GameSnapshot = {
   communityIssuesInspected: 0,
   communityIssuesTotal: 3,
   communityWasteCollected: 0,
-  communityWasteTotal: 4,
+  communityWasteTotal: 5,
+  communityOrganicDeposited: 0,
+  communityOrganicTotal: 2,
+  communityRecyclableDeposited: 0,
+  communityRecyclableTotal: 3,
+  learningNotice: null,
   communityOrganicsSorted: false,
   communityRecyclablesSorted: false,
   communityCompostTurned: false,
@@ -72,6 +77,7 @@ const initial: GameSnapshot = {
     septicInstalled: [], companyWasteCollected: [], cooperativeSorted: [],
     portMissionStage: 'inspect', portWaterQuality: 24,
     peripheryMissionStage: 'survey', communityIssuesInspected: [], communityWasteCollected: [],
+    communityOrganicDeposited: [], communityRecyclableDeposited: [],
     communityOrganicsSorted: false, communityRecyclablesSorted: false, communityCompostTurned: false,
     communitySewerConnected: [], communityRainGardenBuilt: false,
   },
@@ -194,7 +200,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             : snapshot.peripheryMissionStage === 'collect'
               ? 18 + Math.round(snapshot.communityWasteCollected / snapshot.communityWasteTotal * 22)
               : snapshot.peripheryMissionStage === 'sorting'
-                ? 42 + (snapshot.communityOrganicsSorted ? 8 : 0) + (snapshot.communityRecyclablesSorted ? 8 : 0)
+                ? 42 + Math.round(snapshot.communityOrganicDeposited / snapshot.communityOrganicTotal * 8) + Math.round(snapshot.communityRecyclableDeposited / snapshot.communityRecyclableTotal * 8)
                 : snapshot.peripheryMissionStage === 'compost' ? 62
                   : snapshot.peripheryMissionStage === 'sanitation'
                     ? 65 + Math.round(snapshot.communitySewerConnections / snapshot.communitySewerTotal * 25)
@@ -271,9 +277,9 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 title: 'Relatório de Aprendizado — Periferia Verde',
                 content: {
                   problem: 'Descarte irregular de resíduos, necessidade de saneamento sanitário e escoamento superficial de chuva no bairro.',
-                  solution: 'Investigação comunitária, separação de orgânicos e recicláveis, manejo demonstrativo da compostagem, conexões sanitárias simuladas e jardim de chuva em local apropriado.',
-                  result: 'Objetivos essenciais concluídos no cenário simulado. A compostagem real exige tempo e manejo; ligações à rede dependem de tratamento; jardins de chuva exigem avaliação técnica do local.',
-                  reflection: 'Por que água de chuva e esgoto sanitário devem seguir sistemas diferentes?',
+                  solution: 'Identificação de resíduos orgânicos (cascas de frutas e restos vegetais) e recicláveis secos (embalagens de plástico, metal e vidro); encaminhamento individual à composteira e à coleta seletiva; manejo da composteira; ligações sanitárias e jardim de chuva em local apropriado.',
+                  result: 'Foram registrados ' + snapshot.communityWasteCollected + ' de ' + snapshot.communityWasteTotal + ' objetos. Os orgânicos seguiram à composteira; os recicláveis foram separados para triagem e encaminhamento, sem confundir a cooperativa com a indústria recicladora. O composto só retorna ao solo após decomposição e maturação; ligações sanitárias dependem de tratamento e jardins de chuva exigem avaliação técnica do local.',
+                  reflection: 'Por que cascas e restos de alimentos vão para a composteira, enquanto embalagens de plástico, metal e vidro seguem para a coleta seletiva? Por que o composto precisa amadurecer antes de ir aos canteiros?',
                 },
               }
             : {
@@ -424,7 +430,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         ? state.peripheryMissionStage === 'complete' ? 100
           : state.peripheryMissionStage === 'survey' ? Math.round(state.communityIssuesInspected / state.communityIssuesTotal * 18)
             : state.peripheryMissionStage === 'collect' ? 18 + Math.round(state.communityWasteCollected / state.communityWasteTotal * 22)
-              : state.peripheryMissionStage === 'sorting' ? 42 + (state.communityOrganicsSorted ? 8 : 0) + (state.communityRecyclablesSorted ? 8 : 0)
+              : state.peripheryMissionStage === 'sorting' ? 42 + Math.round(state.communityOrganicDeposited / state.communityOrganicTotal * 8) + Math.round(state.communityRecyclableDeposited / state.communityRecyclableTotal * 8)
                 : state.peripheryMissionStage === 'compost' ? 62
                   : state.peripheryMissionStage === 'sanitation' ? 65 + Math.round(state.communitySewerConnections / state.communitySewerTotal * 25)
                     : 95
@@ -458,9 +464,9 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
 
   const peripheryMission = {
     survey: { eyebrow: 'FASE 03 · INVESTIGAÇÃO COMUNITÁRIA', title: 'Conheça os desafios do bairro', description: 'Explore os pontos sinalizados: observe resíduos nas ruas, um bueiro com água parada e moradias que precisam de atenção ao esgoto sanitário. Investigue antes de escolher as soluções.', progress: state.communityIssuesInspected + '/' + state.communityIssuesTotal + ' pontos investigados' },
-    collect: { eyebrow: 'FASE 03 · COLETA COMUNITÁRIA', title: 'Organize a coleta do bairro', description: 'Recolha os resíduos espalhados pela comunidade. Depois vamos encaminhar orgânicos e recicláveis secos a destinos diferentes. ' + state.communityWasteCollected + '/' + state.communityWasteTotal + ' pontos atendidos.', progress: state.communityWasteCollected + '/' + state.communityWasteTotal + ' resíduos recolhidos' },
-    sorting: { eyebrow: 'FASE 03 · SEPARAÇÃO NA ORIGEM', title: 'Separe orgânicos e recicláveis', description: 'Leve restos de alimentos e materiais vegetais ao ponto marrom da compostagem. Papel, plástico, metal e vidro devem ficar separados e seguir para a coleta seletiva, não para a composteira.', progress: (Number(state.communityOrganicsSorted) + Number(state.communityRecyclablesSorted)) + '/2 fluxos encaminhados' },
-    compost: { eyebrow: 'FASE 03 · COMPOSTAGEM', title: 'Acompanhe a transformação dos orgânicos', description: 'Na composteira, matéria orgânica é transformada por organismos decompositores. O processo precisa de equilíbrio entre materiais, umidade e aeração; o composto só retorna ao solo quando está maturado.', progress: 'Separação concluída · manejo da composteira' },
+    collect: { eyebrow: 'FASE 03 · IDENTIFIQUE CADA RESÍDUO', title: 'Reconheça o que você está recolhendo', description: 'Recolha ' + state.communityWasteTotal + ' objetos com formatos diferentes. Cascas e restos de frutas são orgânicos; garrafas e latas são recicláveis. Ao pegar cada peça, veja a explicação para descobrir por que ela pertence àquele grupo.', progress: state.communityWasteCollected + '/' + state.communityWasteTotal + ' objetos identificados e recolhidos' },
+    sorting: { eyebrow: 'FASE 03 · DOIS DESTINOS DIFERENTES', title: 'Coloque cada objeto no local certo', description: 'Leve as duas sobras de alimentos à COMPOSTEIRA aberta. Coloque ' + (state.communityRecyclableTotal === 2 ? 'a garrafa PET e a lata de alumínio' : 'a garrafa PET, a lata de alumínio e a garrafa de vidro') + ' no recipiente azul da COLETA SELETIVA. O jogo explica cada objeto na hora do descarte.', progress: state.communityOrganicDeposited + '/' + state.communityOrganicTotal + ' orgânicos na composteira · ' + state.communityRecyclableDeposited + '/' + state.communityRecyclableTotal + ' recicláveis separados' },
+    compost: { eyebrow: 'FASE 03 · COMPOSTAGEM PASSO A PASSO', title: 'Areje a composteira e veja o ciclo virar plantio', description: 'Restos de frutas e cascas não viram adubo na mesma hora. Na composteira, misture matéria orgânica com folhas secas e materiais vegetais; microrganismos precisam de ar, umidade e tempo. Só o composto maturado pode voltar ao solo dos canteiros.', progress: '2/2 resíduos orgânicos encaminhados · volte à composteira para arejar a mistura e acompanhar a transformação' },
     sanitation: { eyebrow: 'FASE 03 · SANEAMENTO BÁSICO', title: 'Conecte as moradias à rede sanitária', description: 'Verifique as ligações de esgoto das duas moradias. Esgoto sanitário deve seguir para rede e tratamento adequados. A água da chuva é conduzida por outro sistema: a drenagem pluvial. ' + state.communitySewerConnections + '/' + state.communitySewerTotal + ' ligações verificadas.', progress: state.communitySewerConnections + '/' + state.communitySewerTotal + ' moradias conectadas' },
     'rain-garden': { eyebrow: 'FASE 03 · DRENAGEM URBANA', title: 'Implante um jardim de chuva', description: 'No ponto indicado, crie uma área vegetada rebaixada para receber parte do escoamento da chuva. Em locais adequados, solo e plantas ajudam a reter, filtrar e infiltrar água; não é solução para esgoto sanitário nem funciona em todo tipo de terreno.', progress: 'Diagnóstico e saneamento concluídos · jardim pendente' },
     complete: { eyebrow: 'FASE 03 · PERIFERIA VERDE', title: 'A comunidade começou a se transformar', description: 'Você investigou os desafios, organizou a coleta, acompanhou a composteira, melhorou as ligações sanitárias e implantou um jardim de chuva no cenário simulado.', progress: 'Fase concluída' },
@@ -532,6 +538,20 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
 
     {!gameReady && !gameError && <div className="loading-overlay"><div className="loading-box"><span className="loading-spinner" /> Preparando o mundo de GREEN CITY…</div></div>}
     {gameError && <div className="error-overlay"><div className="welcome-panel"><div className="eyebrow">ERRO AO CARREGAR O MUNDO 3D</div><h2>Não foi possível iniciar a cidade.</h2><p>{gameError}</p><small>Atualize a página. Se o problema continuar, envie esta mensagem para a equipe técnica.</small></div></div>}
+
+
+    {state.learningNotice && <aside className="learning-notice-layer" aria-live="polite">
+      <section className="learning-notice-card" role="dialog" aria-label="Explicação educativa do resíduo">
+        <div className="learning-notice-heading">
+          <div><div className="eyebrow">{state.learningNotice.eyebrow}</div><h2>{state.learningNotice.title}</h2></div>
+          <button type="button" aria-label="Fechar explicação" onClick={() => gameRef.current?.dismissLearningNotice()}>×</button>
+        </div>
+        <p>{state.learningNotice.description}</p>
+        <div className="learning-notice-step"><b>ONDE COLOCAR</b><span>{state.learningNotice.destination}</span></div>
+        <div className="learning-notice-step"><b>O QUE ACONTECE DEPOIS</b><span>{state.learningNotice.afterwards}</span></div>
+        <button type="button" className="learning-notice-continue" onClick={() => gameRef.current?.dismissLearningNotice()}>ENTENDI · CONTINUAR</button>
+      </section>
+    </aside>}
 
     <div className="status-message">{state.message}</div>
     {gameReady && state.nearbyAction && <button
@@ -860,11 +880,12 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="completion-medal">✓</div>
         <div className="eyebrow">CADERNO DE APRENDIZADO · FASE 03 DE 10</div>
         <h2>A Periferia Verde está se transformando!</h2>
-        <p>Você observou os desafios da comunidade e participou de soluções que dependem de moradores, serviços públicos e planejamento urbano.</p>
-        <div className="completion-stats"><span>3 pontos investigados</span><span>4 resíduos recolhidos</span><span>Compostagem acompanhada</span><span>2 ligações sanitárias</span><span>1 jardim de chuva</span></div>
+        <p>Você observou os desafios da comunidade, reconheceu os tipos de resíduos e acompanhou o caminho dos orgânicos até o composto usado nos canteiros.</p>
+        <div className="completion-stats"><span>3 pontos investigados</span><span>{state.communityWasteTotal} objetos identificados</span><span>{state.communityOrganicTotal} orgânicos encaminhados</span><span>{state.communityRecyclableTotal} recicláveis separados</span><span>2 ligações sanitárias</span><span>1 jardim de chuva</span></div>
         <div className="learning-report-grid">
-          <article className="learning-report-card"><small>COLETA COMUNITÁRIA</small><h3>Separar começa na origem</h3><p>Orgânicos limpos e separados podem seguir para compostagem. Papel, plástico, metal e vidro precisam de coleta seletiva, triagem e encaminhamento próprios. Materiais recicláveis não devem contaminar a composteira.</p></article>
-          <article className="learning-report-card"><small>COMPOSTAGEM</small><h3>O resíduo orgânico vira recurso</h3><p>Microrganismos e outros decompositores transformam restos orgânicos em composto. O processo exige tempo e manejo de umidade, aeração e mistura de materiais. O composto retorna ao solo somente quando está maturado e adequado ao uso.</p></article>
+          <article className="learning-report-card"><small>RESÍDUO ORGÂNICO</small><h3>Casca de banana e restos de frutas</h3><p>Esses materiais são restos de alimentos. Separados de embalagens, podem entrar na composteira junto com folhas secas e outros materiais vegetais. Eles não devem ir para o recipiente de recicláveis.</p></article>
+          <article className="learning-report-card"><small>RECICLÁVEIS SECOS</small><h3>Garrafa PET, lata e vidro</h3><p>São objetos feitos de plástico, metal e vidro. Vazios, limpos e secos, seguem a coleta seletiva e a triagem. A cooperativa prepara os materiais que recebe; a transformação em novos produtos depende da etapa industrial.</p></article>
+          <article className="learning-report-card"><small>COMPOSTAGEM</small><h3>Da composteira para os canteiros</h3><p>Microrganismos e outros decompositores transformam os restos orgânicos ao longo do tempo. A mistura exige materiais secos, umidade e aeração. Só depois da maturação o composto adequado pode retornar ao solo e ajudar no cultivo de hortaliças e flores.</p></article>
           <article className="learning-report-card"><small>SANEAMENTO BÁSICO</small><h3>Esgoto sanitário tem sua própria rede</h3><p>O esgoto dos banheiros deve ser coletado e encaminhado a sistema de tratamento adequado. A rede de esgoto não é a mesma infraestrutura que conduz a água da chuva, e uma ligação de rede não substitui o tratamento.</p></article>
           <article className="learning-report-card"><small>DRENAGEM URBANA</small><h3>Jardim de chuva ajuda a manejar o escoamento</h3><p>Uma área vegetada e preparada pode reter parte da água da chuva e favorecer a infiltração onde as condições do solo, do lençol freático e da contaminação permitem. Ela não resolve enchentes sozinha nem recebe esgoto.</p></article>
           <article className="learning-report-card learning-report-card--result"><small>O QUE APRENDEMOS</small><h3>Infraestrutura funciona em conjunto</h3><p>Coleta, compostagem, saneamento e drenagem resolvem problemas diferentes. A comunidade pode participar, mas redes, operação, manutenção, monitoramento e serviços públicos também são necessários.</p></article>
@@ -932,12 +953,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
           <div className="metrics-grid">
             <Metric label="Pontos do bairro investigados" value={Math.round(state.communityIssuesInspected / state.communityIssuesTotal * 100)} />
             <Metric label="Coleta comunitária" value={Math.round(state.communityWasteCollected / state.communityWasteTotal * 100)} />
-            <Metric label="Fluxos separados" value={(Number(state.communityOrganicsSorted) + Number(state.communityRecyclablesSorted)) * 50} />
+            <Metric label="Orgânicos na composteira" value={Math.round(state.communityOrganicDeposited / state.communityOrganicTotal * 100)} />
+            <Metric label="Recicláveis na coleta seletiva" value={Math.round(state.communityRecyclableDeposited / state.communityRecyclableTotal * 100)} />
             <Metric label="Ligações sanitárias" value={Math.round(state.communitySewerConnections / state.communitySewerTotal * 100)} />
             <Metric label="Jardim de chuva" value={state.communityRainGardenBuilt ? 100 : 0} />
           </div>
           <div className="upgrade-grid">
-            <article className="upgrade-card"><div className="eyebrow">COMPOSTAGEM COMUNITÁRIA</div><h3>{state.communityCompostTurned ? 'Composto acompanhado' : 'Aguardando manejo'}</h3><p>Orgânicos separados na origem passam por decomposição controlada. O composto maturado pode ser usado no solo; o processo real exige tempo, aeração, umidade e acompanhamento.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">COMPOSTEIRA E CANTEIROS</div><h3>{state.communityCompostTurned ? 'Composto maturado aplicado aos canteiros' : '2 resíduos orgânicos aguardando manejo'}</h3><p>Cascas de banana e restos de frutas entram na composteira junto com folhas secas e materiais vegetais. Microrganismos decompõem a mistura com umidade e oxigênio. Quando maturado, o composto ajuda a melhorar o solo para hortaliças, flores e plantas.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">RECICLÁVEIS SECOS</div><h3>{state.communityRecyclableDeposited}/{state.communityRecyclableTotal} objetos separados</h3><p>A garrafa PET, a lata de alumínio e a garrafa de vidro seguem para coleta seletiva e triagem. A separação não significa reciclagem imediata: o material ainda precisa de encaminhamento e transformação industrial.</p></article>
             <article className="upgrade-card"><div className="eyebrow">SANEAMENTO</div><h3>{state.communitySewerConnections}/{state.communitySewerTotal} moradias conectadas</h3><p>As ligações simuladas conduzem esgoto sanitário para a rede própria. O tratamento e a operação do sistema continuam necessários; isso não é a rede pluvial.</p></article>
             <article className="upgrade-card"><div className="eyebrow">DRENAGEM PLUVIAL</div><h3>{state.communityRainGardenBuilt ? 'Jardim de chuva implantado' : 'Área de escoamento a tratar'}</h3><p>Jardins de chuva podem ajudar a reter e infiltrar parte da chuva em locais tecnicamente adequados. Eles não recebem esgoto e não substituem o sistema de drenagem completo.</p></article>
           </div>
