@@ -58,6 +58,10 @@ Se não houver serviço dedicado disponível, a alternativa pode ser composteira
 - A cooperativa recebe, confere, separa, classifica, prensa/embala quando aplicável e encaminha os materiais. **A cooperativa não deve ser mostrada como a indústria que transforma o material em um produto novo.**
 
 ### Orgânicos e rejeitos
+- **Separação na origem:** restos de alimentos devem ser separados no momento em que são gerados e acondicionados em recipiente exclusivo. Nunca despejar restos de comida no saco/caixa de papelão, no tambor de recicláveis secos ou na mesma carga de papel, plástico, vidro e metal. A contaminação prejudica a triagem e pode inviabilizar a reciclagem dos materiais secos.
+- **Compostagem doméstica:** quando o domicílio, escola ou condomínio tiver espaço e condições, pode manter uma composteira própria para os resíduos aceitos por aquele método. Cobrir restos úmidos com material seco/estruturante e seguir as orientações do modelo de composteira; nem todo resto gorduroso, carne, laticínio ou alimento cozido é adequado para todo tipo de compostagem.
+- **Coleta específica de orgânicos:** quando prefeitura, operador ou cooperativa oferecer serviço de compostáveis, o programa deve disponibilizar ou indicar um **balde/recipiente exclusivo**, preferencialmente vedado e de fácil higienização, identificado para orgânicos (marrom), e comunicar os materiais aceitos. O prestador define e divulga dias e frequência regulares conforme geração estimada, volume, rota e capacidade de armazenamento/tratamento. O cronograma não é universal: não inventar periodicidade semanal ou mensal sem base no serviço local. A carga orgânica deve ser recolhida em fluxo separado dos recicláveis secos e levada a instalação própria de compostagem ou biodigestão.
+- **Papel da cooperativa:** uma cooperativa pode operar ou participar de um programa de coleta e tratamento de orgânicos, além da sua atividade com recicláveis, mas isso é um serviço adicional, não uma característica automática de toda cooperativa. Se oferecer os dois serviços, deve manter recipientes, logística, armazenamento, equipes e encaminhamentos separados. Na rota de recicláveis secos entram papel/papelão, plástico, vidro e metal; no balde marrom entram apenas orgânicos aceitos no programa.
 - **Orgânicos (marrom):** restos de alimentos e resíduos vegetais adequados podem seguir à compostagem. A mistura precisa de materiais estruturantes secos, oxigênio, umidade e tempo; somente composto maturado e adequado retorna ao solo. Não representar descarte fresco diretamente no canteiro como adubo.
 - **Rejeitos gerais (cinza):** materiais sem reciclagem/reaproveitamento viável no sistema local, misturados ou contaminados de modo que não possam ser separados. Seguem a coleta de rejeitos e a disposição final licenciada/ambientalmente adequada, conforme serviço local. Rejeito não é sinônimo de resíduo perigoso.
 
@@ -77,6 +81,9 @@ Incineração é uma tecnologia de tratamento aplicável apenas a resíduos e si
 ## Regras de representação e interação
 
 - Colocar nome grande, exemplos e pictograma em cada coletor, visível na altura do personagem.
+- Mostrar claramente três fluxos quando aplicável: recicláveis secos; orgânicos em composteira doméstica ou recipiente/balde marrom de coleta específica; rejeitos em recipiente cinza. Nunca retratar restos de alimentos misturados ao papelão ou dentro da carga dos recicláveis secos.
+- Caso uma cooperativa fictícia ofereça coleta de orgânicos, mostrar o balde exclusivo e avisar que o calendário e a frequência são definidos pelo serviço local conforme geração e capacidade operacional. Manter esse veículo/carga separados da rota da coleta seletiva de recicláveis secos.
+- Mostrar a compostagem como uma opção doméstica/comunitária ou como destinação de uma coleta dedicada, não como uma etapa executada junto da triagem de papel, plástico, vidro e metal.
 - Usar a cor correta no corpo do recipiente e/ou faixa de identificação, sem depender só da cor: nomes e exemplos precisam permanecer legíveis.
 - Ao recolher um item, explicar: o que é, composição/categoria, condição (limpo, sujo, contaminado, perigoso), destino e próximo processo.
 - Ao depositar, confirmar o destino e explicar o próximo elo da cadeia.
@@ -93,6 +100,9 @@ Incineração é uma tecnologia de tratamento aplicável apenas a resíduos e si
 - Resolução CONAMA nº 358, de 29 de abril de 2005 — tratamento e disposição final de resíduos de serviços de saúde.
 - Resolução CONAMA nº 362, de 23 de junho de 2005 — coleta e destinação de óleo lubrificante usado ou contaminado.
 - Orientações da ANP sobre rerrefino de óleo lubrificante usado ou contaminado.
+- Manual do MMA sobre compostagem doméstica, comunitária e institucional — segregação de orgânicos na fonte.
+- Roteiro do Ministério das Cidades para planejamento da coleta seletiva — separação de recicláveis secos, orgânicos e rejeitos e definição da logística local.
+- Glossário técnico do SINISA/Ministério das Cidades sobre frequência e recipientes da coleta seletiva de orgânicos.
 
 ## Princípio reforçado na versão 0.4.27
 Orgânicos permanecem num balde fechado e exclusivo ou numa composteira doméstica/comunitária. Quando uma cooperativa oferece coleta de orgânicos, sua retirada é uma operação independente, com rota e periodicidade definidas pelo prestador de acordo com o volume, capacidade e logística local. A carga seca de papel/papelão, plástico, vidro e metal nunca recebe restos de comida. Rejeitos seguem uma terceira rota. O cenário agora representa fisicamente o balde de orgânicos separado da cooperativa de recicláveis secos.

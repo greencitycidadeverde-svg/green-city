@@ -1,3 +1,9 @@
+## 0.4.27 — Fase 04: balde exclusivo e coleta separada de orgânicos
+- O recipiente marrom de orgânicos passou a ser representado como balde exclusivo, com aviso de que não recebe recicláveis secos.
+- A sinalização explica que a compostagem pode ser doméstica/comunitária ou realizada por coleta dedicada, quando houver programa local; frequência e dias são definidos pelo prestador conforme geração e capacidade operacional.
+- A separação pós-consumo reforça três fluxos independentes: recicláveis secos para triagem, orgânicos para compostagem/coleta específica e rejeitos para destinação própria.
+- Corrigida a compatibilidade de saves antigos da Fase 04: as três categorias históricas são mapeadas para papel, plástico e orgânicos e mantêm o estágio e o histórico do jogador. Novas sessões utilizam seis categorias.
+
 # Changelog
 
 ## 0.4.27 — Fase 04: coleta dedicada de orgânicos sem mistura

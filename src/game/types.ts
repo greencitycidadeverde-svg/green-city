@@ -75,6 +75,7 @@ export interface GameProgressData {
   forestProcessed?: boolean;
   forestMarketStocked?: boolean;
   forestPackagingSorted?: boolean[];
+  forestPackagingLegacy?: boolean;
   forestCooperativeDelivered?: boolean;
   forestSeedlingsPlanted?: boolean[];
   forestSpringProtected?: boolean;
