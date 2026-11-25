@@ -1111,10 +1111,8 @@ export class GreenCityGame {
         label: `E · SEPARAR ${this.portCooperativeMaterialNames[index]}`,
       };
     }
-    if (this.portMissionStage === 'collect' || this.portMissionStage === 'deliver') {
-      const truckDistance = Math.hypot(this.player.position.x - this.portTruck.position.x, this.player.position.z - this.portTruck.position.z);
-      if (truckDistance <= PORT_TRUCK_ENTRY_DISTANCE) return { action: 'enter-vehicle', label: 'F · ENTRAR NO CAMINHÃO DE COLETA' };
-    }
+    const truckDistance = Math.hypot(this.player.position.x - this.portTruck.position.x, this.player.position.z - this.portTruck.position.z);
+    if (truckDistance <= PORT_TRUCK_ENTRY_DISTANCE) return { action: 'enter-vehicle', label: 'F · ENTRAR NO CAMINHÃO DE COLETA' };
     return null;
   }
 
@@ -1375,7 +1373,7 @@ export class GreenCityGame {
 
   /** Carrega diretamente um arquivo GLB estático de /public/models. */
   private async loadModelBytes(assetName: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/models/${assetName}?v=0.4.12`, { cache: 'force-cache' });
+    const response = await fetch(`/models/${assetName}?v=0.4.13`, { cache: 'force-cache' });
     if (!response.ok) throw new Error(`HTTP ${response.status} ao carregar o modelo ${assetName}.`);
     const bytes = await response.arrayBuffer();
     const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
@@ -1979,7 +1977,11 @@ export class GreenCityGame {
       this.lastDriveCameraHeading = cameraHeading;
       this.inVehicle = true; this.player.setEnabled(false);
       this.message = this.activePhase === 2
-        ? 'Dirija o caminhão amarelo até as três empresas. W acelera, S dá ré e A/D viram. Pare ao lado de cada carga e pressione E ou toque em COLETAR. Depois leve tudo à cooperativa e pressione E para descarregar.'
+        ? this.portMissionStage === 'collect'
+          ? 'Dirija o caminhão amarelo até as três empresas. W acelera, S dá ré e A/D viram. Pare ao lado de cada carga e pressione E ou toque em COLETAR. Depois leve tudo à cooperativa e pressione E para descarregar.'
+          : this.portMissionStage === 'deliver'
+            ? 'As três cargas estão a bordo. Dirija até a COOPERATIVA, pare na área de descarga e pressione E ou toque em DESCARREGAR. Use F para descer quando estiver parado.'
+            : 'Caminhão liberado para deslocamento. Continue a missão atual; a coleta nas empresas será habilitada depois das etapas de diagnóstico e saneamento.'
         : this.electricVehicle
           ? 'Veículo 100% elétrico. W acelera, S dá ré e A/D viram. Pare antes de sair.'
           : 'Missão: W acelera para frente, S dá ré e A/D viram. Dirija até a BASE DE ELETRIFICAÇÃO, estacione na vaga e pressione F para descer.';
