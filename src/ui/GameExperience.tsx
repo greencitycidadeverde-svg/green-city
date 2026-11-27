@@ -694,7 +694,7 @@ export default function GameExperience({ userId, campaignId, campaignCurrentPhas
       onClick={() => gameRef.current?.performNearbyAction()}
       aria-label={state.nearbyLabel}
     >{interactionLabel}<span>TOCAR / CLICAR</span></button>}
-    {gameReady && !state.paused && !state.mapOpen && !showHelp && !state.learningNotice && <div className="mobile-controls">
+    {gameReady && !state.paused && !state.mapOpen && !showHelp && !state.learningNotice && !mobileMissionExpanded && <div className="mobile-controls">
       <div className="mobile-dpad" role="group" aria-label="Direcional de movimento do personagem">
         <button type="button" className={"mobile-direction-button mobile-direction-button--up" + (activeMobileDirections.includes('up') ? " is-active" : "")} aria-label="Andar para frente" onPointerDown={(event) => startMobileDirection('up', event)} onPointerUp={stopMobileDirection} onPointerCancel={stopMobileDirection} onLostPointerCapture={stopMobileDirection}>▲</button>
         <button type="button" className={"mobile-direction-button mobile-direction-button--left" + (activeMobileDirections.includes('left') ? " is-active" : "")} aria-label="Andar para a esquerda" onPointerDown={(event) => startMobileDirection('left', event)} onPointerUp={stopMobileDirection} onPointerCancel={stopMobileDirection} onLostPointerCapture={stopMobileDirection}>◀</button>
@@ -744,7 +744,7 @@ export default function GameExperience({ userId, campaignId, campaignCurrentPhas
     </div>
 
     <button className="plan-button" onClick={() => setShowPlan(true)}>PLANO URBANO</button>
-    <button className="map-button" onClick={() => { setMapTab('objectives'); gameRef.current?.setMapOpen(!state.mapOpen); }}><span className="desktop-only">M · MAPA DE OBJETIVOS</span><span className="mobile-only">OBJETIVOS</span></button>
+    {!mobileMissionExpanded && <button className="map-button" onClick={() => { setMapTab('objectives'); gameRef.current?.setMapOpen(!state.mapOpen); }}><span className="desktop-only">M · MAPA DE OBJETIVOS</span><span className="mobile-only">OBJETIVOS</span></button>}
     <div className="bottom-left"><span className="dot" /> {replayMode ? "REPLAY DA FASE · PROGRESSO ORIGINAL PRESERVADO" : "CAMPANHA INDIVIDUAL · PROGRESSO SALVO"}</div>
 
     <div className="controls">
