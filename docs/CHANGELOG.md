@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.28 — Fase 05: Zona Costeira e replay das fases concluídas
+- Construído cenário 3D costeiro próprio com bacia hidrográfica, estuário, mar, praia, faixas de manguezal, centro costeiro, laboratório, píer e barco de pesca artesanal.
+- Missão costeira em etapas: investigar três trechos conectados da bacia, recolher quatro resíduos comuns seguros e identificados, separar papelão/plástico/vidro/metal nas cores de referência, registrar três pontos de restauração de manguezal, observar fauna à distância e registrar um ponto de monitoramento da água.
+- Objetos de resíduos da praia possuem modelos 3D distintos; recipientes exibem nome, categoria, exemplos e cores azul/vermelho/verde/amarelo conforme CONAMA 275/2001.
+- Caderno de Aprendizado reforça que limpar a praia não substitui o controle de fontes a montante, que a restauração do manguezal depende de espécies e hidrologia adequadas e que um registro visual não comprova qualidade ou segurança da água.
+- Progresso da Fase 05 incluído no snapshot e na persistência da campanha.
+- Fases 01 a 05 podem ser abertas no mapa interno; fases concluídas são revisitáveis com o estado salvo e têm botão de replay em sessão separada, sem sobrescrever o registro original.
+- Estúdio Master atualizado: fases 01 a 05 aparecem como cenários jogáveis; fases 06 a 10 continuam configuráveis, mas sem cenário 3D.
+
 ## 0.4.27 — Fase 04: balde exclusivo e coleta separada de orgânicos
 - O recipiente marrom de orgânicos passou a ser representado como balde exclusivo, com aviso de que não recebe recicláveis secos.
 - A sinalização explica que a compostagem pode ser doméstica/comunitária ou realizada por coleta dedicada, quando houver programa local; frequência e dias são definidos pelo prestador conforme geração e capacidade operacional.

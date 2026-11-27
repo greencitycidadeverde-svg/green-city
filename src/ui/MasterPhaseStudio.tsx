@@ -150,7 +150,7 @@ export default function MasterPhaseStudio({ initialPhase, onBack }: { initialPha
       <div className="campaign-eyebrow">ACESSO EXCLUSIVO · MASTER ADMIN</div>
       <h1>Configure a jornada das 10 regiões.</h1>
       <p>Edite o conteúdo pedagógico, os desafios, as missões, as profissões, a economia e as referências de cenário de cada fase. As alterações são salvas no banco de dados.</p>
-      <div className="master-studio-warning"><strong>Importante:</strong> aprovar o conteúdo não libera automaticamente um cenário 3D. As fases 01 a 03 já possuem ambientes jogáveis; as fases 04 a 10 continuam em construção e podem ser planejadas aqui.</div>
+      <div className="master-studio-warning"><strong>Importante:</strong> aprovar o conteúdo não libera automaticamente um cenário 3D. As fases 01 a 05 já possuem ambientes jogáveis; as fases 06 a 10 continuam em construção e podem ser planejadas aqui.</div>
     </section>
     <div className="master-studio-layout">
       <aside className="master-phase-picker">
@@ -160,14 +160,14 @@ export default function MasterPhaseStudio({ initialPhase, onBack }: { initialPha
           onClick={() => selectModule(item.phase_number)}>
           <span className="master-phase-icon">{PHASE_ICONS[item.phase_number - 1]}</span>
           <span className="master-phase-choice-copy"><b>FASE {String(item.phase_number).padStart(2,'0')} · {item.region_name}</b><small>{STATUS_LABELS[item.content_status]}</small></span>
-          <span className={'master-phase-dot ' + (item.phase_number <= 3 ? 'is-playable' : 'is-planning')} />
+          <span className={'master-phase-dot ' + (item.phase_number <= 5 ? 'is-playable' : 'is-planning')} />
         </button>)}
         <div className="master-phase-legend"><span><i className="playable" /> Cenário 3D jogável</span><span><i className="planning" /> Em construção</span></div>
       </aside>
       <section className="master-phase-editor">
         {loading ? <div className="master-editor-loading">Carregando os dez módulos...</div> : draft ? <>
           <div className="master-editor-heading">
-            <div><span>FASE {String(draft.phase_number).padStart(2,'0')} DE 10</span><h2>{draft.region_name}</h2><small>{draft.phase_number <= 3 ? 'CENÁRIO 3D JOGÁVEL · CONTEÚDO EM REVISÃO' : 'MÓDULO EM PLANEJAMENTO · SEM CENÁRIO 3D'}</small></div>
+            <div><span>FASE {String(draft.phase_number).padStart(2,'0')} DE 10</span><h2>{draft.region_name}</h2><small>{draft.phase_number <= 5 ? 'CENÁRIO 3D JOGÁVEL · CONTEÚDO EM REVISÃO' : 'MÓDULO EM PLANEJAMENTO · SEM CENÁRIO 3D'}</small></div>
             <label className="master-status-select"><span>SITUAÇÃO DO CONTEÚDO</span><select value={draft.content_status} onChange={(event) => updateStatus(event.target.value as ContentStatus)}>
               <option value="planning">Planejamento</option><option value="draft">Rascunho</option><option value="review">Em revisão</option><option value="approved">Conteúdo aprovado</option>
             </select></label>

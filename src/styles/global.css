@@ -1722,3 +1722,20 @@ button:focus-visible { outline: 2px solid var(--gc-green); outline-offset: 3px; 
   .learning-notice-card > p { font-size: 12px; }
   .learning-notice-step span { font-size: 11px; }
 }
+
+/* Fase 05 — identidade visual da Zona Costeira. */
+.minimap-coastal .map-road,
+.objective-map-board--coastal .objective-map-road {
+  background: rgba(183, 151, 104, 0.86);
+}
+.minimap-coastal .map-river,
+.objective-map-board--coastal .objective-map-river {
+  background: rgba(46, 153, 183, 0.92);
+}
+.objective-map-board--coastal {
+  background-color: #d3e5d9;
+  background-image:
+    radial-gradient(ellipse at 18% 20%, rgba(51, 119, 82, .62) 0 12%, transparent 13%),
+    radial-gradient(ellipse at 74% 38%, rgba(80, 143, 104, .5) 0 10%, transparent 11%),
+    linear-gradient(180deg, rgba(57, 156, 190, .22) 0 28%, transparent 29% 68%, rgba(25, 115, 161, .24) 69% 100%);
+}

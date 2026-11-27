@@ -1,7 +1,7 @@
 # GREEN CITY — Sequência de produção das Fases 03 a 10
 **Roteiro de campanha e ordem de implementação · versão 1.0 · 24/11/2026**
 
-Este documento organiza a construção progressiva das oito regiões restantes. A fase seguinte deve reutilizar o que o jogador aprendeu, acrescentando apenas o conjunto de conceitos necessário para aquele novo ambiente.
+Este documento organiza a construção das fases 03 a 10. Nesta entrega, os cinco primeiros cenários estão jogáveis; as fases 06 a 10 continuam no roteiro de produção. Cada nova região reutiliza o que o jogador aprendeu e acrescenta apenas os conceitos necessários para o novo ambiente.
 
 ## 1. Script comum a todas as fases
 
@@ -46,6 +46,7 @@ Toda missão deve ter começo, decisão, consequência visual e uma explicação
 **Ponte:** a água da bacia leva resíduos e impactos até a região costeira.
 
 ### Fase 05 — Zona Costeira
+**Status:** cenário 3D e missões integrados à versão 0.4.28; revisão visual e teste manual em navegador ainda pendentes.
 **Tema:** bacia hidrográfica, estuários, manguezais e vida marinha.
 
 - Seguir o caminho do córrego até o rio, estuário e oceano.

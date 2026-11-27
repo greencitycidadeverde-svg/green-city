@@ -45,6 +45,10 @@ const initial: GameSnapshot = {
   forestPackagingSorted: 0, forestPackagingTotal: 6, forestCooperativeDelivered: false,
   forestSeedlingsPlanted: 0, forestSeedlingsTotal: 3, forestSpringProtected: false, forestWildlifeRecorded: false,
   forestFirePreventionInspected: false,
+  coastalMissionStage: 'survey', coastalSitesInspected: 0, coastalSitesTotal: 3,
+  coastalWasteCollected: 0, coastalWasteTotal: 4, coastalWasteSorted: 0,
+  coastalMangrovesPlanted: 0, coastalMangrovesTotal: 3,
+  coastalWildlifeRecorded: 0, coastalWildlifeTotal: 2, coastalWaterMonitoringComplete: false,
   cit: 0,
   collected: 0,
   total: 5,
@@ -93,19 +97,22 @@ function Metric({ label, value }: { label: string; value: number }) {
 interface GameExperienceProps {
   userId: string;
   campaignId: string;
-  initialPhase: 1 | 2 | 3 | 4;
+  initialPhase: 1 | 2 | 3 | 4 | 5;
   savedProgress: Partial<GameProgressData>;
   isMaster: boolean;
+  replayMode: boolean;
   onConfigurePhase: (phase: number) => void;
+  onReplayPhase: (phase: 1 | 2 | 3 | 4 | 5) => void;
+  onOpenPhase: (phase: 1 | 2 | 3 | 4 | 5) => void;
   onExitToCampaign: () => void;
 }
 
-export default function GameExperience({ userId, campaignId, initialPhase, savedProgress, isMaster, onConfigurePhase, onExitToCampaign }: GameExperienceProps) {
+export default function GameExperience({ userId, campaignId, initialPhase, savedProgress, isMaster, replayMode, onConfigurePhase, onReplayPhase, onOpenPhase, onExitToCampaign }: GameExperienceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GreenCityGame | null>(null);
   const [state, setState] = useState(initial);
   const developerMode = isMaster;
-  const [startingPhase, setStartingPhase] = useState<1 | 2 | 3 | 4>(initialPhase);
+  const [startingPhase, setStartingPhase] = useState<1 | 2 | 3 | 4 | 5>(initialPhase);
   const [completedPhaseMarks, setCompletedPhaseMarks] = useState<number[]>(() => {
     try {
       const stored = window.localStorage.getItem(DEVELOPER_PHASE_STORAGE_KEY);
@@ -129,6 +136,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   const [portCompleteSeen, setPortCompleteSeen] = useState(false);
   const [peripheryCompleteSeen, setPeripheryCompleteSeen] = useState(false);
   const [forestCompleteSeen, setForestCompleteSeen] = useState(false);
+  const [coastalCompleteSeen, setCoastalCompleteSeen] = useState(false);
   const [phaseCompleteOpen, setPhaseCompleteOpen] = useState(false);
   const phaseCompleteTriggeredRef = useRef(false);
 
@@ -147,7 +155,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     });
   };
 
-  const startGameAtPhase = (phase: 1 | 2 | 3 | 4) => {
+  const startGameAtPhase = (phase: 1 | 2 | 3 | 4 | 5) => {
     setStartingPhase(phase);
     setGameReady(false);
     setGameError(null);
@@ -165,20 +173,23 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   const portCompleteTriggeredRef = useRef(false);
   const peripheryCompleteTriggeredRef = useRef(false);
   const forestCompleteTriggeredRef = useRef(false);
+  const coastalCompleteTriggeredRef = useRef(false);
 
   const isHydratingRef = useRef(true);
   const lastPersistedSnapshotRef = useRef('');
   const pendingSaveRef = useRef<Promise<void>>(Promise.resolve());
   const persistSnapshot = (snapshot: GameSnapshot) => {
     const client = supabase;
-    if (isHydratingRef.current || !client || !userId || !campaignId) return;
+    if (replayMode || isHydratingRef.current || !client || !userId || !campaignId) return;
     const complete = snapshot.phase === 1
       ? snapshot.missionStage === 'complete'
       : snapshot.phase === 2
         ? snapshot.portMissionStage === 'complete'
         : snapshot.phase === 3
           ? snapshot.peripheryMissionStage === 'complete'
-          : snapshot.forestMissionStage === 'complete';
+          : snapshot.phase === 4
+            ? snapshot.forestMissionStage === 'complete'
+            : snapshot.coastalMissionStage === 'complete';
     const percent = snapshot.phase === 1
       ? complete ? 100 : snapshot.missionStage === 'collect'
         ? Math.round(snapshot.collected / snapshot.total * 30)
@@ -205,17 +216,27 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                   : snapshot.peripheryMissionStage === 'sanitation'
                     ? 65 + Math.round(snapshot.communitySewerConnections / snapshot.communitySewerTotal * 25)
                     : 95
-          : complete ? 100 : snapshot.forestMissionStage === 'survey'
-            ? Math.round(snapshot.forestHabitatsInspected / snapshot.forestHabitatsTotal * 15)
-            : snapshot.forestMissionStage === 'harvest'
-              ? 15 + Math.round(snapshot.forestProduceHarvested / snapshot.forestProduceTotal * 20)
-              : snapshot.forestMissionStage === 'transport' ? 40
-                : snapshot.forestMissionStage === 'process' ? 48
-                  : snapshot.forestMissionStage === 'market' ? 56
-                    : snapshot.forestMissionStage === 'sorting'
-                      ? 60 + Math.round(snapshot.forestPackagingSorted / snapshot.forestPackagingTotal * 15)
-                      : snapshot.forestMissionStage === 'cooperative' ? 78
-                        : Math.min(99, 80 + snapshot.forestSeedlingsPlanted * 4 + (snapshot.forestSpringProtected ? 7 : 0) + (snapshot.forestWildlifeRecorded ? 5 : 0) + (snapshot.forestFirePreventionInspected ? 3 : 0));
+          : snapshot.phase === 4
+            ? complete ? 100 : snapshot.forestMissionStage === 'survey'
+              ? Math.round(snapshot.forestHabitatsInspected / snapshot.forestHabitatsTotal * 15)
+              : snapshot.forestMissionStage === 'harvest'
+                ? 15 + Math.round(snapshot.forestProduceHarvested / snapshot.forestProduceTotal * 20)
+                : snapshot.forestMissionStage === 'transport' ? 40
+                  : snapshot.forestMissionStage === 'process' ? 48
+                    : snapshot.forestMissionStage === 'market' ? 56
+                      : snapshot.forestMissionStage === 'sorting'
+                        ? 60 + Math.round(snapshot.forestPackagingSorted / snapshot.forestPackagingTotal * 15)
+                        : snapshot.forestMissionStage === 'cooperative' ? 78
+                          : Math.min(99, 80 + snapshot.forestSeedlingsPlanted * 4 + (snapshot.forestSpringProtected ? 7 : 0) + (snapshot.forestWildlifeRecorded ? 5 : 0) + (snapshot.forestFirePreventionInspected ? 3 : 0))
+            : complete ? 100 : snapshot.coastalMissionStage === 'survey'
+              ? Math.round(snapshot.coastalSitesInspected / snapshot.coastalSitesTotal * 15)
+              : snapshot.coastalMissionStage === 'cleanup'
+                ? 15 + Math.round(snapshot.coastalWasteCollected / snapshot.coastalWasteTotal * 20)
+                : snapshot.coastalMissionStage === 'sorting'
+                  ? 35 + Math.round(snapshot.coastalWasteSorted / snapshot.coastalWasteTotal * 20)
+                  : snapshot.coastalMissionStage === 'restore'
+                    ? 55 + Math.round(snapshot.coastalMangrovesPlanted / snapshot.coastalMangrovesTotal * 25)
+                    : Math.min(99, 80 + Math.round(snapshot.coastalWildlifeRecorded / snapshot.coastalWildlifeTotal * 15) + (snapshot.coastalWaterMonitoringComplete ? 5 : 0));
     const signature = JSON.stringify([snapshot.phase, snapshot.progressData, percent]);
     if (lastPersistedSnapshotRef.current === signature) return;
     lastPersistedSnapshotRef.current = signature;
@@ -282,15 +303,25 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                   reflection: 'Por que cascas e restos de alimentos vão para a composteira, enquanto embalagens de plástico, metal e vidro seguem para a coleta seletiva? Por que o composto precisa amadurecer antes de ir aos canteiros?',
                 },
               }
-            : {
-                title: 'Relatório de Aprendizado — Reserva Florestal',
-                content: {
-                  problem: 'Fragmentação de habitats, necessidade de restauração e impactos ambientais ao longo da cadeia de produção e consumo de alimentos.',
-                  solution: 'Diagnóstico da biodiversidade, apoio à agricultura familiar, transporte da produção, processamento e embalagem, comercialização, separação pós-consumo, entrega de recicláveis à cooperativa, compostagem dos orgânicos, proteção da nascente e plantio de mudas nativas.',
-                  result: 'O cenário demonstrou como produção, logística, indústria, comércio, consumo e conservação se conectam. A cooperativa prepara os recicláveis para encaminhamento; a transformação industrial será aprofundada na Fase 08.',
-                  reflection: 'Por que os resíduos recicláveis e orgânicos precisam de rotas diferentes, e como a produção de alimentos pode conviver com a conservação da floresta?',
-                },
-              };
+            : snapshot.phase === 4
+              ? {
+                  title: 'Relatório de Aprendizado — Reserva Florestal',
+                  content: {
+                    problem: 'Fragmentação de habitats, necessidade de restauração e impactos ambientais ao longo da cadeia de produção e consumo de alimentos.',
+                    solution: 'Diagnóstico da biodiversidade, apoio à agricultura familiar, transporte da produção, processamento e embalagem, comercialização, separação pós-consumo, entrega de recicláveis à cooperativa, compostagem dos orgânicos, proteção da nascente e plantio de mudas nativas.',
+                    result: 'O cenário demonstrou como produção, logística, indústria, comércio, consumo e conservação se conectam. A cooperativa prepara os recicláveis para encaminhamento; a transformação industrial será aprofundada na Fase 08.',
+                    reflection: 'Por que os resíduos recicláveis e orgânicos precisam de rotas diferentes, e como a produção de alimentos pode conviver com a conservação da floresta?',
+                  },
+                }
+              : {
+                  title: 'Relatório de Aprendizado — Zona Costeira',
+                  content: {
+                    problem: 'Resíduos e sedimentos podem percorrer a bacia hidrográfica até o estuário e o mar; manguezais e a fauna costeira dependem de habitats preservados e de monitoramento.',
+                    solution: 'Investigação de trechos a montante, no estuário e no manguezal; coleta de quatro resíduos comuns seguros na praia; separação por material e cor; registro dos pontos de plantio orientados do manguezal; observação da fauna e monitoramento educativo da água.',
+                    result: 'No cenário foram investigados ' + snapshot.coastalSitesInspected + ' de ' + snapshot.coastalSitesTotal + ' trechos, recolhidos ' + snapshot.coastalWasteCollected + ' objetos, separados ' + snapshot.coastalWasteSorted + ' materiais, registrados ' + snapshot.coastalMangrovesPlanted + ' pontos de plantio e ' + snapshot.coastalWildlifeRecorded + ' observações de fauna. O ponto de água é apenas um registro educativo: não representa análise laboratorial nem atesta segurança.',
+                    reflection: 'Por que retirar resíduos da praia não substitui o controle das fontes de poluição ao longo da bacia? Como as marés e a hidrologia influenciam o manguezal?',
+                  },
+                };
         const { data: existing, error: queryError } = await client.from('learning_journal')
           .select('id').eq('campaign_id', campaignId).eq('phase_number', snapshot.phase)
           .eq('entry_type', 'learning_report').limit(1);
@@ -350,12 +381,21 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
               setPhaseCompleteOpen(true);
             }
           }
+          if (snapshot.phase === 5 && snapshot.coastalMissionStage === 'complete') {
+            setDeveloperPhaseMark(5, true);
+            if (!coastalCompleteTriggeredRef.current) {
+              coastalCompleteTriggeredRef.current = true;
+              setPhaseCompleteOpen(true);
+            }
+          }
         });
         gameRef.current = game;
         if (startingPhase === 2) game.enterPortPhase(true);
         if (startingPhase === 3) game.enterPeripheryPhase(true);
         if (startingPhase === 4) game.enterForestPhase(true);
-        game.restoreProgress(savedProgress);
+        if (startingPhase === 5) game.enterCoastalPhase(true);
+        // Ao trocar de fase pelo painel de testes Master, não restaurar dados da fase anterior.
+        game.restoreProgress(startingPhase === initialPhase ? savedProgress : {});
         isHydratingRef.current = false;
         setGameReady(true);
       })
@@ -370,7 +410,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       game?.dispose();
       gameRef.current = null;
     };
-  }, [playRequested, startingPhase, savedProgress]);
+  }, [playRequested, startingPhase, savedProgress, replayMode]);
 
   const handleReturnToCampaign = async () => {
     const snapshot = gameRef.current?.getSnapshot();
@@ -379,8 +419,22 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     onExitToCampaign();
   };
 
+  const handleOpenPhase = async (phase: 1 | 2 | 3 | 4 | 5) => {
+    const snapshot = gameRef.current?.getSnapshot();
+    if (snapshot) persistSnapshot(snapshot);
+    await pendingSaveRef.current;
+    onOpenPhase(phase);
+  };
+
+  const handleReplayPhase = async (phase: 1 | 2 | 3 | 4 | 5) => {
+    const snapshot = gameRef.current?.getSnapshot();
+    if (snapshot) persistSnapshot(snapshot);
+    await pendingSaveRef.current;
+    onReplayPhase(phase);
+  };
+
   const openMasterPhaseConfig = async (phase: number) => {
-    if (!isMaster || phase <= 3 || phase > 10) return;
+    if (!isMaster || phase <= 5 || phase > 10) return;
     await handleReturnToCampaign();
     onConfigurePhase(phase);
   };
@@ -442,7 +496,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                   : state.forestMissionStage === 'market' ? 56
                     : state.forestMissionStage === 'sorting' ? 60 + Math.round(state.forestPackagingSorted / state.forestPackagingTotal * 15)
                       : state.forestMissionStage === 'cooperative' ? 78
-                        : Math.min(99, 77 + state.forestSeedlingsPlanted * 4 + (state.forestSpringProtected ? 7 : 0) + (state.forestWildlifeRecorded ? 5 : 0) + (state.forestFirePreventionInspected ? 3 : 0));
+                        : state.phase === 4
+                          ? Math.min(99, 77 + state.forestSeedlingsPlanted * 4 + (state.forestSpringProtected ? 7 : 0) + (state.forestWildlifeRecorded ? 5 : 0) + (state.forestFirePreventionInspected ? 3 : 0))
+                          : state.coastalMissionStage === 'complete' ? 100
+                            : state.coastalMissionStage === 'survey' ? Math.round(state.coastalSitesInspected / state.coastalSitesTotal * 15)
+                              : state.coastalMissionStage === 'cleanup' ? 15 + Math.round(state.coastalWasteCollected / state.coastalWasteTotal * 20)
+                                : state.coastalMissionStage === 'sorting' ? 35 + Math.round(state.coastalWasteSorted / state.coastalWasteTotal * 20)
+                                  : state.coastalMissionStage === 'restore' ? 55 + Math.round(state.coastalMangrovesPlanted / state.coastalMangrovesTotal * 25)
+                                    : Math.min(99, 80 + Math.round(state.coastalWildlifeRecorded / state.coastalWildlifeTotal * 15) + (state.coastalWaterMonitoringComplete ? 5 : 0));
 
   const phaseOneMission = {
     collect: { eyebrow: 'FASE 01 · DIAGNÓSTICO E COLETA', title: 'Comece a recuperar o bairro', description: 'Recolha os resíduos espalhados. Depois, leve a carga ao EcoCentro para encaminhamento correto.', progress: `${state.collected}/${state.total} resíduos` },
@@ -485,7 +546,17 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     complete: { eyebrow: 'FASE 04 · RESERVA FLORESTAL', title: 'A floresta e a comunidade estão conectadas', description: 'Você investigou habitats, acompanhou a agricultura familiar, transporte, indústria, mercado, destinação de resíduos e ações de restauração da reserva.', progress: 'Fase concluída' },
   }[state.forestMissionStage];
 
-  const mission = state.phase === 1 ? phaseOneMission : state.phase === 2 ? portMission : state.phase === 3 ? peripheryMission : forestMission;
+
+  const coastalMission = {
+    survey: { eyebrow: 'FASE 05 · BACIA E ESTUÁRIO', title: 'Siga o caminho da água até o mar', description: 'Investigue os três marcos: trecho a montante, estuário influenciado pelas marés e margem do manguezal. O que acontece longe da praia também pode chegar à costa.', progress: state.coastalSitesInspected + '/' + state.coastalSitesTotal + ' trechos investigados' },
+    cleanup: { eyebrow: 'FASE 05 · RESÍDUOS NA PRAIA', title: 'Recolha apenas materiais comuns e seguros', description: 'Encontre quatro objetos identificados: caixa de papelão limpa, garrafa PET, garrafa de vidro inteira e lata de alumínio vazia. Não toque em cacos, óleo, animais ou materiais desconhecidos.', progress: state.coastalWasteCollected + '/' + state.coastalWasteTotal + ' objetos recolhidos' },
+    sorting: { eyebrow: 'FASE 05 · COLETA SELETIVA COSTEIRA', title: 'Separe cada material pela categoria correta', description: 'Papel/papelão limpo (AZUL), plástico (VERMELHO), vidro de embalagem inteiro (VERDE) e metal (AMARELO). As cores seguem o padrão nacional, mas confira também o nome e o exemplo de cada recipiente.', progress: state.coastalWasteSorted + '/' + state.coastalWasteTotal + ' materiais separados' },
+    restore: { eyebrow: 'FASE 05 · RESTAURAÇÃO DE MANGUEZAL', title: 'Plante apenas nos pontos planejados', description: 'Registre três pontos de plantio previamente demarcados. Na vida real, espécies, faixa de maré, hidrologia e solo precisam ser avaliados com especialistas e comunidades; plantar mudas sem restaurar essas condições não recupera o ecossistema.', progress: state.coastalMangrovesPlanted + '/' + state.coastalMangrovesTotal + ' pontos de plantio realizados' },
+    monitor: { eyebrow: 'FASE 05 · MONITORAMENTO COSTEIRO', title: 'Observe a fauna e registre a água', description: 'Use os postos de observação sem tocar, capturar ou alimentar animais. Registre o ponto de monitoramento da água: amostras reais e análises precisam ser realizadas por equipes capacitadas. Água aparentemente limpa não comprova segurança.', progress: state.coastalWildlifeRecorded + '/' + state.coastalWildlifeTotal + ' observações · ' + (state.coastalWaterMonitoringComplete ? 'ponto de água registrado' : 'ponto de água pendente') },
+    complete: { eyebrow: 'FASE 05 · ZONA COSTEIRA', title: 'A costa está mais bem compreendida e protegida', description: 'Você conectou a bacia, o estuário, o manguezal, a praia, a separação de resíduos e o monitoramento da biodiversidade.', progress: 'Fase concluída' },
+  }[state.coastalMissionStage];
+
+  const mission = state.phase === 1 ? phaseOneMission : state.phase === 2 ? portMission : state.phase === 3 ? peripheryMission : state.phase === 4 ? forestMission : coastalMission;
   const interactionLabel = state.nearbyLabel.replace(/^([EF]) · /, 'TOQUE · ');
   const mobileActionLabel = state.nearbyAction === 'enter-vehicle' ? 'ENTRAR'
     : state.nearbyAction === 'exit-vehicle' ? 'SAIR'
@@ -508,7 +579,13 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                                   : state.nearbyAction === 'plant-native-seedling' ? 'PLANTAR'
                                     : state.nearbyAction === 'protect-forest-spring' ? 'PROTEGER'
                                       : state.nearbyAction === 'record-forest-wildlife' ? 'REGISTRAR'
-                                        : state.nearbyAction === 'inspect-forest-fire-prevention' ? 'CONFERIR' : 'AÇÃO';
+                                        : state.nearbyAction === 'inspect-forest-fire-prevention' ? 'CONFERIR'
+                                        : state.nearbyAction === 'inspect-coastal-site' ? 'INVESTIGAR'
+                                          : state.nearbyAction === 'collect-coastal-waste' ? 'RECOLHER'
+                                            : state.nearbyAction === 'sort-coastal-waste' ? 'SEPARAR'
+                                              : state.nearbyAction === 'plant-coastal-mangrove' ? 'PLANTAR'
+                                                : state.nearbyAction === 'record-coastal-wildlife' ? 'OBSERVAR'
+                                                  : state.nearbyAction === 'sample-coastal-water' ? 'REGISTRAR' : 'AÇÃO';
 
   return <main className="game-shell">
     <canvas ref={canvasRef} className="game-canvas" tabIndex={0} aria-label="Mundo 3D jogável de GREEN CITY" />
@@ -581,13 +658,13 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
       </div>
     </div>}
 
-    <div className="vehicle-status">{state.phase === 4 ? (state.forestTruckLoaded && !state.forestMarketStocked ? 'LOGÍSTICA RURAL · CAMINHÃO DE PRODUÇÃO' : 'RESERVA FLORESTAL · EXPLORAÇÃO A PÉ') : state.phase === 3 ? 'PERIFERIA VERDE · EXPLORAÇÃO A PÉ' : state.phase === 2
+    <div className="vehicle-status">{state.phase === 5 ? 'ZONA COSTEIRA · EXPLORAÇÃO A PÉ' : state.phase === 4 ? (state.forestTruckLoaded && !state.forestMarketStocked ? 'LOGÍSTICA RURAL · CAMINHÃO DE PRODUÇÃO' : 'RESERVA FLORESTAL · EXPLORAÇÃO A PÉ') : state.phase === 3 ? 'PERIFERIA VERDE · EXPLORAÇÃO A PÉ' : state.phase === 2
       ? state.inVehicle
         ? state.portMissionStage === 'deliver' ? `CAMINHÃO · DESTINO: COOPERATIVA · ${state.vehicleSpeed} KM/H` : `CAMINHÃO DE COLETA · ${state.vehicleSpeed} KM/H`
         : state.portMissionStage === 'deliver' ? 'CARGA A BORDO · RETORNE AO CAMINHÃO' : 'CAMINHÃO DE COLETA · APROXIME-SE PARA ENTRAR'
       : state.inVehicle ? `${state.electricVehicle ? 'ELÉTRICO' : 'DIESEL'} · ${state.vehicleSpeed} KM/H` : state.electricVehicle ? 'VEÍCULO MUNICIPAL ELÉTRICO' : 'VEÍCULO MUNICIPAL A DIESEL'}</div>
 
-    <div className={"minimap " + (state.phase === 2 ? "minimap-port" : state.phase === 3 ? "minimap-periphery" : state.phase === 4 ? "minimap-forest" : "minimap-city")} aria-label="Minimapa com os objetivos da etapa atual">
+    <div className={"minimap " + (state.phase === 2 ? "minimap-port" : state.phase === 3 ? "minimap-periphery" : state.phase === 4 ? "minimap-forest" : state.phase === 5 ? "minimap-coastal" : "minimap-city")} aria-label="Minimapa com os objetivos da etapa atual">
       <div className="map-road map-road-v" />
       <div className="map-road map-road-h" />
       <div className="map-river" />
@@ -604,7 +681,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         }}
         title={objective.label + (objective.status === 'done' ? " · concluído" : objective.status === 'next' ? " · próximo objetivo" : " · objetivo da etapa")}
       >{objective.status === 'done' ? '✓' : index + 1}</span>)}
-      {state.phase !== 4 && <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"}
+      {state.phase < 4 && <span className={state.electricVehicle ? "map-vehicle map-vehicle-electric" : "map-vehicle"}
         style={{ left: Math.max(8, Math.min(92, 50 + state.vehicleX * 0.75)) + "%", top: Math.max(8, Math.min(92, 50 + state.vehicleZ * 0.75)) + "%" }}
         title={state.phase === 2 ? "Caminhão de coleta · posição atual" : "Veículo municipal · posição atual"} />}
       <span className="map-player" style={{ left: Math.max(8, Math.min(92, 50 + state.playerX * 0.75)) + "%", top: Math.max(8, Math.min(92, 50 + state.playerZ * 0.75)) + "%" }} />
@@ -616,7 +693,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
 
     <button className="plan-button" onClick={() => setShowPlan(true)}>PLANO URBANO</button>
     <button className="map-button" onClick={() => { setMapTab('objectives'); gameRef.current?.setMapOpen(!state.mapOpen); }}>M · MAPA DE OBJETIVOS</button>
-    <div className="bottom-left"><span className="dot" /> CAMPANHA INDIVIDUAL · PROGRESSO SALVO</div>
+    <div className="bottom-left"><span className="dot" /> {replayMode ? "REPLAY DA FASE · PROGRESSO ORIGINAL PRESERVADO" : "CAMPANHA INDIVIDUAL · PROGRESSO SALVO"}</div>
 
     <div className="controls">
       <span><b>WASD</b> mover · mouse arrastado gira câmera</span>
@@ -668,14 +745,14 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <div>
               <div className="eyebrow">ACESSO LOCAL · MODO DE DESENVOLVIMENTO</div>
               <h3>Painel de testes da campanha</h3>
-              <p>Teste as quatro regiões que já possuem cenário 3D e abra o configurador pedagógico das seis fases seguintes.</p>
+              <p>Teste as cinco regiões que já possuem cenário 3D e abra o configurador pedagógico das cinco fases seguintes.</p>
             </div>
             <span className="dev-mode-tag">TESTE</span>
           </div>
           <div className="dev-console-grid">
             {CITY_NEIGHBORHOODS.map((neighborhood, index) => {
               const phase = index + 1;
-              const implemented = phase <= 4;
+              const implemented = phase <= 5;
               const completed = completedPhaseMarks.includes(phase);
               return <article className="dev-phase-card" key={neighborhood.id}>
                 <div className="dev-phase-meta">
@@ -686,7 +763,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 </div>
                 <h4>{neighborhood.name}</h4>
                 {implemented ? <div className="dev-phase-actions">
-                  <button type="button" onClick={() => startGameAtPhase(phase as 1 | 2 | 3 | 4)}>ABRIR FASE {String(phase).padStart(2, '0')}</button>
+                  <button type="button" onClick={() => startGameAtPhase(phase as 1 | 2 | 3 | 4 | 5)}>ABRIR FASE {String(phase).padStart(2, '0')}</button>
                   <label><input type="checkbox" checked={completed} onChange={(event) => setDeveloperPhaseMark(phase, event.currentTarget.checked)} /> Marcar como validada</label>
                 </div> : <div className="dev-phase-actions">
                   <button type="button" onClick={() => void openMasterPhaseConfig(phase)}>CONFIGURAR MÓDULO</button>
@@ -711,7 +788,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <h2>{mission.title}</h2>
         <p>Os pontos da etapa estão marcados no mapa. O amarelo indica o próximo destino; os demais pontos mostram o que já foi feito e o que ainda falta. Você continua responsável por investigar e decidir a solução ambiental.</p>
         <div className="objective-map-layout">
-          <div className={"objective-map-board " + (state.phase === 2 ? "objective-map-board--port" : state.phase === 3 ? "objective-map-board--periphery" : state.phase === 4 ? "objective-map-board--forest" : "objective-map-board--city")}>
+          <div className={"objective-map-board " + (state.phase === 2 ? "objective-map-board--port" : state.phase === 3 ? "objective-map-board--periphery" : state.phase === 4 ? "objective-map-board--forest" : state.phase === 5 ? "objective-map-board--coastal" : "objective-map-board--city")}>
             <div className="objective-map-river" />
             <div className="objective-map-road objective-map-road-one" />
             <div className="objective-map-road objective-map-road-two" />
@@ -763,29 +840,29 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
               const completed = index < state.completedNeighborhoods;
               const current = !completed && index === state.phase - 1;
               const available = !completed && !current && index === state.completedNeighborhoods;
+              const canReplayCompleted = completed && index < 5;
               const canEnterPort = (available && index === 1 && state.phase === 1) || (isMaster && index === 1 && state.phase !== 2);
               const canEnterPeriphery = (available && index === 2 && state.phase === 2 && state.portMissionStage === 'complete') || (isMaster && index === 2 && state.phase !== 3);
               const canEnterForest = (available && index === 3 && state.phase === 3 && state.peripheryMissionStage === 'complete') || (isMaster && index === 3 && state.phase !== 4);
+              const canEnterCoastal = (available && index === 4 && state.phase === 4 && state.forestMissionStage === 'complete') || (isMaster && index === 4 && state.phase !== 5);
               const canMasterTest = isMaster && index === 0 && state.phase !== 1;
-              const canConfigure = isMaster && index >= 4;
-              const status = canConfigure ? 'CONFIGURAR MÓDULO' : completed ? 'RECUPERADO' : current ? 'FASE ATIVA' : isMaster && (canEnterPort || canEnterPeriphery || canEnterForest || canMasterTest) ? 'TESTE MASTER' : available ? 'LIBERADO' : 'BLOQUEADO';
-              const masterAccessible = canEnterPort || canEnterPeriphery || canEnterForest || canMasterTest || canConfigure;
+              const canConfigure = isMaster && index >= 5;
+              const masterAccessible = canEnterPort || canEnterPeriphery || canEnterForest || canEnterCoastal || canMasterTest || canConfigure;
+              const status = canConfigure ? 'CONFIGURAR MÓDULO' : completed ? 'RECUPERADO · REVER' : current ? 'FASE ATIVA' : isMaster && masterAccessible ? 'TESTE MASTER' : available ? 'LIBERADO' : 'BLOQUEADO';
+              const canOpen = canReplayCompleted || canEnterPort || canEnterPeriphery || canEnterForest || canEnterCoastal || canMasterTest;
               return <button type="button"
-                className={"district-card " + (completed ? "district-complete " : "") + (current ? "district-current " : "") + ((available || masterAccessible) ? "district-available " : "") + (!completed && !current && !available && !masterAccessible ? "district-locked" : "")}
-                key={neighborhood.id} disabled={!masterAccessible && !canEnterPort && !canEnterPeriphery && !canEnterForest}
+                className={"district-card " + (completed ? "district-complete " : "") + (current ? "district-current " : "") + ((available || masterAccessible || canReplayCompleted) ? "district-available " : "") + (!completed && !current && !available && !masterAccessible ? "district-locked" : "")}
+                key={neighborhood.id} disabled={!canOpen && !canConfigure}
                 onClick={() => {
                   if (canConfigure) void openMasterPhaseConfig(index + 1);
-                  else if (canMasterTest) startGameAtPhase(1);
-                  else if (canEnterPort) startGameAtPhase(2);
-                  else if (canEnterPeriphery) startGameAtPhase(3);
-                  else if (canEnterForest) startGameAtPhase(4);
+                  else if (canOpen) void handleOpenPhase((index + 1) as 1 | 2 | 3 | 4 | 5);
                 }}>
                 <div className="district-card-top"><span>FASE {String(index + 1).padStart(2, '0')}</span><b>{status}</b></div>
                 <div className="district-map-icon">{completed ? '✓' : neighborhood.icon}</div>
                 <h3>{neighborhood.name}</h3>
                 <div className="district-theme">{neighborhood.theme}</div>
                 <p>{neighborhood.challenge}</p>
-                <small>{canConfigure ? 'Abrir configuração pedagógica no Estúdio Master · cenário 3D em construção' : masterAccessible && isMaster ? 'Acesso livre para testes da conta Master' : completed ? 'Região concluída e marcada no mapa' : current ? 'Você está nesta região' : canEnterPort ? 'Clique para entrar na Fase 02' : canEnterPeriphery ? 'Clique para entrar na Fase 03' : canEnterForest ? 'Clique para entrar na Fase 04' : available ? 'Próxima região liberada · expansão seguinte' : neighborhood.unlockLabel}</small>
+                <small>{canConfigure ? 'Abrir configuração pedagógica no Estúdio Master · cenário 3D em construção' : completed ? 'Clique para visualizar o progresso salvo ou iniciar uma nova partida' : current ? 'Você está nesta região' : canEnterPort ? 'Clique para entrar na Fase 02' : canEnterPeriphery ? 'Clique para entrar na Fase 03' : canEnterForest ? 'Clique para entrar na Fase 04' : canEnterCoastal ? 'Clique para entrar na Fase 05' : available ? 'Próxima região liberada' : neighborhood.unlockLabel}</small>
               </button>;
             })}
           </div>
@@ -793,7 +870,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="city-map-footer">
           <span><i className="legend-dot active" /> Fase atual</span><span><i className="legend-dot available" /> Liberado</span><span><i className="legend-dot locked" /> Bloqueado</span>
         </div>
-        <p className="map-disclaimer">O mapa é uma representação fictícia da cidade. Nesta versão, Centro Industrial, Porto, Periferia Verde e Reserva Florestal possuem cenários 3D jogáveis; as outras seis regiões permanecem em desenvolvimento.</p>
+        <p className="map-disclaimer">O mapa é uma representação fictícia da cidade. Nesta versão, Centro Industrial, Porto, Periferia Verde, Reserva Florestal e Zona Costeira possuem cenários 3D jogáveis. As fases 06 a 10 permanecem em desenvolvimento.</p>
       </section>}
     </div>}
 
@@ -829,6 +906,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que uma garrafa plástica não deve ser jogada junto com restos de comida e folhas?</span></div>
         <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 02</small><b>Porto: água, saneamento e responsabilidade das empresas.</b><span>Agora vamos aprender que efluentes e resíduos precisam de tratamentos diferentes.</span></div>
         <button className="learning-back-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
+        <button className="learning-back-button" onClick={() => void handleReplayPhase(1)}>JOGAR NOVAMENTE · PRESERVAR PROGRESSO</button>
         <button className="start-game-button" onClick={() => { setPhaseCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
       </section>
     </div>}
@@ -870,6 +948,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que o esgoto de um banheiro e a água usada em uma fábrica não devem receber automaticamente o mesmo tratamento?</span></div>
         <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 03</small><b>Periferia Verde: coleta comunitária, compostagem, saneamento e drenagem.</b><span>Vamos passar das soluções básicas para entender como os bairros inteiros podem trabalhar juntos.</span></div>
         <button className="learning-back-button" onClick={() => { setPortCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
+        <button className="learning-back-button" onClick={() => void handleReplayPhase(2)}>JOGAR NOVAMENTE · PRESERVAR PROGRESSO</button>
         <button className="start-game-button" onClick={() => { setPortCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER PRÓXIMA REGIÃO <span>→</span></button>
       </section>
     </div>}
@@ -893,6 +972,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que a água da chuva que escorre pelas ruas não deve ser misturada com o esgoto dos banheiros?</span></div>
         <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 04</small><b>Reserva Florestal: biodiversidade, habitats e corredores ecológicos.</b><span>Agora vamos compreender como plantas, animais e ambientes naturais dependem uns dos outros.</span></div>
         <button className="learning-back-button" onClick={() => { setPeripheryCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
+        <button className="learning-back-button" onClick={() => void handleReplayPhase(3)}>JOGAR NOVAMENTE · PRESERVAR PROGRESSO</button>
         <button className="start-game-button" onClick={() => { setPeripheryCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
       </section>
     </div>}
@@ -916,15 +996,39 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que embalagens recicláveis e restos de alimentos precisam ser separados, e como a cadeia de produção pode proteger a floresta?</span></div>
         <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 05</small><b>Zona Costeira: rios, manguezais e oceanos.</b><span>Vamos conectar o cuidado com a floresta à proteção das águas e dos ambientes costeiros.</span></div>
         <button className="learning-back-button" onClick={() => { setForestCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
+        <button className="learning-back-button" onClick={() => void handleReplayPhase(4)}>JOGAR NOVAMENTE · PRESERVAR PROGRESSO</button>
         <button className="start-game-button" onClick={() => { setForestCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>AVANÇAR · VER MAPA DA CIDADE <span>→</span></button>
+      </section>
+    </div>}
+
+
+    {state.phase === 5 && state.coastalMissionStage === 'complete' && phaseCompleteOpen && !coastalCompleteSeen && <div className="phase-complete-overlay">
+      <section className="phase-complete-panel learning-report">
+        <div className="completion-medal">✓</div>
+        <div className="eyebrow">CADERNO DE APRENDIZADO · FASE 05 DE 10</div>
+        <h2>A Zona Costeira está mais bem protegida!</h2>
+        <p>Você acompanhou a água desde a bacia até o mar, separou resíduos da praia, participou do plantio orientado de manguezal e registrou observações ambientais.</p>
+        <div className="completion-stats"><span>3 trechos investigados</span><span>4 materiais recolhidos e separados</span><span>3 pontos de plantio registrados</span><span>2 observações de fauna</span><span>1 ponto de monitoramento da água</span></div>
+        <div className="learning-report-grid">
+          <article className="learning-report-card"><small>BACIA HIDROGRÁFICA</small><h3>O rio conecta o território ao oceano</h3><p>A água escoa por uma área de contribuição. Sedimentos e poluentes podem vir de áreas distantes, por isso proteger a praia também exige prevenção e controle das fontes a montante.</p></article>
+          <article className="learning-report-card"><small>ESTUÁRIO</small><h3>Um ambiente de transição</h3><p>O estuário recebe água doce e sofre influência das marés. Salinidade, sedimentos e condições do habitat variam no espaço e no tempo.</p></article>
+          <article className="learning-report-card"><small>MANGUEZAL</small><h3>Habitat e proteção costeira</h3><p>Manguezais oferecem abrigo, áreas de alimentação e reprodução para muitas espécies. Suas raízes e vegetação ajudam a estabilizar margens; a restauração precisa respeitar espécies nativas, marés e hidrologia local.</p></article>
+          <article className="learning-report-card"><small>RESÍDUOS NA PRAIA</small><h3>Separar cada material</h3><p>Papel/papelão (azul), plástico (vermelho), vidro de embalagem inteiro (verde) e metal (amarelo) foram separados em recipientes identificados. A triagem organiza materiais para transporte e beneficiamento; não significa reciclagem instantânea.</p></article>
+          <article className="learning-report-card learning-report-card--result"><small>MONITORAMENTO</small><h3>Aparência não comprova qualidade</h3><p>O ponto registrado no jogo é educativo. A segurança da água depende de amostragem, análises laboratoriais e monitoramento feito por profissionais; um único ponto não representa toda a bacia.</p></article>
+        </div>
+        <div className="learning-question"><b>DESAFIO PARA PENSAR</b><span>Por que recolher resíduos da praia não substitui o controle da poluição ao longo do rio e da bacia hidrográfica?</span></div>
+        <div className="learning-next"><small>PRÓXIMA ETAPA · FASE 06</small><b>Cinturão Agrícola: solo, água e produção sustentável.</b><span>Agora vamos observar como as escolhas de produção e manejo do solo também influenciam rios e biodiversidade.</span></div>
+        <button className="learning-back-button" onClick={() => { setCoastalCompleteSeen(true); setPhaseCompleteOpen(false); }}>VOLTAR À FASE</button>
+        <button className="learning-back-button" onClick={() => void handleReplayPhase(5)}>JOGAR NOVAMENTE · PRESERVAR PROGRESSO</button>
+        <button className="start-game-button" onClick={() => { setCoastalCompleteSeen(true); setPhaseCompleteOpen(false); setMapTab('city'); gameRef.current?.setMapOpen(true); }}>VER MAPA DA CIDADE <span>→</span></button>
       </section>
     </div>}
 
     {showPlan && <div className="world-map-overlay">
       <section className="world-map-panel plan-panel">
         <button className="world-map-close" onClick={() => setShowPlan(false)}>VOLTAR AO JOGO</button>
-        <div className="eyebrow">{state.phase === 1 ? 'CENTRO INDUSTRIAL' : state.phase === 2 ? 'PORTO' : state.phase === 3 ? 'PERIFERIA VERDE' : 'RESERVA FLORESTAL'} · GESTÃO DA REGIÃO</div>
-        <h2>{state.phase === 1 ? 'Missões de recuperação do bairro' : state.phase === 2 ? 'Missões de recuperação do Porto' : state.phase === 3 ? 'Missões de recuperação da comunidade' : 'Missões da reserva e da cadeia de alimentos'}</h2>
+        <div className="eyebrow">{state.phase === 1 ? 'CENTRO INDUSTRIAL' : state.phase === 2 ? 'PORTO' : state.phase === 3 ? 'PERIFERIA VERDE' : state.phase === 4 ? 'RESERVA FLORESTAL' : 'ZONA COSTEIRA'} · GESTÃO DA REGIÃO</div>
+        <h2>{state.phase === 1 ? 'Missões de recuperação do bairro' : state.phase === 2 ? 'Missões de recuperação do Porto' : state.phase === 3 ? 'Missões de recuperação da comunidade' : state.phase === 4 ? 'Missões da reserva e da cadeia de alimentos' : 'Missões da Zona Costeira'}</h2>
         <p>Este painel acompanha os indicadores e objetivos da região atual. As obras e coletas acontecem no cenário, por aproximação e interação do personagem.</p>
         {state.phase === 1 ? <>
           <div className="metrics-grid">
@@ -964,7 +1068,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <article className="upgrade-card"><div className="eyebrow">SANEAMENTO</div><h3>{state.communitySewerConnections}/{state.communitySewerTotal} moradias conectadas</h3><p>As ligações simuladas conduzem esgoto sanitário para a rede própria. O tratamento e a operação do sistema continuam necessários; isso não é a rede pluvial.</p></article>
             <article className="upgrade-card"><div className="eyebrow">DRENAGEM PLUVIAL</div><h3>{state.communityRainGardenBuilt ? 'Jardim de chuva implantado' : 'Área de escoamento a tratar'}</h3><p>Jardins de chuva podem ajudar a reter e infiltrar parte da chuva em locais tecnicamente adequados. Eles não recebem esgoto e não substituem o sistema de drenagem completo.</p></article>
           </div>
-        </> : <>
+        </> : state.phase === 4 ? <>
           <div className="metrics-grid">
             <Metric label="Habitats investigados" value={Math.round(state.forestHabitatsInspected / state.forestHabitatsTotal * 100)} />
             <Metric label="Colheita familiar" value={Math.round(state.forestProduceHarvested / state.forestProduceTotal * 100)} />
@@ -977,12 +1081,28 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
             <article className="upgrade-card"><div className="eyebrow">AGROINDÚSTRIA E MERCADO</div><h3>{state.forestProcessed ? 'Alimentos processados e embalados' : 'Aguardando processamento'}</h3><p>A indústria recebe a produção, processa, embala e encaminha ao comércio. Os processos industriais também precisam prevenir e destinar corretamente os resíduos gerados.</p></article>
             <article className="upgrade-card"><div className="eyebrow">COOPERATIVA RAÍZES DA FLORESTA</div><h3>{state.forestCooperativeDelivered ? 'Quatro grupos secos recebidos para triagem' : 'Triagem e entrega pendentes'}</h3><p>A cooperativa recebe apenas os recicláveis secos desta rota: papel/papelão, plástico, vidro e metal. Orgânicos ficam em balde fechado e separado para composteira doméstica ou coleta exclusiva, quando oferecida pelo prestador. A retirada pode ser semanal, quinzenal ou mensal conforme volume, logística e acordo local — não é uma frequência nacional fixa. Rejeitos seguem para outro serviço.</p></article>
           </div>
+        </> : <>
+          <div className="metrics-grid">
+            <Metric label="Trechos da bacia investigados" value={Math.round(state.coastalSitesInspected / state.coastalSitesTotal * 100)} />
+            <Metric label="Resíduos seguros recolhidos" value={Math.round(state.coastalWasteCollected / state.coastalWasteTotal * 100)} />
+            <Metric label="Triagem por material" value={Math.round(state.coastalWasteSorted / state.coastalWasteTotal * 100)} />
+            <Metric label="Pontos de restauração do manguezal" value={Math.round(state.coastalMangrovesPlanted / state.coastalMangrovesTotal * 100)} />
+            <Metric label="Observação da fauna" value={Math.round(state.coastalWildlifeRecorded / state.coastalWildlifeTotal * 100)} />
+            <Metric label="Registro do ponto de água" value={state.coastalWaterMonitoringComplete ? 100 : 0} />
+          </div>
+          <div className="upgrade-grid">
+            <article className="upgrade-card"><div className="eyebrow">BACIA E ESTUÁRIO</div><h3>{state.coastalSitesInspected}/{state.coastalSitesTotal} trechos investigados</h3><p>O curso da água conecta áreas a montante, estuário, manguezal e oceano. Resíduos e poluentes podem chegar à costa mesmo quando sua origem está distante da praia.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">RESÍDUOS E TRIAGEM</div><h3>{state.coastalWasteSorted}/{state.coastalWasteTotal} materiais separados</h3><p>O ponto educativo usa azul para papel/papelão, vermelho para plástico, verde para vidro de embalagem inteiro e amarelo para metal. A triagem encaminha os materiais; a reciclagem depende de etapas industriais posteriores.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">RESTAURAÇÃO DO MANGUEZAL</div><h3>{state.coastalMangrovesPlanted}/{state.coastalMangrovesTotal} pontos de plantio registrados</h3><p>O sucesso depende de espécies apropriadas, faixa de maré, hidrologia e acompanhamento. O plantio sozinho não comprova que o ecossistema foi recuperado.</p></article>
+            <article className="upgrade-card"><div className="eyebrow">FAUNA E ÁGUA</div><h3>{state.coastalWildlifeRecorded}/{state.coastalWildlifeTotal} observações · {state.coastalWaterMonitoringComplete ? 'ponto de água registrado' : 'água pendente'}</h3><p>Observe a fauna à distância e não manipule animais. A aparência da água não atesta segurança: resultados reais exigem coleta, análises e monitoramento por equipes capacitadas.</p></article>
+          </div>
         </>}
         {state.phase === 1 && !state.delivered && <div className="plan-hint">Primeiro: recolha os cinco resíduos e entregue a carga no EcoCentro.</div>}
         {state.delivered && state.solarBuildingsInstalled < 3 && <div className="plan-hint">Missão atual: instale energia solar em três prédios. A base do veículo será ativada automaticamente depois da terceira instalação.</div>}
         {state.delivered && state.solarBuildingsInstalled >= 3 && !state.electricVehicle && <div className="plan-hint">A base está ativa. Siga o marcador amarelo no minimapa, estacione completamente, desça e converta o veículo ao lado da vaga.</div>}
         {state.electricVehicle && state.solarBuildingsInstalled < state.solarBuildingsTotal && <div className="plan-hint">O veículo já é elétrico. Continue solarizando os prédios restantes para concluir a fase.</div>}
         {state.phase === 4 && <div className="plan-hint">Regra de separação: recicláveis secos limpos e secos seguem à cooperativa; restos de comida ficam em balde exclusivo ou composteira doméstica; rejeitos têm coleta própria. Se houver serviço de orgânicos, o prestador define a frequência de retirada (semanal, quinzenal ou mensal) conforme volume, rota e capacidade. Nunca misture o balde de orgânicos com a carga seca da cooperativa. Padrão de cores CONAMA 275/2001: azul papel/papelão; vermelho plástico; verde vidro; amarelo metal; marrom orgânicos; cinza rejeito; preto madeira; laranja perigosos; branco serviços de saúde; roxo radioativos.</div>}
+        {state.phase === 5 && <div className="plan-hint">A coleta inclui somente resíduos comuns seguros e identificados. Não toque em cacos, óleo, animais ou materiais desconhecidos. Limpar a praia não substitui o controle das fontes ao longo da bacia; registrar um ponto de água no jogo também não é laudo de qualidade.</div>}
                 {state.nextNeighborhoodUnlocked && <div className="success-line">✓ METAS DA REGIÃO ATINGIDAS · PRÓXIMA REGIÃO LIBERADA</div>}
         <small className="economy-note">CIT é uma pontuação fictícia do protótipo, sem valor monetário ou possibilidade de saque.</small>
       </section>

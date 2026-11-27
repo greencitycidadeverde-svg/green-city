@@ -2,6 +2,7 @@ export type MissionStage = 'collect' | 'deliver' | 'solar' | 'vehicle' | 'comple
 export type PortMissionStage = 'inspect' | 'treatment' | 'septic' | 'collect' | 'deliver' | 'sorting' | 'complete';
 export type PeripheryMissionStage = 'survey' | 'collect' | 'sorting' | 'compost' | 'sanitation' | 'rain-garden' | 'complete';
 export type ForestMissionStage = 'survey' | 'harvest' | 'transport' | 'process' | 'market' | 'sorting' | 'cooperative' | 'restore' | 'complete';
+export type CoastalMissionStage = 'survey' | 'cleanup' | 'sorting' | 'restore' | 'monitor' | 'complete';
 export type NearbyAction =
   | 'collect-waste'
   | 'deliver-waste'
@@ -24,7 +25,9 @@ export type NearbyAction =
   | 'build-rain-garden'
   | 'inspect-forest-habitat' | 'harvest-farm-produce' | 'load-farm-truck' | 'process-food-products'
   | 'stock-local-market' | 'sort-consumer-packaging' | 'deliver-forest-cooperative'
-  | 'plant-native-seedling' | 'protect-forest-spring' | 'record-forest-wildlife' | 'inspect-forest-fire-prevention';
+  | 'plant-native-seedling' | 'protect-forest-spring' | 'record-forest-wildlife' | 'inspect-forest-fire-prevention'
+  | 'inspect-coastal-site' | 'collect-coastal-waste' | 'sort-coastal-waste'
+  | 'plant-coastal-mangrove' | 'record-coastal-wildlife' | 'sample-coastal-water';
 
 export interface LearningNotice {
   id: number;
@@ -44,7 +47,7 @@ export interface MapObjective {
 }
 
 export interface GameProgressData {
-  phase: 1 | 2 | 3 | 4;
+  phase: 1 | 2 | 3 | 4 | 5;
   cit: number;
   collectedWaste: boolean[];
   deliveredWaste: boolean;
@@ -81,10 +84,17 @@ export interface GameProgressData {
   forestSpringProtected?: boolean;
   forestWildlifeRecorded?: boolean;
   forestFirePreventionInspected?: boolean;
+  coastalMissionStage?: CoastalMissionStage;
+  coastalSitesInspected?: boolean[];
+  coastalWasteCollected?: boolean[];
+  coastalWasteSorted?: boolean[];
+  coastalMangrovesPlanted?: boolean[];
+  coastalWildlifeRecorded?: boolean[];
+  coastalWaterMonitoringComplete?: boolean;
 }
 
 export interface GameSnapshot {
-  phase: 1 | 2 | 3 | 4;
+  phase: 1 | 2 | 3 | 4 | 5;
   completedNeighborhoods: number;
   thirdNeighborhoodUnlocked: boolean;
   portMissionStage: PortMissionStage;
@@ -131,6 +141,17 @@ export interface GameSnapshot {
   forestSpringProtected: boolean;
   forestWildlifeRecorded: boolean;
   forestFirePreventionInspected: boolean;
+  coastalMissionStage: CoastalMissionStage;
+  coastalSitesInspected: number;
+  coastalSitesTotal: number;
+  coastalWasteCollected: number;
+  coastalWasteTotal: number;
+  coastalWasteSorted: number;
+  coastalMangrovesPlanted: number;
+  coastalMangrovesTotal: number;
+  coastalWildlifeRecorded: number;
+  coastalWildlifeTotal: number;
+  coastalWaterMonitoringComplete: boolean;
   cit: number;
   collected: number;
   total: number;

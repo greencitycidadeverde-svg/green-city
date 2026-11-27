@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase';
 import GameExperience from './GameExperience';
 import MasterPhaseStudio from './MasterPhaseStudio';
 
+const EMPTY_PHASE_PROGRESS: Partial<GameProgressData> = {};
+
 type AccountRole = 'master_admin' | 'admin' | 'user';
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'update';
 
@@ -76,7 +78,9 @@ function AuthenticatedApp() {
   const [accountLoading, setAccountLoading] = useState(false);
   const [account, setAccount] = useState<AccountData | null>(null);
   const [accountError, setAccountError] = useState('');
-  const [activePhase, setActivePhase] = useState<1 | 2 | 3 | 4 | null>(null);
+  const [activePhase, setActivePhase] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [activeReplayMode, setActiveReplayMode] = useState(false);
+  const [gameSessionKey, setGameSessionKey] = useState(0);
   const [masterPhaseConfig, setMasterPhaseConfig] = useState<number | null>(null);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -360,12 +364,15 @@ function AuthenticatedApp() {
     setAdminBusyId('');
   };
 
-  const openGame = (phase: 1 | 2 | 3 | 4) => {
+  const openGame = (phase: 1 | 2 | 3 | 4 | 5, replay = false) => {
     setActivePhase(phase);
+    setActiveReplayMode(replay);
+    setGameSessionKey((current) => current + 1);
   };
 
   const returnToMap = async () => {
     setActivePhase(null);
+    setActiveReplayMode(false);
     if (session?.user.id) await loadAccount(session.user.id);
   };
 
@@ -373,7 +380,7 @@ function AuthenticatedApp() {
 
   const regionStates = useMemo(() => REGIONS.map((region) => {
     const row = account?.phases.find((item) => item.phase_number === region.phase);
-    const playable = region.phase <= 4;
+    const playable = region.phase <= 5;
     const unlockedByCampaign = region.phase <= (account?.campaign.highest_unlocked_phase ?? 1);
     const environmentState = row?.environment_state ?? (unlockedByCampaign ? 'degraded' : 'locked');
     const status = row?.status ?? (unlockedByCampaign ? 'available' : 'locked');
@@ -393,13 +400,16 @@ function AuthenticatedApp() {
 
   const restoredCount = regionStates.filter((region) => region.colorState === 'restored').length;
   const currentProgress = account?.campaign ? Math.round((restoredCount / 10) * 100) : 0;
-  const defaultPhase: 1 | 2 | 3 | 4 | null = account && ['admin', 'master_admin'].includes(account.profile.role)
-    ? (account.campaign.current_phase >= 4 ? 4 : account.campaign.current_phase >= 3 ? 3 : account.campaign.current_phase >= 2 ? 2 : 1)
-    : regionStates[3]?.canPlay ? 4
-      : regionStates[2]?.canPlay ? 3
-        : regionStates[1]?.canPlay ? 2
-          : regionStates[0]?.canPlay ? 1 : null;
-  const activeProgress = activePhase ? account?.phases.find((item) => item.phase_number === activePhase)?.objective_state ?? {} : {};
+  const defaultPhase: 1 | 2 | 3 | 4 | 5 | null = account && ['admin', 'master_admin'].includes(account.profile.role)
+    ? Math.min(5, Math.max(1, account.campaign.current_phase)) as 1 | 2 | 3 | 4 | 5
+    : regionStates[4]?.canPlay ? 5
+      : regionStates[3]?.canPlay ? 4
+        : regionStates[2]?.canPlay ? 3
+          : regionStates[1]?.canPlay ? 2
+            : regionStates[0]?.canPlay ? 1 : null;
+  const activeProgress = activePhase
+    ? activeReplayMode ? EMPTY_PHASE_PROGRESS : account?.phases.find((item) => item.phase_number === activePhase)?.objective_state ?? {}
+    : EMPTY_PHASE_PROGRESS;
 
   if (!supabase) {
     return <main className="auth-shell"><section className="auth-card auth-unconfigured">
@@ -509,12 +519,16 @@ function AuthenticatedApp() {
 
   if (activePhase !== null) {
     return <GameExperience
+      key={`${activePhase}-${activeReplayMode}-${gameSessionKey}`}
       userId={account.profile.id}
       campaignId={account.campaign.id}
       initialPhase={activePhase}
       savedProgress={activeProgress}
       isMaster={account.profile.role === 'master_admin'}
+      replayMode={activeReplayMode}
       onConfigurePhase={(phase) => setMasterPhaseConfig(phase)}
+      onReplayPhase={(phase) => openGame(phase, true)}
+      onOpenPhase={(phase) => openGame(phase, false)}
       onExitToCampaign={returnToMap}
     />;
   }
@@ -589,7 +603,7 @@ function AuthenticatedApp() {
               style={{ left: region.x + '%', top: region.y + '%' }}
               disabled={!region.canPlay && !region.canConfigure}
               onClick={() => {
-                if (region.canPlay && region.phase <= 4) openGame(region.phase as 1 | 2 | 3 | 4);
+                if (region.canPlay && region.phase <= 5) openGame(region.phase as 1 | 2 | 3 | 4 | 5);
                 else if (region.canConfigure) setMasterPhaseConfig(region.phase);
               }}
               title={region.name + ' · ' + label}
@@ -621,7 +635,7 @@ function AuthenticatedApp() {
       <div className="campaign-region-list">
         {regionStates.map((region) => <button type="button" className="campaign-region-row" key={region.phase}
           disabled={!region.canPlay && !region.canConfigure} onClick={() => {
-            if (region.canPlay && region.phase <= 4) openGame(region.phase as 1 | 2 | 3 | 4);
+            if (region.canPlay && region.phase <= 5) openGame(region.phase as 1 | 2 | 3 | 4 | 5);
             else if (region.canConfigure) setMasterPhaseConfig(region.phase);
           }}>
           <span className={'campaign-region-dot dot-' + region.colorState} />

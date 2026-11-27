@@ -1,4 +1,16 @@
-# Estado do projeto — 24/11/2026
+# Estado do projeto — 27/11/2026
+
+## Versão 0.4.28 — Fase 05 e replay da campanha
+- Fases 01 a 05 possuem ambientes 3D jogáveis; fases 06 a 10 seguem no Estúdio Master/roteiro e ainda não têm cenários 3D próprios.
+- Fase 05 — Zona Costeira inclui bacia, estuário, praia, mar, manguezal, centro educativo, laboratório, triagem de resíduos, observação da fauna e ponto de monitoramento.
+- Fluxo da missão: investigar 3 trechos; recolher 4 resíduos comuns seguros; separar 4 categorias secas; registrar 3 pontos de restauração do manguezal; registrar 2 observações de fauna e um ponto de monitoramento da água.
+- O mapa interno permite voltar às fases concluídas. Abrir uma fase concluída carrega o estado salvo; “Jogar novamente” inicia uma sessão limpa sem alterar a conclusão original.
+- A sessão de replay não grava progresso, pontuação ou relatório da campanha original.
+- A preservação do progresso depende da autenticação e da persistência Supabase utilizadas pelas fases anteriores.
+
+## Validação desta entrega
+- O commit e o estado do build/deploy serão registrados após a publicação.
+- A compilação automatizada será verificada no Vercel. Não há teste manual interativo de gameplay nesta sessão; escala, colisões, legibilidade das placas e percurso visual precisam de conferência no navegador real.
 
 ## Versão 0.3.2 — refinamento visual do Centro Industrial e concepção do Porto
 - Personagem, árvores e fachadas receberam mais detalhes procedurais, mantendo Babylon.js e sem novas dependências.

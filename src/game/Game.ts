@@ -36,6 +36,13 @@ const PERIPHERY_WASTE_CATALOG = [
     afterwards: 'O vidro é separado e encaminhado aos operadores que o recebem para triagem e beneficiamento. Não deve ser jogado na composteira.' },
 ] as const;
 
+const COASTAL_WASTE_CATALOG = [
+  { name: 'Caixa de papelão limpa', category: 'PAPEL / PAPELÃO · AZUL', description: 'Papelão limpo e seco é reciclável. A caixa não deve estar molhada nem misturada com restos de comida.', destination: 'RECIPIENTE AZUL — papel e papelão limpos e secos, no ponto de triagem costeiro.', afterwards: 'A coleta encaminha o papelão para triagem e preparação. A reciclagem acontece depois, em unidade industrial que aceite o material.' },
+  { name: 'Garrafa PET vazia', category: 'PLÁSTICO · VERMELHO', description: 'Esta garrafa é uma embalagem de plástico PET. Deve estar vazia e, quando possível, limpa e seca.', destination: 'RECIPIENTE VERMELHO — plásticos, separado de papel, vidro e metal.', afterwards: 'O plástico é triado por tipo e qualidade e depois encaminhado a recicladores. Recolher na praia não significa que já foi reciclado.' },
+  { name: 'Garrafa de vidro inteira', category: 'VIDRO · VERDE', description: 'Esta garrafa de vidro está inteira. Vidro não se decompõe como restos de alimento e precisa de coleta e triagem adequadas.', destination: 'RECIPIENTE VERDE — vidro de embalagem aceito pelo serviço local. Não toque em cacos nem misture cerâmica, louça ou espelhos.', afterwards: 'O vidro segue para triagem e beneficiamento, podendo virar caco para a indústria vidreira quando houver aceitação e controle de qualidade.' },
+  { name: 'Lata de alumínio vazia', category: 'METAL · AMARELO', description: 'A lata é feita de alumínio, um metal reciclável. Ela deve ser esvaziada e mantida separada dos resíduos orgânicos.', destination: 'RECIPIENTE AMARELO — metais, sem restos de comida dentro da embalagem.', afterwards: 'Na triagem, o metal é separado e preparado para encaminhamento à cadeia de reciclagem industrial.' },
+] as const;
+
 interface SolarBuildingRecord {
   x: number; z: number; width: number; height: number; label: string; solarInstalled: boolean;
 }
@@ -94,7 +101,7 @@ export class GreenCityGame {
   private portTruckModelHeadingOffset = 0;
   private vehicleVisualRoot?: TransformNode;
   private portTruckVisualRoot?: TransformNode;
-  private activePhase: 1 | 2 | 3 | 4 = 1;
+  private activePhase: 1 | 2 | 3 | 4 | 5 = 1;
   private portMissionStage: PortMissionStage = 'inspect';
   private readonly portOutfallPositions: PortSite[] = [{ x: 4, z: -20 }, { x: 4, z: 0 }, { x: 4, z: 20 }];
   private readonly portSepticPositions: PortSite[] = [{ x: 8, z: -31 }, { x: 8, z: 31 }];
@@ -190,6 +197,29 @@ export class GreenCityGame {
   private readonly forestHabitatMarkers: Mesh[] = [];
   private readonly forestPackagingBins: StandardMaterial[] = [];
 
+  // Fase 05 — bacia hidrográfica, estuário, manguezal, praia e monitoramento costeiro.
+  private readonly phaseFiveMeshes: Mesh[] = [];
+  private readonly phaseFiveDynamicMeshes: Mesh[] = [];
+  private readonly coastalSurveyPositions: PortSite[] = [{ x: -5, z: -28 }, { x: 5, z: -7 }, { x: 0, z: 10 }];
+  private readonly coastalWastePositions: PortSite[] = [{ x: -30, z: 15 }, { x: -12, z: 17 }, { x: 11, z: 16 }, { x: 31, z: 14 }];
+  private readonly coastalSortingPositions: PortSite[] = [{ x: -30, z: -15 }, { x: -22, z: -15 }, { x: -14, z: -15 }, { x: -6, z: -15 }];
+  private readonly coastalMangrovePositions: PortSite[] = [{ x: -14, z: -10 }, { x: -17, z: -4 }, { x: -13, z: 3 }];
+  private readonly coastalWildlifePositions: PortSite[] = [{ x: 22, z: -8 }, { x: 26, z: 5 }];
+  private readonly coastalWaterMonitoringPosition = new Vector3(13, 0, 22);
+  private coastalMissionStage: import('./types').CoastalMissionStage = 'survey';
+  private readonly coastalSitesInspected: boolean[] = [false, false, false];
+  private readonly coastalWasteCollected: boolean[] = [false, false, false, false];
+  private readonly coastalWasteSorted: boolean[] = [false, false, false, false];
+  private readonly coastalMangrovesPlanted: boolean[] = [false, false, false];
+  private readonly coastalWildlifeRecorded: boolean[] = [false, false];
+  private coastalWaterMonitoringComplete = false;
+  private readonly coastalSurveyMarkers: Mesh[] = [];
+  private readonly coastalWasteObjects: Mesh[] = [];
+  private readonly coastalSortingBins: StandardMaterial[] = [];
+  private readonly coastalMangroveMarkers: Mesh[] = [];
+  private readonly coastalWildlifeMarkers: Mesh[] = [];
+  private coastalWaterMarker?: Mesh;
+
   constructor(canvas: HTMLCanvasElement, listener: SnapshotListener) {
     this.listener = listener;
     this.engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: true, adaptToDeviceRatio: true });
@@ -256,6 +286,10 @@ export class GreenCityGame {
     this.phaseFourMeshes.push(...this.scene.meshes.slice(phaseFourStartIndex) as Mesh[]);
     this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.forestTruckRoot?.setEnabled(false);
+    const phaseFiveStartIndex = this.scene.meshes.length;
+    this.buildCoastalDistrict();
+    this.phaseFiveMeshes.push(...this.scene.meshes.slice(phaseFiveStartIndex) as Mesh[]);
+    this.phaseFiveMeshes.forEach((mesh) => mesh.setEnabled(false));
     void this.loadWorldModels();
     this.bindInput(canvas);
     this.emit();
@@ -1584,6 +1618,292 @@ export class GreenCityGame {
     postSign('forest-restoration-sign', 'RESTAURAÇÃO FLORESTAL', 'Use espécies nativas adequadas e acompanhe sua sobrevivência', -27, 3, 2.6, 9.6);
   }
 
+
+  /** Zona Costeira: ambiente entre a bacia, o estuário, o manguezal, a praia e o oceano. */
+  private buildCoastalDistrict(): void {
+    const ground = MeshBuilder.CreateGround('coastal-land-ground', { width: 90, height: 90 }, this.scene);
+    ground.position.y = -0.08; ground.material = this.material('coastal-land-material', new Color3(0.40, 0.55, 0.39)); ground.checkCollisions = true;
+    const beach = MeshBuilder.CreateGround('coastal-beach', { width: 90, height: 10 }, this.scene);
+    beach.position.set(0, 0.015, 14); beach.material = this.material('coastal-sand-material', new Color3(0.79, 0.69, 0.48));
+    const seaMat = this.material('coastal-ocean-water-material', new Color3(0.08, 0.40, 0.59)); seaMat.alpha = 0.94;
+    const sea = MeshBuilder.CreateGround('coastal-ocean', { width: 90, height: 28 }, this.scene);
+    sea.position.set(0, 0.02, 33); sea.material = seaMat;
+    const riverMat = this.material('coastal-estuary-water-material', new Color3(0.20, 0.49, 0.57)); riverMat.alpha = 0.94;
+    const estuary = MeshBuilder.CreateGround('coastal-estuary', { width: 13, height: 60 }, this.scene);
+    estuary.position.set(1, 0.035, -10); estuary.material = riverMat;
+    const branch = MeshBuilder.CreateGround('coastal-estuary-side-channel', { width: 27, height: 8 }, this.scene);
+    branch.position.set(-7, 0.04, -5); branch.material = riverMat;
+    const mud = this.material('coastal-mudflat-material', new Color3(0.42, 0.35, 0.25));
+    for (const x of [-13, 15]) {
+      const flat = MeshBuilder.CreateGround('coastal-mudflat', { width: 12, height: 34 }, this.scene);
+      flat.position.set(x, 0.025, -4); flat.material = mud;
+    }
+    const wood = this.material('coastal-boardwalk-material', new Color3(0.48, 0.32, 0.18));
+    const boardwalk = MeshBuilder.CreateGround('coastal-boardwalk', { width: 5.5, height: 38 }, this.scene);
+    boardwalk.position.set(-25, 0.05, -1); boardwalk.material = wood;
+    for (let z = -18; z <= 15; z += 2.8) {
+      const plank = MeshBuilder.CreateBox('coastal-boardwalk-plank', { width: 5.4, height: 0.09, depth: 0.13 }, this.scene);
+      plank.position.set(-25, 0.12, z); plank.material = this.material('coastal-boardwalk-plank-material', new Color3(0.62, 0.43, 0.25));
+    }
+    const sign = (id: string, title: string, subtitle: string, x: number, y: number, z: number, width = 9): void => {
+      const board = MeshBuilder.CreateBox(id + '-board', { width, height: 1.65, depth: 0.22 }, this.scene);
+      board.position.set(x, y, z); board.material = this.material(id + '-board-material', new Color3(0.05, 0.28, 0.34));
+      const texture = new DynamicTexture(id + '-texture', { width: 1024, height: 256 }, this.scene, false);
+      const ctx = texture.getContext() as unknown as CanvasRenderingContext2D;
+      ctx.fillStyle = '#0C4554'; ctx.fillRect(0, 0, 1024, 256); ctx.strokeStyle = '#F1D58B'; ctx.lineWidth = 9; ctx.strokeRect(12, 12, 1000, 232);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#F4F8F4'; ctx.font = 'bold 59px Arial'; ctx.fillText(title, 512, 99, 960);
+      ctx.fillStyle = '#D8EAE8'; ctx.font = 'bold 30px Arial'; ctx.fillText(subtitle, 512, 174, 960); texture.update();
+      const face = MeshBuilder.CreatePlane(id + '-face', { width: width - 0.24, height: 1.42 }, this.scene);
+      face.position.set(x, y, z + 0.125);
+      const mat = this.material(id + '-face-material', new Color3(1, 1, 1)); mat.diffuseTexture = texture; mat.emissiveColor = new Color3(0.12, 0.16, 0.16); face.material = mat;
+    };
+    const signPosts = (id: string, x: number, z: number): void => {
+      const postMat = this.material(id + '-post-material', new Color3(0.34, 0.23, 0.15));
+      for (const dx of [-0.48, 0.48]) {
+        const support = MeshBuilder.CreateBox(id + '-post', { width: 0.18, height: 2.7, depth: 0.18 }, this.scene);
+        support.position.set(x + dx, 1.25, z - 0.04); support.material = postMat;
+      }
+    };
+
+    // Centro de educação costeira e laboratório técnico.
+    const visitor = MeshBuilder.CreateBox('coastal-education-center', { width: 13, height: 5.2, depth: 9 }, this.scene);
+    visitor.position.set(-33, 2.6, -31); visitor.material = this.material('coastal-education-center-material', new Color3(0.79, 0.74, 0.57)); visitor.checkCollisions = true;
+    const visitorRoof = MeshBuilder.CreateBox('coastal-education-center-roof', { width: 13.8, height: 0.45, depth: 9.7 }, this.scene);
+    visitorRoof.position.set(-33, 5.25, -31); visitorRoof.material = this.material('coastal-education-roof-material', new Color3(0.12, 0.32, 0.34));
+    sign('coastal-education-sign', 'CENTRO COSTEIRO', 'Educação ambiental, bacia hidrográfica e conservação', -33, 4.1, -26.35, 10);
+    const lab = MeshBuilder.CreateBox('coastal-laboratory', { width: 12, height: 4.8, depth: 8.5 }, this.scene);
+    lab.position.set(31, 2.4, -31); lab.material = this.material('coastal-lab-material', new Color3(0.67, 0.77, 0.74)); lab.checkCollisions = true;
+    const labRoof = MeshBuilder.CreateBox('coastal-laboratory-roof', { width: 12.7, height: 0.4, depth: 9.1 }, this.scene);
+    labRoof.position.set(31, 4.85, -31); labRoof.material = this.material('coastal-lab-roof-material', new Color3(0.15, 0.34, 0.37));
+    sign('coastal-lab-sign', 'LABORATÓRIO COSTEIRO', 'Amostras, análise e monitoramento por equipe técnica', 31, 3.9, -26.55, 10.5);
+
+    // Manguezal de baixa poligonagem, com raízes aéreas e copas em duas tonalidades.
+    const trunkMat = this.material('coastal-mangrove-trunk', new Color3(0.34, 0.23, 0.15));
+    const leafMats = [this.material('coastal-mangrove-leaf-a', new Color3(0.14, 0.39, 0.23)), this.material('coastal-mangrove-leaf-b', new Color3(0.25, 0.51, 0.28))];
+    let tree = 0;
+    for (const x of [-17, -13, 13, 17]) for (const z of [-18, -10, -2, 6]) {
+      if (x < 0 && z > -1 && z < 8) continue;
+      const t = MeshBuilder.CreateCylinder('coastal-mangrove-trunk-' + tree, { height: 3.4, diameterTop: 0.18, diameterBottom: 0.48, tessellation: 8 }, this.scene);
+      t.position.set(x, 1.7, z); t.material = trunkMat; t.checkCollisions = true;
+      const crown = MeshBuilder.CreateSphere('coastal-mangrove-crown-' + tree, { diameter: 3.1, segments: 8 }, this.scene);
+      crown.position.set(x, 3.8, z); crown.scaling.y = 0.8; crown.material = leafMats[tree % 2];
+      for (let r = 0; r < 3; r++) {
+        const root = MeshBuilder.CreateCylinder('coastal-mangrove-root-' + tree, { height: 1.65, diameterTop: 0.08, diameterBottom: 0.17, tessellation: 6 }, this.scene);
+        root.position.set(x + (r - 1) * 0.48, 0.75, z + 0.45); root.rotation.z = (r - 1) * 0.28; root.material = trunkMat;
+      }
+      tree++;
+    }
+    signPosts('coastal-mangrove-signpost', -15, 11);
+    sign('coastal-mangrove-sign', 'MANGUEZAL', 'Berçário natural, abrigo, alimento e proteção da margem', -15, 2.55, 11, 9.5);
+    this.coastalMangrovePositions.forEach((site, index) => {
+      const marker = MeshBuilder.CreateCylinder('coastal-mangrove-restoration-marker-' + index, { height: 0.82, diameterTop: 0.34, diameterBottom: 0.58, tessellation: 8 }, this.scene);
+      marker.position.set(site.x, 0.41, site.z);
+      marker.material = this.material('coastal-mangrove-restoration-marker-material-' + index, new Color3(0.92, 0.68, 0.19));
+      this.coastalMangroveMarkers.push(marker);
+      const beacon = MeshBuilder.CreateSphere('coastal-mangrove-restoration-beacon-' + index, { diameter: 0.3, segments: 8 }, this.scene);
+      beacon.position.set(site.x, 0.98, site.z);
+      beacon.material = this.material('coastal-mangrove-restoration-beacon-material-' + index, new Color3(0.97, 0.82, 0.34));
+    });
+
+    // Píer e barco de pesca artesanal.
+    const pier = MeshBuilder.CreateBox('coastal-pier-deck', { width: 3.5, height: 0.34, depth: 15 }, this.scene);
+    pier.position.set(28, 0.65, 15.5); pier.material = wood;
+    for (const x of [26.5, 29.5]) for (const z of [9, 14, 19, 23]) {
+      const pile = MeshBuilder.CreateCylinder('coastal-pier-pile', { height: 1.5, diameter: 0.24, tessellation: 8 }, this.scene);
+      pile.position.set(x, 0, z); pile.material = trunkMat;
+    }
+    const boat = MeshBuilder.CreateBox('coastal-fishing-boat-hull', { width: 2.3, height: 0.65, depth: 6 }, this.scene);
+    boat.position.set(32.5, 0.52, 27); boat.rotation.y = -0.12; boat.material = this.material('coastal-boat-hull-material', new Color3(0.82, 0.34, 0.18));
+    const cabin = MeshBuilder.CreateBox('coastal-fishing-boat-cabin', { width: 1.6, height: 1.1, depth: 1.7 }, this.scene);
+    cabin.position.set(32.5, 1.25, 26.6); cabin.material = this.material('coastal-boat-cabin-material', new Color3(0.91, 0.88, 0.74));
+
+    sign('coastal-watershed-sign', 'BACIA HIDROGRÁFICA', 'O que acontece rio acima pode chegar à costa', -5, 3.0, -35, 10);
+    sign('coastal-estuary-sign', 'ESTUÁRIO', 'Encontro entre água doce, água salgada e marés', 5, 2.7, -1, 10);
+    sign('coastal-beach-sign', 'PRAIA E OCEANO', 'Prevenir na origem e recolher resíduos com segurança', 0, 2.4, 19.2, 11);
+    this.coastalSurveyPositions.forEach((site, index) => {
+      const marker = MeshBuilder.CreateCylinder('coastal-survey-marker-' + index, { height: 0.88, diameterTop: 0.36, diameterBottom: 0.62, tessellation: 8 }, this.scene);
+      marker.position.set(site.x, 0.44, site.z); marker.material = this.material('coastal-survey-marker-material-' + index, new Color3(0.93, 0.68, 0.19));
+      const beacon = MeshBuilder.CreateSphere('coastal-survey-beacon-' + index, { diameter: 0.34, segments: 8 }, this.scene);
+      beacon.position.set(site.x, 1.05, site.z); beacon.material = this.material('coastal-survey-beacon-material-' + index, new Color3(0.96, 0.82, 0.34));
+      this.coastalSurveyMarkers.push(marker);
+    });
+
+    // Resíduos comuns seguros, em modelos 3D reconhecíveis.
+    this.coastalWastePositions.forEach((site, index) => {
+      const root = MeshBuilder.CreateBox('coastal-waste-root-' + index, { width: 0.02, height: 0.02, depth: 0.02 }, this.scene);
+      root.position.set(site.x, 0, site.z); root.isPickable = false;
+      const part = (mesh: Mesh, mat: StandardMaterial, x: number, y: number, z: number): void => { mesh.parent = root; mesh.position.set(x, y, z); mesh.material = mat; };
+      if (index === 0) {
+        const box = MeshBuilder.CreateBox('coastal-paper-carton', { width: 0.95, height: 0.36, depth: 0.72 }, this.scene);
+        part(box, this.material('coastal-paper-carton-material', new Color3(0.62, 0.45, 0.25)), 0, 0.2, 0);
+      } else if (index === 1) {
+        const bottle = MeshBuilder.CreateCylinder('coastal-pet-bottle', { height: 1.0, diameter: 0.43, tessellation: 12 }, this.scene);
+        const pet = this.material('coastal-pet-bottle-material', new Color3(0.16, 0.62, 0.76)); pet.alpha = 0.78;
+        part(bottle, pet, 0, 0.48, 0); bottle.rotation.z = Math.PI / 2.2;
+        const cap = MeshBuilder.CreateCylinder('coastal-pet-cap', { height: 0.18, diameter: 0.22, tessellation: 10 }, this.scene);
+        part(cap, this.material('coastal-pet-cap-material', new Color3(0.08, 0.28, 0.48)), 0.42, 0.58, 0);
+      } else if (index === 2) {
+        const glass = this.material('coastal-glass-bottle-material', new Color3(0.17, 0.48, 0.37)); glass.alpha = 0.78;
+        const body = MeshBuilder.CreateCylinder('coastal-glass-bottle-body', { height: 0.7, diameter: 0.48, tessellation: 12 }, this.scene);
+        part(body, glass, 0, 0.37, 0);
+        const neck = MeshBuilder.CreateCylinder('coastal-glass-bottle-neck', { height: 0.34, diameter: 0.2, tessellation: 10 }, this.scene);
+        part(neck, glass, 0, 0.87, 0);
+      } else {
+        const can = MeshBuilder.CreateCylinder('coastal-aluminum-can', { height: 0.75, diameter: 0.48, tessellation: 14 }, this.scene);
+        part(can, this.material('coastal-aluminum-can-material', new Color3(0.72, 0.77, 0.78)), 0, 0.39, 0);
+      }
+      this.coastalWasteObjects.push(root);
+    });
+
+    // Recipientes identificados pelas cores da Resolução CONAMA 275/2001.
+    const colors = [new Color3(0.08, 0.36, 0.75), new Color3(0.82, 0.14, 0.16), new Color3(0.08, 0.56, 0.30), new Color3(0.91, 0.68, 0.08)];
+    const labels = [['AZUL · PAPEL / PAPELÃO','CAIXAS LIMPAS E SECAS'], ['VERMELHO · PLÁSTICO','GARRAFA PET VAZIA'], ['VERDE · VIDRO','GARRAFA INTEIRA'], ['AMARELO · METAL','LATAS VAZIAS']];
+    this.coastalSortingPositions.forEach((site, index) => {
+      const body = MeshBuilder.CreateBox('coastal-sorting-bin-' + index, { width: 4.8, height: 1.6, depth: 2.5 }, this.scene);
+      body.position.set(site.x, 0.8, site.z); body.material = this.material('coastal-sorting-bin-material-' + index, colors[index]);
+      this.coastalSortingBins.push(body.material as StandardMaterial);
+      const lid = MeshBuilder.CreateBox('coastal-sorting-bin-lid-' + index, { width: 4.95, height: 0.18, depth: 2.65 }, this.scene);
+      lid.position.set(site.x, 1.68, site.z); lid.material = this.material('coastal-sorting-bin-lid-material-' + index, new Color3(0.12, 0.16, 0.16));
+      const board = MeshBuilder.CreateBox('coastal-sorting-sign-' + index, { width: 5.8, height: 1.45, depth: 0.16 }, this.scene);
+      board.position.set(site.x, 2.65, site.z + 1.32); board.material = this.material('coastal-sorting-sign-material-' + index, new Color3(0.05, 0.25, 0.30));
+      const texture = new DynamicTexture('coastal-sorting-texture-' + index, { width: 768, height: 220 }, this.scene, false);
+      const ctx = texture.getContext() as unknown as CanvasRenderingContext2D;
+      ctx.fillStyle = '#103F4B'; ctx.fillRect(0, 0, 768, 220); ctx.textAlign = 'center';
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 38px Arial'; ctx.fillText(labels[index][0], 384, 90, 720);
+      ctx.fillStyle = '#D7E9E9'; ctx.font = 'bold 25px Arial'; ctx.fillText(labels[index][1], 384, 156, 720); texture.update();
+      const face = MeshBuilder.CreatePlane('coastal-sorting-face-' + index, { width: 5.55, height: 1.28 }, this.scene);
+      face.position.set(site.x, 2.65, site.z + 1.415);
+      const faceMat = this.material('coastal-sorting-face-mat-' + index, new Color3(1, 1, 1));
+      faceMat.diffuseTexture = texture; faceMat.emissiveColor = new Color3(0.13, 0.17, 0.17); face.material = faceMat;
+    });
+    sign('coastal-sort-area-sign', 'TRIAGEM DE RECICLÁVEIS SECOS', 'Cada material segue para seu recipiente identificado', -18, 4.25, -11.9, 13);
+
+    const deck = MeshBuilder.CreateBox('coastal-wildlife-lookout-deck', { width: 9, height: 0.28, depth: 5 }, this.scene);
+    deck.position.set(24, 0.45, -1.5); deck.material = wood;
+    this.coastalWildlifePositions.forEach((site, index) => {
+      const marker = MeshBuilder.CreateCylinder('coastal-wildlife-marker-' + index, { height: 0.75, diameter: 0.58, tessellation: 8 }, this.scene);
+      marker.position.set(site.x, 0.38, site.z); marker.material = this.material('coastal-wildlife-marker-material-' + index, new Color3(0.18, 0.47, 0.36));
+      const scope = MeshBuilder.CreateCylinder('coastal-observation-scope-' + index, { height: 1.25, diameter: 0.16, tessellation: 8 }, this.scene);
+      scope.position.set(site.x, 1.05, site.z - 0.6); scope.rotation.x = Math.PI / 2.4; scope.material = this.material('coastal-scope-material-' + index, new Color3(0.20, 0.27, 0.29));
+      this.coastalWildlifeMarkers.push(marker);
+    });
+    const waterMarker = MeshBuilder.CreateCylinder('coastal-water-monitoring-marker', { height: 0.85, diameter: 0.6, tessellation: 8 }, this.scene);
+    waterMarker.position.set(this.coastalWaterMonitoringPosition.x, 0.45, this.coastalWaterMonitoringPosition.z);
+    waterMarker.material = this.material('coastal-water-marker-material', new Color3(0.22, 0.62, 0.75)); this.coastalWaterMarker = waterMarker;
+    signPosts('coastal-monitoring-signpost', 24, -4);
+    sign('coastal-monitoring-sign', 'OBSERVAÇÃO DA FAUNA', 'Registre sinais à distância, sem tocar ou alimentar animais', 24, 3.0, -4, 10.5);
+    sign('coastal-water-sample-sign', 'MONITORAMENTO DA ÁGUA', 'Amostras e análises por equipe técnica', 13, 2.6, 20.2, 10.5);
+
+    const birdMat = this.material('coastal-bird-material', new Color3(0.88, 0.84, 0.72));
+    for (let i = 0; i < 4; i++) {
+      const body = MeshBuilder.CreateSphere('coastal-shorebird-body-' + i, { diameter: 0.75, segments: 7 }, this.scene);
+      body.position.set(-5 + i * 2.2, 0.72, 21 + (i % 2) * 1.2); body.scaling.set(1.2, 0.55, 0.7); body.material = birdMat;
+      const head = MeshBuilder.CreateSphere('coastal-shorebird-head-' + i, { diameter: 0.36, segments: 7 }, this.scene);
+      head.position.set(-4.7 + i * 2.2, 0.95, 21 + (i % 2) * 1.2); head.material = birdMat;
+    }
+    const crabMat = this.material('coastal-crab-material', new Color3(0.77, 0.34, 0.18));
+    for (let i = 0; i < 5; i++) {
+      const crab = MeshBuilder.CreateSphere('coastal-crab-body-' + i, { diameter: 0.5, segments: 7 }, this.scene);
+      crab.position.set(-15 + i * 1.5, 0.25, -5 + (i % 2) * 1.1); crab.scaling.set(1.25, 0.5, 0.8); crab.material = crabMat;
+    }
+    this.coastalSurveyPositions.forEach((site, index) => signPosts('coastal-survey-post-' + index, site.x, site.z));
+  }
+
+  private getNearbyCoastalInteraction(): { action: NearbyAction; label: string } | null {
+    const dist = (site: PortSite | Vector3): number => Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z);
+    if (this.coastalMissionStage === 'survey') {
+      const i = this.coastalSurveyPositions.findIndex((site, index) => !this.coastalSitesInspected[index] && dist(site) <= 6.5);
+      if (i >= 0) return { action: 'inspect-coastal-site', label: 'E · INVESTIGAR TRECHO DA BACIA E ESTUÁRIO' };
+    } else if (this.coastalMissionStage === 'cleanup') {
+      const i = this.coastalWastePositions.findIndex((site, index) => !this.coastalWasteCollected[index] && dist(site) <= 3.8);
+      if (i >= 0) return { action: 'collect-coastal-waste', label: 'E · RECOLHER ' + COASTAL_WASTE_CATALOG[i].name.toUpperCase() };
+    } else if (this.coastalMissionStage === 'sorting') {
+      const i = this.coastalSortingPositions.findIndex((site, index) => this.coastalWasteCollected[index] && !this.coastalWasteSorted[index] && dist(site) <= 5.2);
+      if (i >= 0) return { action: 'sort-coastal-waste', label: 'E · SEPARAR ' + COASTAL_WASTE_CATALOG[i].category };
+    } else if (this.coastalMissionStage === 'restore') {
+      const i = this.coastalMangrovePositions.findIndex((site, index) => !this.coastalMangrovesPlanted[index] && dist(site) <= 5.2);
+      if (i >= 0) return { action: 'plant-coastal-mangrove', label: 'E · PLANTAR MUDA NATIVA DE MANGUE' };
+    } else if (this.coastalMissionStage === 'monitor') {
+      const i = this.coastalWildlifePositions.findIndex((site, index) => !this.coastalWildlifeRecorded[index] && dist(site) <= 6.0);
+      if (i >= 0) return { action: 'record-coastal-wildlife', label: 'E · REGISTRAR FAUNA À DISTÂNCIA' };
+      if (!this.coastalWaterMonitoringComplete && dist(this.coastalWaterMonitoringPosition) <= 6.0) return { action: 'sample-coastal-water', label: 'E · REGISTRAR MONITORAMENTO DA ÁGUA' };
+    }
+    return null;
+  }
+
+  private buildCoastalMangroveSeedling(index: number): void {
+    const site = this.coastalMangrovePositions[index]; if (!site) return;
+    const start = this.scene.meshes.length;
+    const trunk = MeshBuilder.CreateCylinder('coastal-planted-mangrove-trunk-' + index, { height: 1.25, diameterTop: 0.05, diameterBottom: 0.13, tessellation: 7 }, this.scene);
+    trunk.position.set(site.x, 0.65, site.z); trunk.material = this.material('coastal-planted-mangrove-trunk-material-' + index, new Color3(0.34, 0.23, 0.15));
+    const crown = MeshBuilder.CreateSphere('coastal-planted-mangrove-crown-' + index, { diameter: 0.9, segments: 7 }, this.scene);
+    crown.position.set(site.x, 1.4, site.z); crown.material = this.material('coastal-planted-mangrove-crown-material-' + index, new Color3(0.19, 0.48, 0.26));
+    this.phaseFiveDynamicMeshes.push(...this.scene.meshes.slice(start) as Mesh[]);
+  }
+
+  private checkCoastalCompletion(): void {
+    if (this.coastalMangrovesPlanted.every(Boolean) && this.coastalWildlifeRecorded.every(Boolean) && this.coastalWaterMonitoringComplete) {
+      this.coastalMissionStage = 'complete'; this.cit += 60;
+      this.message = 'Zona Costeira concluída no cenário educativo. A qualidade real da água exige análises e acompanhamento contínuo.';
+    }
+  }
+
+  private performCoastalAction(action: NearbyAction): void {
+    if (action === 'inspect-coastal-site') {
+      const i = this.coastalSurveyPositions.findIndex((site, index) => !this.coastalSitesInspected[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 6.5);
+      if (i < 0) { this.message = 'Aproxime-se de um dos marcos entre rio, estuário e costa.'; this.emit(); return; }
+      this.coastalSitesInspected[i] = true;
+      const marker = this.coastalSurveyMarkers[i]; if (marker) (marker.material as StandardMaterial).emissiveColor = new Color3(0.12, 0.24, 0.12);
+      const notice = [
+        ['BACIA HIDROGRÁFICA', 'A bacia reúne o território onde a água escoa para um mesmo rio ou sistema. Resíduos, sedimentos e poluentes podem viajar das áreas a montante até trechos a jusante. Cuidar só da praia não resolve todas as causas.', 'Observe o uso do solo, o saneamento, as descargas e a drenagem ao longo da bacia.', 'As medidas precisam ocorrer nas fontes e ser acompanhadas por monitoramento.'],
+        ['ESTUÁRIO', 'O estuário é uma área de transição entre o rio e o mar, influenciada pelo fluxo de água doce e pelas marés. Salinidade, sedimentos e habitats variam ao longo do sistema.', 'Registre os pontos indicados sem entrar na água ou perturbar a fauna.', 'Dados de diferentes horários e condições ajudam equipes técnicas a entender as variações do ambiente.'],
+        ['MANGUEZAL', 'O manguezal é um ecossistema costeiro sujeito às marés. Sua vegetação oferece abrigo e áreas de alimentação e reprodução para muitos organismos.', 'Proteja a vegetação e respeite o solo lodoso e os canais de maré.', 'A conservação depende de manter o fluxo de água, a vegetação nativa e a qualidade ambiental — não apenas plantar árvores.'],
+      ][i];
+      if (this.coastalSitesInspected.every(Boolean)) { this.coastalMissionStage = 'cleanup'; this.message = 'Diagnóstico completo. Recolha apenas resíduos comuns seguros; não manipule cacos, óleo, animais ou materiais desconhecidos.'; }
+      else this.message = 'Ponto costeiro registrado (' + this.coastalSitesInspected.filter(Boolean).length + '/3).';
+      this.showLearningNotice('FASE 05 · DIAGNÓSTICO COSTEIRO', notice[0], notice[1], notice[2], notice[3]); this.emit(); return;
+    }
+    if (action === 'collect-coastal-waste') {
+      const i = this.coastalWastePositions.findIndex((site, index) => !this.coastalWasteCollected[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 3.8);
+      if (i < 0) { this.message = 'Aproxime-se de um dos objetos seguros identificados na praia.'; this.emit(); return; }
+      this.coastalWasteCollected[i] = true; this.coastalWasteObjects[i]?.setEnabled(false);
+      const item = COASTAL_WASTE_CATALOG[i]; if (this.coastalWasteCollected.every(Boolean)) this.coastalMissionStage = 'sorting';
+      this.showLearningNotice('FASE 05 · RESÍDUO IDENTIFICADO', item.name, item.description, item.destination, item.afterwards);
+      this.message = 'Objeto recolhido (' + this.coastalWasteCollected.filter(Boolean).length + '/4). Leve cada material ao recipiente correspondente.'; this.emit(); return;
+    }
+    if (action === 'sort-coastal-waste') {
+      const i = this.coastalSortingPositions.findIndex((site, index) => this.coastalWasteCollected[index] && !this.coastalWasteSorted[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 5.2);
+      if (i < 0) { this.message = 'Aproxime-se do recipiente correto, identificado pelo nome e pela cor.'; this.emit(); return; }
+      this.coastalWasteSorted[i] = true;
+      if (this.coastalSortingBins[i]) this.coastalSortingBins[i].emissiveColor = new Color3(0.13, 0.22, 0.10);
+      const item = COASTAL_WASTE_CATALOG[i]; if (this.coastalWasteSorted.every(Boolean)) this.coastalMissionStage = 'restore';
+      this.showLearningNotice('FASE 05 · TRIAGEM CONFIRMADA', item.category, item.description, item.destination, 'A triagem organiza o material para transporte e beneficiamento. A transformação em novos produtos acontece depois, na cadeia industrial.');
+      this.message = 'Destino confirmado: ' + item.category + ' (' + this.coastalWasteSorted.filter(Boolean).length + '/4 recipientes utilizados).'; this.emit(); return;
+    }
+    if (action === 'plant-coastal-mangrove') {
+      const i = this.coastalMangrovePositions.findIndex((site, index) => !this.coastalMangrovesPlanted[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 5.2);
+      if (i < 0) { this.message = 'Aproxime-se de um marco de restauração indicado pela equipe técnica.'; this.emit(); return; }
+      this.coastalMangrovesPlanted[i] = true; this.coastalMangroveMarkers[i]?.setEnabled(false); this.buildCoastalMangroveSeedling(i);
+      if (this.coastalMangrovesPlanted.every(Boolean)) this.coastalMissionStage = 'monitor';
+      this.showLearningNotice('FASE 05 · RESTAURAÇÃO ECOLÓGICA', 'Muda nativa de manguezal', 'O plantio é apenas uma parte da restauração. Espécie, posição na faixa entre marés, hidrologia e solo precisam ser avaliados por especialistas e pela comunidade local.', 'Plante somente nos pontos sinalizados. Não caminhe sobre raízes nem abra canais.', 'A equipe acompanha sobrevivência, crescimento, marés e recuperação do habitat. Uma muda plantada não significa que o manguezal já foi restaurado.');
+      this.message = 'Muda registrada (' + this.coastalMangrovesPlanted.filter(Boolean).length + '/3).'; this.emit(); return;
+    }
+    if (action === 'record-coastal-wildlife') {
+      const i = this.coastalWildlifePositions.findIndex((site, index) => !this.coastalWildlifeRecorded[index] && Math.hypot(this.player.position.x - site.x, this.player.position.z - site.z) <= 6.0);
+      if (i < 0) { this.message = 'Use os postos de observação e mantenha distância da fauna.'; this.emit(); return; }
+      this.coastalWildlifeRecorded[i] = true;
+      if (this.coastalWildlifeMarkers[i]) (this.coastalWildlifeMarkers[i].material as StandardMaterial).emissiveColor = new Color3(0.1, 0.24, 0.14);
+      this.showLearningNotice('FASE 05 · BIODIVERSIDADE', 'Registro de fauna costeira', 'Observe aves, caranguejos e outros animais sem tocar, capturar, alimentar ou perseguir. Este registro é educativo, não um levantamento científico oficial.', 'Permaneça nos postos de observação e mantenha distância da fauna e de ninhos.', 'Equipes registram espécie, local, horário, condições e esforço amostral para acompanhar tendências.');
+      this.message = 'Registro de fauna realizado (' + this.coastalWildlifeRecorded.filter(Boolean).length + '/2).'; this.checkCoastalCompletion(); this.emit(); return;
+    }
+    if (action === 'sample-coastal-water') {
+      this.coastalWaterMonitoringComplete = true;
+      if (this.coastalWaterMarker) (this.coastalWaterMarker.material as StandardMaterial).emissiveColor = new Color3(0.1, 0.24, 0.16);
+      this.showLearningNotice('FASE 05 · MONITORAMENTO DA ÁGUA', 'Ponto de amostragem costeira', 'A aparência da água não comprova que ela esteja segura. A qualidade depende de coleta adequada, análises laboratoriais, critérios aplicáveis e monitoramento ao longo do tempo.', 'Este marco representa um ponto de amostragem. A coleta e o manuseio de amostras reais são tarefas de equipes capacitadas.', 'Os resultados precisam ser interpretados por profissionais; uma medição isolada não representa toda a bacia nem garante segurança para banho ou consumo.');
+      this.message = 'Ponto de monitoramento registrado. As análises de qualidade não são simuladas como resultado real.'; this.checkCoastalCompletion(); this.emit(); return;
+    }
+  }
+
   private getForestPackagingActiveIndices(): number[] {
     return this.forestPackagingLegacy ? [0, 1, 4] : [0, 1, 2, 3, 4, 5];
   }
@@ -2058,6 +2378,8 @@ export class GreenCityGame {
     this.peripheryDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.phaseFourDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFiveMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFiveDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.forestTruckRoot?.setEnabled(false);
     this.phaseOneModelRoots.forEach((root) => root.setEnabled(false));
     this.portModelRoots.forEach((root) => root.setEnabled(true));
@@ -2088,6 +2410,8 @@ export class GreenCityGame {
     this.portDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.phaseFourDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFiveMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFiveDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.forestTruckRoot?.setEnabled(false);
     this.peripheryMeshes.forEach((mesh) => mesh.setEnabled(true));
     this.peripheryDynamicMeshes.forEach((mesh) => mesh.setEnabled(true));
@@ -2117,6 +2441,8 @@ export class GreenCityGame {
     this.portDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.peripheryMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.peripheryDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFiveMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFiveDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
     this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(true));
     this.phaseFourDynamicMeshes.forEach((mesh) => mesh.setEnabled(true));
     this.forestTruckRoot?.setEnabled(true);
@@ -2130,6 +2456,21 @@ export class GreenCityGame {
       ? 'MODO DE TESTE: Reserva Florestal aberta para validação da Fase 04.'
       : 'Bem-vindo à Reserva Florestal. Investigue a biodiversidade e conheça a cadeia da agricultura familiar.';
     this.emit();
+  }
+
+  enterCoastalPhase(forceForDevelopment = false): void {
+    if (this.activePhase === 5) { this.setMapOpen(false); return; }
+    if (!forceForDevelopment && (this.activePhase !== 4 || !this.isNextNeighborhoodUnlocked())) { this.message = 'Conclua a Reserva Florestal para liberar a Zona Costeira.'; this.emit(); return; }
+    this.activePhase = 5;
+    this.phaseOneMeshes.forEach((mesh) => mesh.setEnabled(false)); this.phaseOneDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.portMeshes.forEach((mesh) => mesh.setEnabled(false)); this.portDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.peripheryMeshes.forEach((mesh) => mesh.setEnabled(false)); this.peripheryDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFourMeshes.forEach((mesh) => mesh.setEnabled(false)); this.phaseFourDynamicMeshes.forEach((mesh) => mesh.setEnabled(false));
+    this.phaseFiveMeshes.forEach((mesh) => mesh.setEnabled(true)); this.phaseFiveDynamicMeshes.forEach((mesh) => mesh.setEnabled(true));
+    this.forestTruckRoot?.setEnabled(false); this.phaseOneModelRoots.forEach((root) => root.setEnabled(false)); this.portModelRoots.forEach((root) => root.setEnabled(false));
+    this.player.position.set(-42, 1, -20); this.player.setEnabled(true); this.inVehicle = false; this.vehicleSpeed = 0; this.keys.clear();
+    this.mapOpen = false; this.paused = false; this.camera.setTarget(new Vector3(-39, 1.35, -20));
+    this.message = forceForDevelopment ? 'MODO DE TESTE: Zona Costeira aberta para validação da Fase 05.' : 'Bem-vindo à Zona Costeira. Siga o curso do rio, observe o estuário e conheça o manguezal.'; this.emit();
   }
 
   private findNearestOutfall(): number {
@@ -3444,6 +3785,11 @@ export class GreenCityGame {
     const now = performance.now();
     if (now - this.lastInteract < 180) return;
     this.lastInteract = now;
+    if (this.activePhase === 5) {
+      const nearby = this.getNearbyInteraction();
+      if (!nearby) { this.message = 'Aproxime-se dos marcos, resíduos, recipientes ou postos de monitoramento.'; this.emit(); return; }
+      this.performCoastalAction(nearby.action); return;
+    }
     if (this.activePhase === 4) {
       const nearby = this.getNearbyInteraction();
       if (!nearby) { this.message = 'Aproxime-se de um ponto da reserva, da área de colheita, da agroindústria ou dos locais de destinação.'; this.emit(); return; }
@@ -3508,6 +3854,7 @@ export class GreenCityGame {
   }
 
   private isNextNeighborhoodUnlocked(): boolean {
+    if (this.activePhase === 5) return this.coastalMissionStage === 'complete';
     if (this.activePhase === 4) return this.forestMissionStage === 'complete';
     if (this.activePhase === 2) return this.portMissionStage === 'complete';
     if (this.activePhase === 3) return this.peripheryMissionStage === 'complete';
@@ -3560,6 +3907,7 @@ export class GreenCityGame {
 
   private getNearbyInteraction(): { action: NearbyAction; label: string } | null {
     if (this.paused || this.mapOpen || this.learningNotice) return null;
+    if (this.activePhase === 5) return this.getNearbyCoastalInteraction();
     if (this.activePhase === 2) return this.getNearbyPortInteraction();
     if (this.activePhase === 3) return this.getNearbyPeripheryInteraction();
     if (this.activePhase === 4) return this.getNearbyForestInteraction();
@@ -3605,6 +3953,7 @@ export class GreenCityGame {
       this.emit();
       return;
     }
+    if (this.activePhase === 5) { this.performCoastalAction(nearby.action); return; }
     if (this.activePhase === 2) { this.performPortAction(nearby.action); return; }
     if (this.activePhase === 3) { this.performPeripheryAction(nearby.action); return; }
     if (this.activePhase === 4) { this.performForestAction(nearby.action); return; }
@@ -3676,7 +4025,7 @@ export class GreenCityGame {
       } else if (this.peripheryMissionStage === 'rain-garden') {
         entries.push({ id: 'community-rain-garden', label: 'Área para jardim de chuva', x: this.peripheryRainGardenPosition.x, z: this.peripheryRainGardenPosition.z, done: this.peripheryRainGardenBuilt });
       }
-    } else {
+    } else if (this.activePhase === 4) {
       const add = (id: string, label: string, site: PortSite | Vector3, done: boolean): void => { entries.push({ id, label, x: site.x, z: site.z, done }); };
       if (this.forestMissionStage === 'survey') {
         this.forestHabitatPositions.forEach((site, i) => add('forest-habitat-' + i, 'Fragmento de habitat ' + (i + 1), site, this.forestHabitatsInspected[i]));
@@ -3701,6 +4050,16 @@ export class GreenCityGame {
         add('forest-wildlife', 'Monitoramento da fauna', this.forestWildlifePosition, this.forestWildlifeRecorded);
         add('forest-fire-prevention', 'Posto de prevenção de incêndios', this.forestFirePreventionPosition, this.forestFirePreventionInspected);
       }
+    } else if (this.activePhase === 5) {
+      const add = (id: string, label: string, site: PortSite | Vector3, done: boolean): void => { entries.push({ id, label, x: site.x, z: site.z, done }); };
+      if (this.coastalMissionStage === 'survey') this.coastalSurveyPositions.forEach((site, i) => add('coastal-survey-' + i, ['Trecho a montante', 'Estuário e marés', 'Manguezal e margem'][i], site, this.coastalSitesInspected[i]));
+      else if (this.coastalMissionStage === 'cleanup') this.coastalWastePositions.forEach((site, i) => add('coastal-waste-' + i, COASTAL_WASTE_CATALOG[i].name, site, this.coastalWasteCollected[i]));
+      else if (this.coastalMissionStage === 'sorting') this.coastalSortingPositions.forEach((site, i) => add('coastal-sort-' + i, COASTAL_WASTE_CATALOG[i].category, site, this.coastalWasteSorted[i]));
+      else if (this.coastalMissionStage === 'restore') this.coastalMangrovePositions.forEach((site, i) => add('coastal-mangrove-' + i, 'Muda nativa de manguezal ' + (i + 1), site, this.coastalMangrovesPlanted[i]));
+      else if (this.coastalMissionStage === 'monitor') {
+        this.coastalWildlifePositions.forEach((site, i) => add('coastal-fauna-' + i, 'Posto de observação da fauna ' + (i + 1), site, this.coastalWildlifeRecorded[i]));
+        add('coastal-water-monitoring', 'Ponto de monitoramento da água', this.coastalWaterMonitoringPosition, this.coastalWaterMonitoringComplete);
+      }
     }
 
     const nextIndex = entries.findIndex((entry) => !entry.done);
@@ -3716,6 +4075,7 @@ export class GreenCityGame {
     if (data.phase === 2 && this.activePhase !== 2) this.enterPortPhase(true);
     if (data.phase === 3 && this.activePhase !== 3) this.enterPeripheryPhase(true);
     if (data.phase === 4 && this.activePhase !== 4) this.enterForestPhase(true);
+    if (data.phase === 5 && this.activePhase !== 5) this.enterCoastalPhase(true);
     this.cit = Math.max(0, Number(data.cit ?? this.cit));
 
     if (this.activePhase === 1) {
@@ -3848,7 +4208,7 @@ export class GreenCityGame {
       this.peripheryWaterQuality = this.peripheryRainGardenBuilt ? 54 : 28;
       this.player.position.set(-35, 1, 31);
       this.message = 'Seu progresso da Periferia Verde foi restaurado.';
-    } else {
+    } else if (this.activePhase === 4) {
       this.forestMissionStage = data.forestMissionStage ?? 'survey';
       (data.forestHabitatsInspected ?? []).forEach((done, index) => {
         this.forestHabitatsInspected[index] = done === true;
@@ -3886,8 +4246,17 @@ export class GreenCityGame {
       this.forestTruckTraveling = false; this.forestTruckTarget = null; this.forestTruckDestination = null;
       if (this.forestProcessed && !this.forestMarketStocked) this.forestMissionStage = 'market';
       else if (this.forestTruckLoaded && !this.forestProcessed && this.forestMissionStage === 'transport') this.forestMissionStage = 'process';
-      this.player.position.set(-37, 1, 31);
-      this.message = 'Seu progresso da Reserva Florestal foi restaurado.';
+      this.player.position.set(-37, 1, 31); this.message = 'Seu progresso da Reserva Florestal foi restaurado.';
+    } else if (this.activePhase === 5) {
+      this.coastalMissionStage = data.coastalMissionStage ?? 'survey';
+      (data.coastalSitesInspected ?? []).forEach((done, i) => { this.coastalSitesInspected[i] = done === true; if (done && this.coastalSurveyMarkers[i]) (this.coastalSurveyMarkers[i].material as StandardMaterial).emissiveColor = new Color3(0.12, 0.24, 0.12); });
+      (data.coastalWasteCollected ?? []).forEach((done, i) => { this.coastalWasteCollected[i] = done === true; if (done) this.coastalWasteObjects[i]?.setEnabled(false); });
+      (data.coastalWasteSorted ?? []).forEach((done, i) => { this.coastalWasteSorted[i] = done === true; if (done && this.coastalSortingBins[i]) this.coastalSortingBins[i].emissiveColor = new Color3(0.13, 0.22, 0.10); });
+      (data.coastalMangrovesPlanted ?? []).forEach((done, i) => { this.coastalMangrovesPlanted[i] = done === true; if (done) { this.coastalMangroveMarkers[i]?.setEnabled(false); this.buildCoastalMangroveSeedling(i); } });
+      (data.coastalWildlifeRecorded ?? []).forEach((done, i) => { this.coastalWildlifeRecorded[i] = done === true; if (done && this.coastalWildlifeMarkers[i]) (this.coastalWildlifeMarkers[i].material as StandardMaterial).emissiveColor = new Color3(0.1, 0.24, 0.14); });
+      this.coastalWaterMonitoringComplete = data.coastalWaterMonitoringComplete === true;
+      if (this.coastalWaterMonitoringComplete && this.coastalWaterMarker) (this.coastalWaterMarker.material as StandardMaterial).emissiveColor = new Color3(0.1, 0.24, 0.16);
+      this.player.position.set(-42, 1, -20); this.message = 'Seu progresso da Zona Costeira foi restaurado.';
     }
     this.emit();
   }
@@ -3915,7 +4284,9 @@ export class GreenCityGame {
           ? (this.portMissionStage === 'complete' ? 2 : 1)
           : this.activePhase === 3
             ? (this.peripheryMissionStage === 'complete' ? 3 : 2)
-            : (this.forestMissionStage === 'complete' ? 4 : 3),
+            : this.activePhase === 4
+              ? (this.forestMissionStage === 'complete' ? 4 : 3)
+              : (this.coastalMissionStage === 'complete' ? 5 : 4),
       thirdNeighborhoodUnlocked: this.activePhase === 2 && this.portMissionStage === 'complete',
       portMissionStage: this.portMissionStage,
       outfallsInspected: this.portOutfallsInspected,
@@ -3961,6 +4332,17 @@ export class GreenCityGame {
       forestSpringProtected: this.forestSpringProtected,
       forestWildlifeRecorded: this.forestWildlifeRecorded,
       forestFirePreventionInspected: this.forestFirePreventionInspected,
+      coastalMissionStage: this.coastalMissionStage,
+      coastalSitesInspected: this.coastalSitesInspected.filter(Boolean).length,
+      coastalSitesTotal: this.coastalSitesInspected.length,
+      coastalWasteCollected: this.coastalWasteCollected.filter(Boolean).length,
+      coastalWasteTotal: this.coastalWasteCollected.length,
+      coastalWasteSorted: this.coastalWasteSorted.filter(Boolean).length,
+      coastalMangrovesPlanted: this.coastalMangrovesPlanted.filter(Boolean).length,
+      coastalMangrovesTotal: this.coastalMangrovesPlanted.length,
+      coastalWildlifeRecorded: this.coastalWildlifeRecorded.filter(Boolean).length,
+      coastalWildlifeTotal: this.coastalWildlifeRecorded.length,
+      coastalWaterMonitoringComplete: this.coastalWaterMonitoringComplete,
       missionStage: this.missionStage,
       nextNeighborhoodUnlocked: this.isNextNeighborhoodUnlocked(),
       paused: this.paused,
@@ -4014,6 +4396,13 @@ export class GreenCityGame {
         forestSpringProtected: this.forestSpringProtected,
         forestWildlifeRecorded: this.forestWildlifeRecorded,
         forestFirePreventionInspected: this.forestFirePreventionInspected,
+        coastalMissionStage: this.coastalMissionStage,
+        coastalSitesInspected: [...this.coastalSitesInspected],
+        coastalWasteCollected: [...this.coastalWasteCollected],
+        coastalWasteSorted: [...this.coastalWasteSorted],
+        coastalMangrovesPlanted: [...this.coastalMangrovesPlanted],
+        coastalWildlifeRecorded: [...this.coastalWildlifeRecorded],
+        coastalWaterMonitoringComplete: this.coastalWaterMonitoringComplete,
       },
     };
   }
