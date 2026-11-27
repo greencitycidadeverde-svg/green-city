@@ -253,16 +253,20 @@ export class GreenCityGame {
     this.camera.panningSensibility = 0;
     this.camera.wheelPrecision = 38;
     this.camera.attachControl(canvas, true);
-    // Free-screen gestures use Babylon's native pointer controls: mouse drag / one-finger touch
-    // rotates the view, while the mouse wheel / two-finger pinch changes camera distance.
-    // The mobile joystick and action buttons sit above the canvas and keep their own touch input.
-    const pointerInput = this.camera.inputs.attached.pointers as any;
-    if (pointerInput) {
-      pointerInput.buttons = [0];
-      pointerInput.angularSensibilityX = 800;
-      pointerInput.angularSensibilityY = 800;
-      pointerInput.pinchPrecision = 9;
-      pointerInput.pinchInwards = true;
+    // Touch devices use the explicit right-hand camera pad so movement touches never orbit the camera.
+    // Desktop keeps Babylon mouse orbit and wheel zoom unchanged.
+    const touchFirstControls = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 980;
+    if (touchFirstControls) {
+      this.camera.inputs.removeByType('ArcRotateCameraPointersInput');
+    } else {
+      const pointerInput = this.camera.inputs.attached.pointers as any;
+      if (pointerInput) {
+        pointerInput.buttons = [0];
+        pointerInput.angularSensibilityX = 800;
+        pointerInput.angularSensibilityY = 800;
+        pointerInput.pinchPrecision = 9;
+        pointerInput.pinchInwards = true;
+      }
     }
     this.camera.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
     this.camera.setTarget(new Vector3(8.5, 1.2, 23.5));

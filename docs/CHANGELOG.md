@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.30 — controles mobile-first e câmera separada
+- Interface móvel redesenhada para celular: HUD compacto, objetivo recolhível e minimapa removido da área de movimento.
+- Direcional em cruz com quatro botões táteis, diagonal por multitoque e liberação segura de cada direção.
+- Câmera separada em uma área de arraste à direita; gestos de movimento deixam de girar a câmera por engano.
+- Botão de ação contextual permanece visível, informa quando o jogador precisa se aproximar e executa a ação quando disponível.
+- Zoom, áreas de toque, margens seguras e controles adaptados a telas pequenas e ao modo paisagem.
+- Desktop mantém mouse e teclado sem alterações.
+
+# Changelog
+
 ## 0.4.29 — estabilidade do salvamento e Caderno de Aprendizado
 - Incluído lockfile npm v3, pipeline CI e smoke test dos bundles e cinco modelos GLB; compilação padronizada para Node.js 22.
 - O jogo informa quando está salvando, quando gravou e quando falhou; oferece nova tentativa e bloqueia saída/troca de fase enquanto houver salvamento pendente com erro.

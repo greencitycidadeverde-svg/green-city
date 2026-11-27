@@ -127,8 +127,10 @@ export default function GameExperience({ userId, campaignId, campaignCurrentPhas
     }
   });
   const [showHelp, setShowHelp] = useState(false);
-  const [joystick, setJoystick] = useState({ x: 0, y: 0 });
-  const joystickPointerRef = useRef<number | null>(null);
+  const [mobileMissionExpanded, setMobileMissionExpanded] = useState(false);
+  const [activeMobileDirections, setActiveMobileDirections] = useState<Array<'up' | 'down' | 'left' | 'right'>>([]);
+  const mobileDirectionPointersRef = useRef<Map<number, 'up' | 'down' | 'left' | 'right'>>(new Map());
+  const mobileCameraPointerRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const [showPlan, setShowPlan] = useState(false);
   const [mapTab, setMapTab] = useState<'objectives' | 'city'>('objectives');
   const [gameReady, setGameReady] = useState(false);
@@ -468,33 +470,57 @@ export default function GameExperience({ userId, campaignId, campaignCurrentPhas
     onConfigurePhase(phase);
   };
 
-  const moveJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (joystickPointerRef.current !== event.pointerId) return;
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const radius = Math.max(1, Math.min(rect.width, rect.height) * 0.36);
-    let x = (event.clientX - (rect.left + rect.width / 2)) / radius;
-    let y = (event.clientY - (rect.top + rect.height / 2)) / radius;
-    const magnitude = Math.hypot(x, y);
-    if (magnitude > 1) { x /= magnitude; y /= magnitude; }
-    setJoystick({ x, y });
-    gameRef.current?.setMobileMovement(x, y);
+  const syncMobileDirections = () => {
+    const directions = [...mobileDirectionPointersRef.current.values()];
+    let horizontal = Number(directions.includes('right')) - Number(directions.includes('left'));
+    let vertical = Number(directions.includes('down')) - Number(directions.includes('up'));
+    const magnitude = Math.hypot(horizontal, vertical);
+    if (magnitude > 1) { horizontal /= magnitude; vertical /= magnitude; }
+    gameRef.current?.setMobileMovement(horizontal, vertical);
+    setActiveMobileDirections([...new Set(directions)]);
   };
-  const startJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    joystickPointerRef.current = event.pointerId;
-    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* o toque continua rastreado enquanto estiver na área */ }
-    moveJoystick(event);
+  const startMobileDirection = (direction: 'up' | 'down' | 'left' | 'right', event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault(); event.stopPropagation();
+    mobileDirectionPointersRef.current.set(event.pointerId, direction);
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* mantém o toque ativo até o fim do gesto */ }
+    syncMobileDirections();
   };
-  const stopJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (joystickPointerRef.current !== event.pointerId) return;
-    joystickPointerRef.current = null;
+  const stopMobileDirection = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault(); event.stopPropagation();
+    if (!mobileDirectionPointersRef.current.delete(event.pointerId)) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* captura já liberada pelo navegador */ }
     }
-    setJoystick({ x: 0, y: 0 });
-    gameRef.current?.setMobileMovement(0, 0);
+    syncMobileDirections();
   };
+  const startMobileCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault(); event.stopPropagation();
+    mobileCameraPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* o gesto continua rastreado pelo navegador */ }
+  };
+  const moveMobileCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointer = mobileCameraPointerRef.current;
+    if (!pointer || pointer.pointerId !== event.pointerId) return;
+    event.preventDefault(); event.stopPropagation();
+    const deltaX = event.clientX - pointer.x;
+    const deltaY = event.clientY - pointer.y;
+    if (Math.abs(deltaX) + Math.abs(deltaY) > 0) gameRef.current?.rotateCameraBy(deltaX, deltaY);
+    mobileCameraPointerRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+  };
+  const stopMobileCamera = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (mobileCameraPointerRef.current?.pointerId !== event.pointerId) return;
+    mobileCameraPointerRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* captura já liberada pelo navegador */ }
+    }
+  };
+  const resetMobileControls = () => {
+    mobileDirectionPointersRef.current.clear(); mobileCameraPointerRef.current = null;
+    setActiveMobileDirections([]); gameRef.current?.setMobileMovement(0, 0);
+  };
+  useEffect(() => {
+    if (state.paused || state.mapOpen || !gameReady || showHelp || state.learningNotice) resetMobileControls();
+  }, [state.paused, state.mapOpen, state.learningNotice, gameReady, showHelp]);
 
   const missionProgress = state.phase === 1
     ? state.missionStage === 'complete' ? 100
@@ -624,22 +650,22 @@ export default function GameExperience({ userId, campaignId, campaignCurrentPhas
         <img className="brand-mark brand-mark-image" src="/brand/green-city-logo.webp" alt="Logotipo oficial GREEN CITY — Cidade Verde" />
         <div><strong>GREEN CITY</strong><small>CIDADE SUSTENTÁVEL · FASE 0{state.phase}/10</small></div>
       </div>
-      <button type="button" className="campaign-return-button" onClick={() => void handleReturnToCampaign()}>VOLTAR AO MAPA DA CIDADE</button>
+      <button type="button" className="campaign-return-button" aria-label="Voltar ao mapa da cidade" onClick={() => void handleReturnToCampaign()}><span className="desktop-only">VOLTAR AO MAPA DA CIDADE</span><span className="mobile-only">MAPA</span></button>
       {developerMode && gameReady && <button type="button" className="dev-menu-toggle" onClick={reopenDeveloperPanel}>PAINEL DE TESTE</button>}
       <div className="wallet"><span>CIT SIMULADOS</span><strong>◆ {state.cit.toString().padStart(3, '0')}</strong></div>
     </header>
 
-    <section className="mission-card">
-      <div className="eyebrow">{mission.eyebrow}</div>
-      <h1>{mission.title}</h1>
-      <p>{mission.description}</p>
-      <div className="progress-row">
-        <div className="progress-track"><span style={{ width: `${missionProgress}%` }} /></div>
-        <b>{mission.progress}</b>
+    <section className={"mission-card" + (mobileMissionExpanded ? " mission-card--mobile-expanded" : "")}>
+      <div className="mission-card-mobile-heading"><span>OBJETIVO DA FASE</span><button type="button" onClick={() => setMobileMissionExpanded((value) => !value)}>{mobileMissionExpanded ? "RECOLHER" : "DETALHES"}</button></div>
+      <div className="mission-card-content">
+        <div className="eyebrow">{mission.eyebrow}</div>
+        <h1>{mission.title}</h1>
+        <p>{mission.description}</p>
+        <div className="progress-row"><div className="progress-track"><span style={{ width: `${missionProgress}%` }} /></div><b>{mission.progress}</b></div>
+        {state.phase === 1 && state.missionStage === 'complete' && <div className="success-line">✓ METAS AMBIENTAIS ATINGIDAS · PORTO LIBERADO</div>}
+        {state.phase === 2 && state.portMissionStage === 'complete' && <div className="success-line">✓ PORTO RECUPERADO · REGIÃO 03 LIBERADA</div>}
+        {state.phase === 3 && state.peripheryMissionStage === 'complete' && <div className="success-line">✓ PERIFERIA VERDE RECUPERADA · REGIÃO 04 LIBERADA</div>}
       </div>
-      {state.phase === 1 && state.missionStage === 'complete' && <div className="success-line">✓ METAS AMBIENTAIS ATINGIDAS · PORTO LIBERADO</div>}
-      {state.phase === 2 && state.portMissionStage === 'complete' && <div className="success-line">✓ PORTO RECUPERADO · REGIÃO 03 LIBERADA</div>}
-      {state.phase === 3 && state.peripheryMissionStage === 'complete' && <div className="success-line">✓ PERIFERIA VERDE RECUPERADA · REGIÃO 04 LIBERADA</div>}
     </section>
 
     {!gameReady && !gameError && <div className="loading-overlay"><div className="loading-box"><span className="loading-spinner" /> Preparando o mundo de GREEN CITY…</div></div>}
@@ -668,26 +694,20 @@ export default function GameExperience({ userId, campaignId, campaignCurrentPhas
       onClick={() => gameRef.current?.performNearbyAction()}
       aria-label={state.nearbyLabel}
     >{interactionLabel}<span>TOCAR / CLICAR</span></button>}
-    {gameReady && !state.paused && !state.mapOpen && !showHelp && <div className="mobile-controls">
-      <div className="mobile-joystick" role="group" aria-label="Direcional: arraste para mover o personagem ou dirigir"
-        onPointerDown={startJoystick} onPointerMove={moveJoystick}
-        onPointerUp={stopJoystick} onPointerCancel={stopJoystick} onLostPointerCapture={stopJoystick}>
-        <span className="mobile-stick-base" />
-        <span className="mobile-stick-knob" style={{ transform: `translate(calc(-50% + ${joystick.x * 32}px), calc(-50% + ${joystick.y * 32}px))` }} />
-        <small>MOVER</small>
+    {gameReady && !state.paused && !state.mapOpen && !showHelp && !state.learningNotice && <div className="mobile-controls">
+      <div className="mobile-dpad" role="group" aria-label="Direcional de movimento do personagem">
+        <button type="button" className={"mobile-direction-button mobile-direction-button--up" + (activeMobileDirections.includes('up') ? " is-active" : "")} aria-label="Andar para frente" onPointerDown={(event) => startMobileDirection('up', event)} onPointerUp={stopMobileDirection} onPointerCancel={stopMobileDirection} onLostPointerCapture={stopMobileDirection}>▲</button>
+        <button type="button" className={"mobile-direction-button mobile-direction-button--left" + (activeMobileDirections.includes('left') ? " is-active" : "")} aria-label="Andar para a esquerda" onPointerDown={(event) => startMobileDirection('left', event)} onPointerUp={stopMobileDirection} onPointerCancel={stopMobileDirection} onLostPointerCapture={stopMobileDirection}>◀</button>
+        <div className="mobile-dpad-center"><span>GC</span><small>ANDAR</small></div>
+        <button type="button" className={"mobile-direction-button mobile-direction-button--right" + (activeMobileDirections.includes('right') ? " is-active" : "")} aria-label="Andar para a direita" onPointerDown={(event) => startMobileDirection('right', event)} onPointerUp={stopMobileDirection} onPointerCancel={stopMobileDirection} onLostPointerCapture={stopMobileDirection}>▶</button>
+        <button type="button" className={"mobile-direction-button mobile-direction-button--down" + (activeMobileDirections.includes('down') ? " is-active" : "")} aria-label="Andar para trás" onPointerDown={(event) => startMobileDirection('down', event)} onPointerUp={stopMobileDirection} onPointerCancel={stopMobileDirection} onLostPointerCapture={stopMobileDirection}>▼</button>
       </div>
+      <div className="mobile-camera-pad" role="group" aria-label="Gire a câmera arrastando nesta área" onPointerDown={startMobileCamera} onPointerMove={moveMobileCamera} onPointerUp={stopMobileCamera} onPointerCancel={stopMobileCamera} onLostPointerCapture={stopMobileCamera}><span className="mobile-camera-pad-icon">↔</span><small>GIRAR<br/>CÂMERA</small></div>
       <div className="mobile-zoom-stack" aria-label="Controles de zoom">
         <button type="button" className="mobile-zoom-button" aria-label="Aproximar a câmera" onClick={() => gameRef.current?.zoomCameraBy(-2)}>+</button>
         <button type="button" className="mobile-zoom-button" aria-label="Afastar a câmera" onClick={() => gameRef.current?.zoomCameraBy(2)}>−</button>
       </div>
-      <div className="mobile-action-stack">
-        {state.nearbyAction && <button type="button" className="mobile-action-button" aria-label={interactionLabel} onClick={() => gameRef.current?.performNearbyAction()}>{mobileActionLabel}</button>}
-        <button type="button" aria-label="Pular" className="mobile-action-button mobile-action-button--jump"
-          onPointerDown={() => gameRef.current?.setMobileJump(true)}
-          onPointerUp={() => gameRef.current?.setMobileJump(false)}
-          onPointerCancel={() => gameRef.current?.setMobileJump(false)}
-          onPointerLeave={() => gameRef.current?.setMobileJump(false)}>PULAR</button>
-      </div>
+      <div className="mobile-action-stack"><button type="button" className="mobile-action-button" disabled={!state.nearbyAction} aria-label={state.nearbyAction ? interactionLabel : "Aproxime-se de um objetivo para executar uma ação"} onClick={() => { if (state.nearbyAction) gameRef.current?.performNearbyAction(); }}><strong>{state.nearbyAction ? mobileActionLabel : "AÇÃO"}</strong><small>{state.nearbyAction ? "DISPONÍVEL" : "APROXIME-SE"}</small></button></div>
     </div>}
 
     <div className="vehicle-status">{state.phase === 5 ? 'ZONA COSTEIRA · EXPLORAÇÃO A PÉ' : state.phase === 4 ? (state.forestTruckLoaded && !state.forestMarketStocked ? 'LOGÍSTICA RURAL · CAMINHÃO DE PRODUÇÃO' : 'RESERVA FLORESTAL · EXPLORAÇÃO A PÉ') : state.phase === 3 ? 'PERIFERIA VERDE · EXPLORAÇÃO A PÉ' : state.phase === 2
@@ -724,7 +744,7 @@ export default function GameExperience({ userId, campaignId, campaignCurrentPhas
     </div>
 
     <button className="plan-button" onClick={() => setShowPlan(true)}>PLANO URBANO</button>
-    <button className="map-button" onClick={() => { setMapTab('objectives'); gameRef.current?.setMapOpen(!state.mapOpen); }}>M · MAPA DE OBJETIVOS</button>
+    <button className="map-button" onClick={() => { setMapTab('objectives'); gameRef.current?.setMapOpen(!state.mapOpen); }}><span className="desktop-only">M · MAPA DE OBJETIVOS</span><span className="mobile-only">OBJETIVOS</span></button>
     <div className="bottom-left"><span className="dot" /> {replayMode ? "REPLAY DA FASE · PROGRESSO ORIGINAL PRESERVADO" : "CAMPANHA INDIVIDUAL · PROGRESSO SALVO"}</div>
 
     <div className="controls">
