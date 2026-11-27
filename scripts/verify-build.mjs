@@ -3,7 +3,7 @@ import { join } from 'node:path';
 const dist=new URL('../dist/',import.meta.url).pathname;
 if(!existsSync(join(dist,'index.html')))throw new Error('dist/index.html não foi gerado.');
 const assets=readdirSync(join(dist,'assets'));
-const main=assets.find(f=>/^index-.*\\.js$/.test(f)),css=assets.find(f=>/^index-.*\\.css$/.test(f)),game=assets.find(f=>/^Game-.*\\.js$/.test(f));
+const main=assets.find(f=>/^index-.*\.js$/.test(f)),css=assets.find(f=>/^index-.*\.css$/.test(f)),game=assets.find(f=>/^Game-.*\.js$/.test(f));
 if(!main||!css||!game)throw new Error('Bundles principal, CSS e motor 3D são obrigatórios.');
 if(statSync(join(dist,'assets',game)).size<1024*1024)throw new Error('Chunk 3D inesperadamente pequeno.');
 for(const name of ['personagem.glb.gz','arvore.glb.gz','edificio.glb.gz','carro_eletrico.glb.gz','caminhao_coleta.glb.gz'])if(!existsSync(join(dist,'models',name))||statSync(join(dist,'models',name)).size<512)throw new Error('Modelo 3D ausente: '+name);
