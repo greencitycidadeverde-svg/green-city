@@ -5,3 +5,6 @@ dist
 !.env.example
 .vercel
 .DS_Store
+
+# Procedural assets are generated during the build.
+public/models/*.glb.gz

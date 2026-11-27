@@ -44,6 +44,8 @@ type AccountData = {
   phases: PhaseRow[];
 };
 
+type LearningJournalEntry = { id: string; phase_number: number; entry_type: 'field_note' | 'diagnosis' | 'decision' | 'learning_report' | 'reflection'; title: string; content: Record<string, unknown>; created_at: string };
+
 type AdminUser = ProfileRow;
 
 const getAuthRedirectOrigin = (): string => import.meta.env.PROD
@@ -78,6 +80,10 @@ function AuthenticatedApp() {
   const [accountLoading, setAccountLoading] = useState(false);
   const [account, setAccount] = useState<AccountData | null>(null);
   const [accountError, setAccountError] = useState('');
+  const [journalOpen, setJournalOpen] = useState(false);
+  const [journalLoading, setJournalLoading] = useState(false);
+  const [journalError, setJournalError] = useState('');
+  const [journalEntries, setJournalEntries] = useState<LearningJournalEntry[]>([]);
   const [activePhase, setActivePhase] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [activeReplayMode, setActiveReplayMode] = useState(false);
   const [gameSessionKey, setGameSessionKey] = useState(0);
@@ -174,6 +180,21 @@ function AuthenticatedApp() {
       setAccountLoading(false);
     }
   }, []);
+
+  const openLearningJournal = async () => {
+    if (!supabase || !account?.campaign.id) return;
+    setJournalOpen(true); setJournalLoading(true); setJournalError('');
+    try {
+      const { data, error } = await supabase.from('learning_journal')
+        .select('id,phase_number,entry_type,title,content,created_at')
+        .eq('campaign_id', account.campaign.id).order('created_at', { ascending: false }).limit(100);
+      if (error) throw error;
+      setJournalEntries((data ?? []) as LearningJournalEntry[]);
+    } catch (error) {
+      setJournalEntries([]);
+      setJournalError(error instanceof Error ? error.message : 'Não foi possível carregar o Caderno de Aprendizado.');
+    } finally { setJournalLoading(false); }
+  };
 
   useEffect(() => {
     if (!session?.user.id) {
@@ -523,6 +544,8 @@ function AuthenticatedApp() {
       userId={account.profile.id}
       campaignId={account.campaign.id}
       initialPhase={activePhase}
+      campaignCurrentPhase={account.campaign.current_phase}
+      campaignHighestUnlockedPhase={account.campaign.highest_unlocked_phase}
       savedProgress={activeProgress}
       isMaster={account.profile.role === 'master_admin'}
       replayMode={activeReplayMode}
@@ -649,10 +672,18 @@ function AuthenticatedApp() {
 
     <section className="campaign-footer-actions">
       <div><b>CADERNO DE APRENDIZADO</b><span>Seus registros acompanham cada fase e cada descoberta.</span></div>
-      <button type="button" className="campaign-journal-button" onClick={() => setMessage('O Caderno de Aprendizado será aberto na próxima entrega do painel.')}>VER MEU CADERNO</button>
+      <button type="button" className="campaign-journal-button" onClick={() => void openLearningJournal()}>VER MEU CADERNO</button>
       {studentTeamInvite && account.profile.role === 'user' && <button type="button" className="campaign-share-button" onClick={() => void shareInviteLink(studentTeamInvite.url, studentTeamInvite.teamName, 'student')}>COMPARTILHAR LINK DA EQUIPE</button>}
       {['admin', 'master_admin'].includes(account.profile.role) && <button type="button" className="campaign-admin-button" onClick={() => setAdminPanelOpen((open) => !open)}>{adminPanelOpen ? 'FECHAR PAINEL' : account.profile.role === 'master_admin' ? 'PAINEL MASTER' : 'MINHA EQUIPE'}</button>}
     </section>
+    {journalOpen && <section className="learning-journal-panel" aria-label="Caderno de Aprendizado">
+      <div className="learning-journal-heading"><div><div className="campaign-eyebrow">REGISTROS DA SUA CAMPANHA</div><h2>Caderno de Aprendizado</h2><p>Relatórios, descobertas e reflexões guardados ao concluir cada região.</p></div><button type="button" className="campaign-journal-button" onClick={() => setJournalOpen(false)}>FECHAR CADERNO</button></div>
+      {journalLoading ? <div className="learning-journal-empty">Carregando seus registros...</div> : journalError ? <div className="learning-journal-error" role="alert">Não foi possível abrir os registros. {journalError}</div> : journalEntries.length === 0 ? <div className="learning-journal-empty">Seu caderno ainda não tem relatórios. Conclua os objetivos de uma região para registrar o que aprendeu.</div> : <div className="learning-journal-list">
+        {journalEntries.map((entry) => <article className="learning-journal-entry" key={entry.id}><div className="learning-journal-entry-meta"><span>FASE {String(entry.phase_number).padStart(2,'0')}</span><time dateTime={entry.created_at}>{new Intl.DateTimeFormat('pt-BR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(entry.created_at))}</time></div><h3>{entry.title}</h3><div className="learning-journal-entry-type">{entry.entry_type==='learning_report'?'RELATÓRIO DE APRENDIZADO':entry.entry_type.replaceAll('_',' ').toUpperCase()}</div>
+          {Object.entries(entry.content ?? {}).map(([key,value]) => {const labels:Record<string,string>={problem:'O desafio observado',solution:'Ações realizadas',result:'Resultado',reflection:'Para refletir'};const readable=typeof value==='string'?value:JSON.stringify(value);return <div className="learning-journal-detail" key={key}><strong>{labels[key]??key.replaceAll('_',' ')}</strong><p>{readable}</p></div>;})}
+        </article>)}
+      </div>}
+    </section>}
     {studentTeamInvite && account.profile.role === 'user' && <div className="student-team-share">
       <div><strong>{studentTeamInvite.teamName}</strong><span>Você está vinculado a esta equipe. Compartilhe o convite para que seus colegas entrem no mesmo grupo.</span><code>{studentTeamInvite.url}</code>{studentShareMessage && <small>{studentShareMessage}</small>}</div>
       <button type="button" onClick={() => void shareInviteLink(studentTeamInvite.url, studentTeamInvite.teamName, 'student')}>COMPARTILHAR CONVITE</button>

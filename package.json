@@ -1,13 +1,14 @@
 {
   "name": "green-city-mvp",
   "private": true,
-  "version": "0.4.28",
+  "version": "0.4.29",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "node scripts/generate-models.mjs && tsc -b && vite build",
+    "build": "node scripts/generate-models.mjs && tsc -b && vite build && node scripts/verify-build.mjs",
     "preview": "vite preview --host 0.0.0.0",
-    "typecheck": "tsc -b --pretty"
+    "typecheck": "tsc -b --pretty",
+    "test": "node scripts/verify-build.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "8.28.0",

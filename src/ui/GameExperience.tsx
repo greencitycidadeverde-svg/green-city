@@ -97,6 +97,8 @@ function Metric({ label, value }: { label: string; value: number }) {
 interface GameExperienceProps {
   userId: string;
   campaignId: string;
+  campaignCurrentPhase: number;
+  campaignHighestUnlockedPhase: number;
   initialPhase: 1 | 2 | 3 | 4 | 5;
   savedProgress: Partial<GameProgressData>;
   isMaster: boolean;
@@ -107,7 +109,7 @@ interface GameExperienceProps {
   onExitToCampaign: () => void;
 }
 
-export default function GameExperience({ userId, campaignId, initialPhase, savedProgress, isMaster, replayMode, onConfigurePhase, onReplayPhase, onOpenPhase, onExitToCampaign }: GameExperienceProps) {
+export default function GameExperience({ userId, campaignId, campaignCurrentPhase, campaignHighestUnlockedPhase, initialPhase, savedProgress, isMaster, replayMode, onConfigurePhase, onReplayPhase, onOpenPhase, onExitToCampaign }: GameExperienceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GreenCityGame | null>(null);
   const [state, setState] = useState(initial);
@@ -131,6 +133,11 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   const [mapTab, setMapTab] = useState<'objectives' | 'city'>('objectives');
   const [gameReady, setGameReady] = useState(false);
   const [gameError, setGameError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState('');
+  const saveFailedRef = useRef(false);
+  const saveSequenceRef = useRef(0);
+  const latestSnapshotRef = useRef<GameSnapshot | null>(null);
   const [playRequested, setPlayRequested] = useState(true);
   const [phaseCompleteSeen, setPhaseCompleteSeen] = useState(false);
   const [portCompleteSeen, setPortCompleteSeen] = useState(false);
@@ -181,6 +188,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
   const persistSnapshot = (snapshot: GameSnapshot) => {
     const client = supabase;
     if (replayMode || isHydratingRef.current || !client || !userId || !campaignId) return;
+    latestSnapshotRef.current = snapshot;
     const complete = snapshot.phase === 1
       ? snapshot.missionStage === 'complete'
       : snapshot.phase === 2
@@ -240,8 +248,15 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     const signature = JSON.stringify([snapshot.phase, snapshot.progressData, percent]);
     if (lastPersistedSnapshotRef.current === signature) return;
     lastPersistedSnapshotRef.current = signature;
-
-    pendingSaveRef.current = pendingSaveRef.current.then(async () => {
+    const saveAttempt = ++saveSequenceRef.current;
+    saveFailedRef.current = false;
+    setSaveStatus('saving');
+    setSaveError('');
+    pendingSaveRef.current = pendingSaveRef.current.catch(() => undefined).then(async () => {
+      const { data: previousProgress, error: previousProgressError } = await client.from('phase_progress')
+        .select('started_at,completed_at').eq('campaign_id', campaignId).eq('phase_number', snapshot.phase).maybeSingle();
+      if (previousProgressError) throw previousProgressError;
+      const savedAt = new Date().toISOString();
       const { error } = await client.from('phase_progress').upsert({
         campaign_id: campaignId,
         user_id: userId,
@@ -251,15 +266,15 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
         progress_percent: percent,
         score: snapshot.cit,
         objective_state: snapshot.progressData,
-        started_at: new Date().toISOString(),
-        completed_at: complete ? new Date().toISOString() : null,
+        started_at: previousProgress?.started_at ?? savedAt,
+        completed_at: complete ? previousProgress?.completed_at ?? savedAt : previousProgress?.completed_at ?? null,
       }, { onConflict: 'campaign_id,phase_number' });
       if (error) throw error;
 
       const nextPhase = Math.min(10, snapshot.phase + (complete ? 1 : 0));
       const { error: campaignError } = await client.from('campaigns').update({
-        current_phase: nextPhase,
-        highest_unlocked_phase: Math.max(snapshot.phase, nextPhase),
+        current_phase: Math.max(campaignCurrentPhase, nextPhase),
+        highest_unlocked_phase: Math.max(campaignHighestUnlockedPhase, snapshot.phase, nextPhase),
         knowledge_points: snapshot.cit,
       }).eq('id', campaignId);
       if (campaignError) throw campaignError;
@@ -334,10 +349,21 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
           if (insertError) throw insertError;
         }
       }
+      if (saveAttempt === saveSequenceRef.current) { saveFailedRef.current = false; setSaveStatus('saved'); setSaveError(''); }
     }).catch((error: unknown) => {
       console.error('Falha ao salvar o progresso GREEN CITY:', error);
-      lastPersistedSnapshotRef.current = '';
+      if (saveAttempt === saveSequenceRef.current) {
+        saveFailedRef.current = true; setSaveStatus('error');
+        setSaveError(error instanceof Error ? error.message : 'Erro desconhecido ao salvar.');
+        lastPersistedSnapshotRef.current = '';
+      }
     });
+  };
+  const retrySave = () => {
+    const snapshot = gameRef.current?.getSnapshot() ?? latestSnapshotRef.current;
+    if (!snapshot) return;
+    lastPersistedSnapshotRef.current = '';
+    persistSnapshot(snapshot);
   };
 
   useEffect(() => {
@@ -416,6 +442,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     const snapshot = gameRef.current?.getSnapshot();
     if (snapshot) persistSnapshot(snapshot);
     await pendingSaveRef.current;
+    if (saveFailedRef.current) { setSaveStatus('error'); return; }
     onExitToCampaign();
   };
 
@@ -423,6 +450,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     const snapshot = gameRef.current?.getSnapshot();
     if (snapshot) persistSnapshot(snapshot);
     await pendingSaveRef.current;
+    if (saveFailedRef.current) { setSaveStatus('error'); return; }
     onOpenPhase(phase);
   };
 
@@ -430,6 +458,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     const snapshot = gameRef.current?.getSnapshot();
     if (snapshot) persistSnapshot(snapshot);
     await pendingSaveRef.current;
+    if (saveFailedRef.current) { setSaveStatus('error'); return; }
     onReplayPhase(phase);
   };
 
@@ -631,6 +660,9 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
     </aside>}
 
     <div className="status-message">{state.message}</div>
+    {gameReady && !replayMode && saveStatus !== 'idle' && <div className={"game-save-status game-save-status--" + saveStatus} role={saveStatus === 'error' ? 'alert' : 'status'}>
+      {saveStatus === 'saving' ? <><span className="game-save-status__dot" />SALVANDO PROGRESSO...</> : saveStatus === 'saved' ? <><span className="game-save-status__dot" />PROGRESSO SALVO</> : <><span>NÃO FOI POSSÍVEL SALVAR SEU PROGRESSO.</span><button type="button" onClick={retrySave}>TENTAR NOVAMENTE</button>{saveError && <small>{saveError}</small>}</>}
+    </div>}
     {gameReady && state.nearbyAction && <button
       className="interaction-prompt"
       onClick={() => gameRef.current?.performNearbyAction()}
@@ -855,6 +887,7 @@ export default function GameExperience({ userId, campaignId, initialPhase, saved
                 key={neighborhood.id} disabled={!canOpen && !canConfigure}
                 onClick={() => {
                   if (canConfigure) void openMasterPhaseConfig(index + 1);
+                  else if (canReplayCompleted) void handleReplayPhase((index + 1) as 1 | 2 | 3 | 4 | 5);
                   else if (canOpen) void handleOpenPhase((index + 1) as 1 | 2 | 3 | 4 | 5);
                 }}>
                 <div className="district-card-top"><span>FASE {String(index + 1).padStart(2, '0')}</span><b>{status}</b></div>

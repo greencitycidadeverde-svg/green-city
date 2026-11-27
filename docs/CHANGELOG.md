@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.29 — estabilidade do salvamento e Caderno de Aprendizado
+- Incluído lockfile npm v3, pipeline CI e smoke test dos bundles e cinco modelos GLB; compilação padronizada para Node.js 22.
+- O jogo informa quando está salvando, quando gravou e quando falhou; oferece nova tentativa e bloqueia saída/troca de fase enquanto houver salvamento pendente com erro.
+- Datas originais de início e conclusão são preservadas; abrir uma região anterior não reduz a fase atual nem o maior desbloqueio.
+- Regiões concluídas abertas pelo mapa entram em replay sem sobrescrever o progresso oficial.
+- O Caderno de Aprendizado consulta e apresenta os relatórios gravados para a campanha.
+
+# Changelog
+
 ## 0.4.28 — Fase 05: Zona Costeira e replay das fases concluídas
 - Construído cenário 3D costeiro próprio com bacia hidrográfica, estuário, mar, praia, faixas de manguezal, centro costeiro, laboratório, píer e barco de pesca artesanal.
 - Missão costeira em etapas: investigar três trechos conectados da bacia, recolher quatro resíduos comuns seguros e identificados, separar papelão/plástico/vidro/metal nas cores de referência, registrar três pontos de restauração de manguezal, observar fauna à distância e registrar um ponto de monitoramento da água.
